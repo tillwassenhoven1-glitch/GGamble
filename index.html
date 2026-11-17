@@ -1409,6 +1409,7 @@ function openSlotList() {
 /* ================= Automat spielen ================= */
 const STAKE_G = 1.31; // Höchsteinsatz: Level 10 ≈ 114 €, Level 20 ≈ 1.700 €, Level 30 ≈ 25.000 €
 const maxStake = () => 10 * Math.pow(STAKE_G, S.level - 1);
+const maxBtnStake = () => Math.max(0, Math.min(S.bal, maxStake(), S.potAct ? potCap() : Infinity)); // „Max“-Knopf: mit Trank nur bis zur Trank-Grenze
 const STAKES = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1e6, 2.5e6, 1e7];
 let MS = null; // Maschinen-Session
 /* Freispiele nach Absturz / Neuladen fortsetzen */
@@ -1454,9 +1455,10 @@ function openMachine(i) {
     $('#mBal', f).textContent = fmt(bal); $('#mBal', f).classList.toggle('neg', bal < 0);
     $('#mHere', f).textContent = (Math.abs(here) < .005 ? '±' + fmt(0) : fmt(here, { sign: true })) + ' hier';
     $('#mNote', f).textContent = S.note > 0 ? `Schuldschein ${fmt(S.note)}` : '';
-    $('#mStake', f).textContent = MS.allIn ? 'MAX ' + fmt(Math.max(0, Math.min(S.bal, maxStake()))) : fmt(STAKES[S.stakeI]);
-    $('#ledC', f).textContent = NF2.format(bal).replace(/\./g, ''); $('#ledB', f).textContent = NF2.format(MS.allIn ? Math.max(0, Math.min(S.bal, maxStake())) : STAKES[S.stakeI]);
-    $('#mLuck', f).classList.toggle('on', !!S.potAct); $('#mLuck', f).innerHTML = icon('spark') + (S.potAct ? ` ×${S.potAct.m} · ${S.potAct.left}` : ' Glück');
+    $('#mStake', f).textContent = MS.allIn ? 'MAX ' + fmt(maxBtnStake()) : fmt(STAKES[S.stakeI]);
+    $('#ledC', f).textContent = NF2.format(bal).replace(/\./g, ''); $('#ledB', f).textContent = NF2.format(MS.allIn ? maxBtnStake() : STAKES[S.stakeI]);
+    $('#mLuck', f).classList.toggle('on', !!S.potAct); const potOff = S.potAct && (MS.allIn ? maxBtnStake() : STAKES[S.stakeI]) > potCap() + 1e-9;
+    $('#mLuck', f).innerHTML = icon('spark') + (S.potAct ? ` ×${S.potAct.m} · ${S.potAct.left}${potOff ? ' ⚠️' : ''}` : ' Glück');
     $('#mAll', f).classList.toggle('on', MS.allIn);
     const jv = $('#jpV', f); if (jv) jv.textContent = fmt(S.jp[m.jp]);
   };
@@ -1486,7 +1488,7 @@ async function doSpin() {
   const m = MS.m, free = MS.fs > 0;
   let stake = free ? MS.fsStake : STAKES[S.stakeI];
   const allIn = !free && MS.allIn;
-  if (allIn) { stake = r2(Math.min(S.bal, maxStake())); if (stake <= 0) { toast('Max-Einsatz geht nur mit Guthaben im Plus.', 'bad'); SND.err(); return; } }
+  if (allIn) { stake = r2(maxBtnStake()); if (stake <= 0) { toast('Max-Einsatz geht nur mit Guthaben im Plus.', 'bad'); SND.err(); return; } }
   const shown = { bal: S.bal, here: MS.here };
   MS.busy = true;
   if (!free) { if (!bet(stake, m.n)) { MS.busy = false; HOLD = []; return; } MS.here = r2(MS.here - stake); S.st.spins++; taskProg('spins', 1); }
@@ -1496,8 +1498,8 @@ async function doSpin() {
   // Jackpot-Pool wächst
   if (m.t === 'j' && !free) S.jp[m.jp] = r2(S.jp[m.jp] + stake * .02);
   // Ergebnis (mit Glückstrank: bestes aus N)
-  let rolls = 1; const usePot = S.potAct && !allIn && stake <= potCap();
-  if (S.potAct && !allIn && !usePot && !MS.capWarned) { MS.capWarned = true; toast(`Glückstrank wirkt nur bis ${fmt(potCap())} Einsatz`); }
+  let rolls = 1; const usePot = S.potAct && stake <= potCap() + 1e-9;
+  if (S.potAct && !usePot) toast(`⚠️ Trank wirkt nicht: Einsatz über ${fmt(potCap())}. Nimm einen kleineren Einsatz oder „Max“.`, 'bad', 2600);
   if (usePot) { rolls = S.potAct.m; S.potAct.left--; S.st.potUse = (S.st.potUse || 0) + 1; }
   let best = null;
   for (let k = 0; k < rolls; k++) {
@@ -1655,7 +1657,7 @@ function showWins(wins) {
 /* ================= Glückstränke wählen ================= */
 function openPotions(cb) {
   const o = sheet(`<div class="row sb"><h2>Glückstränke</h2><button class="x" data-close>${icon('x')}</button></div>
-    <p class="hint">${S.potAct ? `Aktiv: <b>×${S.potAct.m}</b> – noch ${S.potAct.left} Runden.` : `Ein Trank würfelt Drehs und Lose mehrmals – du bekommst das beste Ergebnis. Wirkt nur bis ${fmt(potCap())} Einsatz, nicht beim Max-Einsatz-Knopf.`}</p>
+    <p class="hint">${S.potAct ? `Aktiv: <b>×${S.potAct.m}</b> – noch ${S.potAct.left} Runden.` : `Ein Trank würfelt Drehs und Lose mehrmals – du bekommst das beste Ergebnis. Wirkt nur bis ${fmt(potCap())} Einsatz – der „Max“-Knopf setzt mit Trank automatisch genau so viel.`}</p>
     ${potionsHTML()}<button class="btn dark w" style="margin-top:16px" id="toLab">Zum Glückslabor</button>`);
   bindPotions(o, () => { o.close(); cb && cb(); });
   $('#toLab', o).onclick = () => { o.close(); if (MS) { MS.f.remove(); MS = null; } document.body.classList.remove('inmach'); go('spiele'); };
