@@ -1437,7 +1437,7 @@ function openMachine(i) {
       <div class="g"><small>Guthaben</small><b id="mBal" class="num"></b><em id="mHere" class="num">±0,00 € hier</em><em id="mNote" class="num neg" style="display:block"></em></div>
       <div class="stake"><button class="rb" id="sMinus">−</button><div class="sv"><small>Einsatz</small><b id="mStake" class="num"></b></div><button class="rb" id="sPlus">+</button></div>
     </div>
-    <div class="side"><button id="mLuck">${icon('spark')} Glück</button><button class="allin" id="mAll">${icon('flame')} All-In</button></div>
+    <div class="side"><button id="mLuck">${icon('spark')} Glück</button><button class="allin" id="mAll">${icon('flame')} Max</button></div>
     <button class="btn white w" id="spinBtn">Drehen</button>
   </div>`;
   document.body.appendChild(f);
@@ -1454,7 +1454,7 @@ function openMachine(i) {
     $('#mBal', f).textContent = fmt(bal); $('#mBal', f).classList.toggle('neg', bal < 0);
     $('#mHere', f).textContent = (Math.abs(here) < .005 ? '±' + fmt(0) : fmt(here, { sign: true })) + ' hier';
     $('#mNote', f).textContent = S.note > 0 ? `Schuldschein ${fmt(S.note)}` : '';
-    $('#mStake', f).textContent = MS.allIn ? 'ALL-IN' : fmt(STAKES[S.stakeI]);
+    $('#mStake', f).textContent = MS.allIn ? 'MAX ' + fmt(Math.max(0, Math.min(S.bal, maxStake()))) : fmt(STAKES[S.stakeI]);
     $('#ledC', f).textContent = NF2.format(bal).replace(/\./g, ''); $('#ledB', f).textContent = NF2.format(MS.allIn ? Math.max(0, Math.min(S.bal, maxStake())) : STAKES[S.stakeI]);
     $('#mLuck', f).classList.toggle('on', !!S.potAct); $('#mLuck', f).innerHTML = icon('spark') + (S.potAct ? ` ×${S.potAct.m} · ${S.potAct.left}` : ' Glück');
     $('#mAll', f).classList.toggle('on', MS.allIn);
@@ -1486,7 +1486,7 @@ async function doSpin() {
   const m = MS.m, free = MS.fs > 0;
   let stake = free ? MS.fsStake : STAKES[S.stakeI];
   const allIn = !free && MS.allIn;
-  if (allIn) { stake = r2(Math.min(S.bal, maxStake())); if (stake <= 0) { toast('All-In geht nur mit Guthaben im Plus.', 'bad'); SND.err(); return; } }
+  if (allIn) { stake = r2(Math.min(S.bal, maxStake())); if (stake <= 0) { toast('Max-Einsatz geht nur mit Guthaben im Plus.', 'bad'); SND.err(); return; } }
   const shown = { bal: S.bal, here: MS.here };
   MS.busy = true;
   if (!free) { if (!bet(stake, m.n)) { MS.busy = false; HOLD = []; return; } MS.here = r2(MS.here - stake); S.st.spins++; taskProg('spins', 1); }
@@ -1655,7 +1655,7 @@ function showWins(wins) {
 /* ================= Glückstränke wählen ================= */
 function openPotions(cb) {
   const o = sheet(`<div class="row sb"><h2>Glückstränke</h2><button class="x" data-close>${icon('x')}</button></div>
-    <p class="hint">${S.potAct ? `Aktiv: <b>×${S.potAct.m}</b> – noch ${S.potAct.left} Runden.` : `Ein Trank würfelt Drehs und Lose mehrmals – du bekommst das beste Ergebnis. Wirkt nur bis ${fmt(potCap())} Einsatz, nicht bei All-In.`}</p>
+    <p class="hint">${S.potAct ? `Aktiv: <b>×${S.potAct.m}</b> – noch ${S.potAct.left} Runden.` : `Ein Trank würfelt Drehs und Lose mehrmals – du bekommst das beste Ergebnis. Wirkt nur bis ${fmt(potCap())} Einsatz, nicht beim Max-Einsatz-Knopf.`}</p>
     ${potionsHTML()}<button class="btn dark w" style="margin-top:16px" id="toLab">Zum Glückslabor</button>`);
   bindPotions(o, () => { o.close(); cb && cb(); });
   $('#toLab', o).onclick = () => { o.close(); if (MS) { MS.f.remove(); MS = null; } document.body.classList.remove('inmach'); go('spiele'); };
@@ -2332,7 +2332,7 @@ function renderSpiele(el) {
    <div class="card"><div class="row sb"><h3 style="font-size:24px">Diese Woche</h3><span class="chip ${S.tasks.week.bonus ? 'gold' : ''}">${S.tasks.week.bonus ? '✓' : 'Alle 3:'} +2 ⚡</span></div>${tasksHTML(S.tasks.week)}</div>
    <div class="sec">Glückstränke ${S.potAct ? `<small class="goldc">×${S.potAct.m} aktiv · noch ${S.potAct.left} Runden</small>` : ''}</div>
    <div class="card" id="potCard">${potionsHTML()}
-     <p style="font-size:19px;line-height:1.45;margin:20px 4px 10px">Ein Glückstrank lässt Drehs am Automaten und Rubbellose mehrmals würfeln – du bekommst das beste Ergebnis. ×2 wirkt 10 Runden, ×4 6 Runden, ×6 4 Runden – und nur bis ${fmt(potCap())} Einsatz. Bei All-In wirkt er nicht.</p>
+     <p style="font-size:19px;line-height:1.45;margin:20px 4px 10px">Ein Glückstrank lässt Drehs am Automaten und Rubbellose mehrmals würfeln – du bekommst das beste Ergebnis. ×2 wirkt 10 Runden, ×4 6 Runden, ×6 4 Runden – und nur bis ${fmt(potCap())} Einsatz. Beim Max-Einsatz-Knopf wirkt er nicht.</p>
      <p class="hint" style="font-size:17px">Brauen ist schwer: Stopp den Regler im grünen Bereich – 6 Treffer für ×2, 8 für ×4, 10 für ×6. Bester Lauf bisher: ${S.brewBest}.</p>
      <button class="btn white w" id="lab" style="font-size:22px">${icon('spark')} Glückslabor · 2 Energie</button></div>
    <div class="sec">Geld verdienen</div>
@@ -3277,7 +3277,7 @@ function startApp(key) {
     const keep = { name: S.name, disp: S.disp, photo: S.photo, color: S.color, lbId: S.lbId, owner: S.owner, cheat: S.cheat, set: S.set, clan: S.clan };
     S = Object.assign(newState(all[key].name), keep); all[key].save = S; all[key].ts = Date.now(); Accounts.put(all);
     setTimeout(() => { try { cloudLast = ''; cloudPush(true); lbLast = ''; pushScore(true); } catch (e) { } }, 2500);
-    setTimeout(() => sheet(`<h2>🔄 Neustart!</h2><p class="hint" style="font-size:18px">Alle Konten wurden zurückgesetzt – jeder startet wieder mit ${fmt(500)}. Die Spielhalle hat neue, fairere Regeln: All-In ist begrenzt, Level steigen langsamer und die Börse hat höchstens Hebel 1:20.<br><br>Name, Passwort, Profilbild und Clan bleiben. Viel Glück! 🍀</p><button class="btn white w" data-close>Los geht's</button>`, { center: true }), 600);
+    setTimeout(() => sheet(`<h2>🔄 Neustart!</h2><p class="hint" style="font-size:18px">Alle Konten wurden zurückgesetzt – jeder startet wieder mit ${fmt(500)}. Die Spielhalle hat neue, fairere Regeln: All-In heißt jetzt „Max“ und setzt höchstens deinen Level-Höchsteinsatz, Level steigen langsamer und die Börse hat höchstens Hebel 1:20.<br><br>Name, Passwort, Profilbild und Clan bleiben. Viel Glück! 🍀</p><button class="btn white w" data-close>Los geht's</button>`, { center: true }), 600);
   }
   S.st = Object.assign(newState('').st, S.st); S.bx = Object.assign(newState('').bx, S.bx); S.set = Object.assign({ snd: true, vib: true }, S.set);
   const away = Date.now() - (all[key].ts || Date.now());
