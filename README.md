@@ -29,7 +29,7 @@ Version 0.1.5 · Open Beta
 - 🍒 **Halle** – 26 realistische Automaten mit Hebel, Lauflichtern und Gewinnlinien-Anzeige – am Anfang ist nur einer frei, die anderen schaltest du mit höherem Level frei: Klassiker mit 5 Linien, Video-Slots mit 5 Walzen, 10 Linien, Wilds und Freispielen (Gewinne ×2) sowie Mini-, Major- und Grand-Jackpots
 - 🎟️ **Lose** – 8 Rubbellose von 1 € bis 250.000 € (Hauptgewinn bis 2,5 Mrd. €) – einfach mit dem Finger übers ganze Los wischen!
 - 🏆 **Wetten** – GG Liga mit 18 Teams: alle 5 Minuten ein neuer Spieltag, Live-Ticker, Kombiwetten, Über/Unter und „Beide treffen“
-- 📊 **Börse** – läuft auch offline weiter (Stop Loss, Take Profit, Orders) – 5 erfundene Märkte (XRZ-Coin, Döner AG, Kiosk-Kette, Gold, GG/EUR) mit Kerzen-Chart, Long/Short, Hebel bis 1:100, Stop Loss, Take Profit, Limit- und Stop-Orders
+- 📊 **Börse** – läuft auch offline weiter (Stop Loss, Take Profit, Orders) – 5 erfundene Märkte (XRZ-Coin, Döner AG, Kiosk-Kette, Gold, GG/EUR) mit Kerzen-Chart, Long/Short, Hebel bis 1:20, Stop Loss, Take Profit, Limit- und Stop-Orders
 - 🎲 **Spiele** – Hütchenspiel, Kassensturz, Pfandflaschen und Inventur (10 Energie, alle 5 Min. +1 – auch offline; nur wer alle Aufgaben schafft, bekommt extra Energie), Tages- und Wochenaufgaben, das **Glückslabor** und dein **Imperium** aus 8 Geschäften, die auch offline Geld bringen
 - 🚀 **Crash** – der Multiplikator steigt, steig aus, bevor die Rakete explodiert (mit Auto-Aussteigen)
 - 🎟️ **Battle Pass** – jeden Monat eine neue Saison mit 30 Stufen: Geld, Tränke, Energie, Rahmen und Titel
@@ -37,7 +37,7 @@ Version 0.1.5 · Open Beta
 - 🏢 **Clans** – gründe einen Clan oder tritt einem bei: gemeinsamer Kontostand und eigene Clan-Bestenliste
 - 💬 **Lobby-Chat** für alle Spieler und 📣 **Live-Feed** mit den größten Gewinnen
 - 🧪 **Glückstränke** – ×2, ×4 oder ×6: Jeder Dreh und jedes Los wird mehrmals gewürfelt, du bekommst das beste Ergebnis
-- 🥇 **Rang** – Online-Bestenliste: Top 10 aller echten Spieler mit Podest
+- 🥇 **Rang** – Online-Bestenliste: Top 10 aller echten Spieler mit Podest, dazu eine **Wochen-Bestenliste** (startet jeden Montag neu)
 - 📹 **Treff** – Video-Räume mit Chat und Kamera-Filtern, die weiterlaufen, während du spielst – plus 💣 **Minenfeld-Duell**: fordere andere mit Einsatz heraus, wer die Bombe findet, verliert und zahlt
 
 ## Features
@@ -72,7 +72,7 @@ service cloud.firestore {
     }
     match /rang/{id} {
       function ok() {
-        return request.resource.data.keys().hasOnly(['name','disp','bal','level','color','ts','big','net','bxp','wag','since','best','ach','own','tit','frm','clan'])
+        return request.resource.data.keys().hasOnly(['name','disp','bal','level','color','ts','big','net','bxp','wag','since','best','ach','own','tit','frm','clan','wk','wkk'])
           && request.resource.data.bal is number
           && request.resource.data.bal < 1000000000000000;
       }

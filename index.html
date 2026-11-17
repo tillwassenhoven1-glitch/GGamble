@@ -1078,10 +1078,12 @@ const Accounts = {
   },
 };
 let S = null, ACC = null;
+/* 🔄 Großer Neustart: alle Konten starten neu (neue Wirtschaft). Zum erneuten Zurücksetzen RESET_EP ändern. */
+const RESET_EP = '2026-11-17-neustart', RESET_TS = Date.UTC(2026, 10, 17, 15, 5);
 function newState(name) {
   const now = Date.now();
   return {
-    v: 1, name, disp: name, color: 0, photo: '', created: now,
+    v: 1, ep: RESET_EP, name, disp: name, color: 0, photo: '', created: now,
     bal: 500, today: { d: dayKey(), v: 0 }, xp: 0, level: 1,
     st: { biggest: 0, net: 0, wagered: 0, rounds: 0, spins: 0, scratches: 0, bets: 0, betWins: 0, trades: 0, tradeProfit: 0, bestGame: '', shifts: 0, perfect: 0, jackpots: 0, maxMult: 0, maxBal: 500, bonusStreak: 0, brews: 0, potsDrunk: 0, combiWin: 0, inkasso: 0, insolv: 0, treff: 0, edits: 0 },
     favs: [], set: { snd: true, vib: true },
@@ -1090,7 +1092,7 @@ function newState(name) {
     bonus: { last: '', streak: 0 },
     note: 0, lastInt: now,
     jp: { mini: 500, major: 5000, grand: 50000 },
-    bx: { bal: 0, pos: [], ord: [], hist: [], lev: 50, sym: 'XRZ', tf: 'M5', id: 1, pnl: 0 },
+    bx: { bal: 0, pos: [], ord: [], hist: [], lev: 20, sym: 'XRZ', tf: 'M5', id: 1, pnl: 0 },
     bets: [], shops: {}, shopTs: now, ach: {}, tasks: null, lastSlot: 0,
   };
 }
@@ -1132,7 +1134,7 @@ function flushHold() { const q = HOLD; HOLD = []; q.forEach((fn, i) => setTimeou
 const DISPO = 180;
 const isLocked = () => S.bal < -DISPO;
 const base = () => r2(40 * Math.pow(1.13, S.level));
-const xpNeed = l => Math.round(100 * Math.pow(l, 1.8));
+const xpNeed = l => Math.round(200 * Math.pow(l, 1.8)); // doppelt so viel XP pro Level wie früher
 function touchToday() { if (S.today.d !== dayKey()) S.today = { d: dayKey(), v: 0 }; }
 function canPay(a) {
   if (isLocked()) { toast('Dein Konto ist gesperrt – hol dir Geld in den Minispielen oder verkauf die Schulden.', 'bad'); SND.err(); return false; }
@@ -1145,7 +1147,7 @@ function bet(a, game) {
   S.bal = r2(S.bal - a); touchToday(); S.today.v = r2(S.today.v - a);
   S.st.wagered += a; S.st.rounds++; S.st.net = r2(S.st.net - a);
   if (S.note > 0) { const rp = r2(Math.min(S.note, Math.max(.01, a * .1))); S.bal = r2(S.bal - rp); S.note = r2(S.note - rp); S.st.noteSpin = r2((S.st.noteSpin || 0) + rp); if (S.note <= 0.004) { S.note = 0; setTimeout(() => { toast('Schuldschein komplett abbezahlt! 🎉', 'good'); FX.burst(80); SND.win(); }, 500); } }
-  addXP(Math.min(a, 25 + S.level * 25)); bpAdd(1);
+  addXP(Math.min(a, 15 + S.level * 15)); bpAdd(1); wkAdd(-a);
   taskProg('wager', a); taskProg('rounds', 1);
   hdr(); checkAch(); save(); return true;
 }
@@ -1159,12 +1161,12 @@ function payout(a, game, stake) {
   if (a > S.st.biggest) { S.st.biggest = r2(a); S.st.bestGame = game; }
   if (stake) S.st.maxMult = Math.max(S.st.maxMult, a / stake);
   if (cut > 0) setTimeout(() => toast(`Inkasso Krause kassiert ${fmt(cut)} (40 %)`), 900);
-  afterMoney(); feedWin(a, game, stake); return got;
+  wkAdd(got); afterMoney(); feedWin(a, game, stake); return got;
 }
 /* Geld aus Minispielen, Bonus, Aufgaben, Geschäften */
 function earn(a, why) {
   if (a <= 0) return;
-  S.bal = r2(S.bal + a); touchToday(); S.today.v = r2(S.today.v + a);
+  S.bal = r2(S.bal + a); touchToday(); S.today.v = r2(S.today.v + a); wkAdd(a);
   afterMoney();
 }
 function afterMoney() { S.st.maxBal = Math.max(S.st.maxBal, S.bal); hdr(true); checkAch(); save(); }
@@ -1405,7 +1407,8 @@ function openSlotList() {
 }
 
 /* ================= Automat spielen ================= */
-const maxStake = () => 10 * Math.pow(1.45, S.level - 1);
+const STAKE_G = 1.31; // Höchsteinsatz: Level 10 ≈ 114 €, Level 20 ≈ 1.700 €, Level 30 ≈ 25.000 €
+const maxStake = () => 10 * Math.pow(STAKE_G, S.level - 1);
 const STAKES = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1e6, 2.5e6, 1e7];
 let MS = null; // Maschinen-Session
 /* Freispiele nach Absturz / Neuladen fortsetzen */
@@ -1452,14 +1455,14 @@ function openMachine(i) {
     $('#mHere', f).textContent = (Math.abs(here) < .005 ? '±' + fmt(0) : fmt(here, { sign: true })) + ' hier';
     $('#mNote', f).textContent = S.note > 0 ? `Schuldschein ${fmt(S.note)}` : '';
     $('#mStake', f).textContent = MS.allIn ? 'ALL-IN' : fmt(STAKES[S.stakeI]);
-    $('#ledC', f).textContent = NF2.format(bal).replace(/\./g, ''); $('#ledB', f).textContent = NF2.format(MS.allIn ? Math.max(0, S.bal) : STAKES[S.stakeI]);
+    $('#ledC', f).textContent = NF2.format(bal).replace(/\./g, ''); $('#ledB', f).textContent = NF2.format(MS.allIn ? Math.max(0, Math.min(S.bal, maxStake())) : STAKES[S.stakeI]);
     $('#mLuck', f).classList.toggle('on', !!S.potAct); $('#mLuck', f).innerHTML = icon('spark') + (S.potAct ? ` ×${S.potAct.m} · ${S.potAct.left}` : ' Glück');
     $('#mAll', f).classList.toggle('on', MS.allIn);
     const jv = $('#jpV', f); if (jv) jv.textContent = fmt(S.jp[m.jp]);
   };
   MS.upd = upd; upd();
   $('#sMinus', f).onclick = () => { if (MS.busy) return; MS.allIn = false; S.stakeI = Math.max(0, S.stakeI - 1); SND.click(); upd(); };
-  $('#sPlus', f).onclick = () => { if (MS.busy) return; MS.allIn = false; const n = Math.min(STAKES.length - 1, S.stakeI + 1); if (STAKES[n] > maxStake()) { let l = S.level; while (10 * Math.pow(1.45, l - 1) < STAKES[n]) l++; toast(`${fmt(STAKES[n])} Einsatz gibt's ab Level ${l}`); SND.err(); return; } S.stakeI = n; SND.click(); upd(); };
+  $('#sPlus', f).onclick = () => { if (MS.busy) return; MS.allIn = false; const n = Math.min(STAKES.length - 1, S.stakeI + 1); if (STAKES[n] > maxStake()) { let l = S.level; while (10 * Math.pow(STAKE_G, l - 1) < STAKES[n]) l++; toast(`${fmt(STAKES[n])} Einsatz gibt's ab Level ${l}`); SND.err(); return; } S.stakeI = n; SND.click(); upd(); };
   $('#mAll', f).onclick = () => { if (MS.busy) return; MS.allIn = !MS.allIn; SND.click(); upd(); };
   $('#mLuck', f).onclick = () => openPotions(upd);
   $('#mInfo', f).onclick = () => machInfo(m);
@@ -1483,7 +1486,7 @@ async function doSpin() {
   const m = MS.m, free = MS.fs > 0;
   let stake = free ? MS.fsStake : STAKES[S.stakeI];
   const allIn = !free && MS.allIn;
-  if (allIn) { stake = r2(S.bal); if (stake <= 0) { toast('All-In geht nur mit Guthaben im Plus.', 'bad'); SND.err(); return; } }
+  if (allIn) { stake = r2(Math.min(S.bal, maxStake())); if (stake <= 0) { toast('All-In geht nur mit Guthaben im Plus.', 'bad'); SND.err(); return; } }
   const shown = { bal: S.bal, here: MS.here };
   MS.busy = true;
   if (!free) { if (!bet(stake, m.n)) { MS.busy = false; HOLD = []; return; } MS.here = r2(MS.here - stake); S.st.spins++; taskProg('spins', 1); }
@@ -2088,7 +2091,9 @@ function mid(sym, tMs) {
 }
 function quote(sym, t = Date.now()) { const m = mid(sym, t), sp = m * SYMS[sym].sp; return { bid: m - sp / 2, ask: m + sp / 2, mid: m, sp }; }
 const pf = (sym, v) => v.toLocaleString('de-DE', { minimumFractionDigits: SYMS[sym].dec, maximumFractionDigits: SYMS[sym].dec });
-const effLev = sym => Math.min(S.bx.lev, SYMS[sym].lev);
+const BX_LEV = 20; // höchster Hebel
+const bxMaxPos = () => r2(maxStake() * 40); // größte Position (Wert) – wächst mit dem Level
+const effLev = sym => Math.min(S.bx.lev, SYMS[sym].lev, BX_LEV);
 const TFS = { M1: 60, M5: 300, M15: 900, H1: 3600, H4: 14400, D1: 86400 };
 function posPL(p, q = quote(p.sym)) { const cur = p.dir > 0 ? q.bid : q.ask; return (cur - p.op) * p.lot * SYMS[p.sym].cs * p.dir; }
 function bxStats(t = Date.now()) {
@@ -2140,7 +2145,8 @@ function bxCatchUp() {
 }
 function openPos(sym, dir, lot, sl, tp, quiet, t = Date.now()) {
   const B = S.bx, q = quote(sym, t), op = dir > 0 ? q.ask : q.bid, mg = r2(op * lot * SYMS[sym].cs / effLev(sym));
-  const st = bxStats(t);
+  const st = bxStats(t), val = op * lot * SYMS[sym].cs;
+  if (val > bxMaxPos() + 1e-9) { if (!quiet) { toast(`Position zu groß – auf deinem Level höchstens ${fmt(bxMaxPos())} Wert (jetzt ${fmt(val)}). Nimm eine kleinere Lot-Größe.`, 'bad'); SND.err(); } return false; }
   if (mg > st.free + 1e-9) { if (!quiet) { toast(`Nicht genug freie Margin (${fmt(mg)} nötig). Zahl erst Geld aufs Handelskonto ein.`, 'bad'); SND.err(); } return false; }
   B.pos.push({ id: B.id++, sym, dir, lot, op, sl: sl || 0, tp: tp || 0, mg, t });
   if (!quiet) { SND.coin(); vib(15); } save(); return true;
@@ -2166,7 +2172,7 @@ function renderBoerse(el) {
      <select class="inp" id="oty"><option value="M">Sofort (Markt)</option><option value="L">Limit</option><option value="S">Stop</option></select>
      <input class="inp num hidden" id="opx" inputmode="decimal" placeholder="Auslösepreis" style="margin-top:10px" value="${bxUI.px}">
      <div class="row sb" style="margin-top:18px;font-size:18px"><span style="color:var(--mut)">Margin nötig</span><b class="num neg" id="mgN"></b></div>
-     <div class="row sb" style="margin-top:12px;font-size:18px"><span style="color:var(--mut)">Hebel</span><select class="inp" id="lev" style="width:120px;padding:10px 14px">${[1, 5, 10, 20, 50, 100].map(v => `<option value="${v}" ${B.lev === v ? 'selected' : ''}>1:${v}</option>`).join('')}</select></div>
+     <div class="row sb" style="margin-top:12px;font-size:18px"><span style="color:var(--mut)">Hebel</span><select class="inp" id="lev" style="width:120px;padding:10px 14px">${[1, 5, 10, 20].map(v => `<option value="${v}" ${B.lev === v ? 'selected' : ''}>1:${v}</option>`).join('')}</select></div>
      <p class="hint" id="effL"></p>
    </div>
    <div class="card">
@@ -2595,22 +2601,22 @@ let lbFull = true;
 let lbOwn = true;
 function pushScore(force) {
   if (!onlineOn() || !S) return;
-  const sig = [S.bal, S.level, S.disp, S.color, S.st.biggest, Object.keys(S.ach).length, S.owner ? 1 : 0, S.tit, S.frm, S.clan ? S.clan.tag : ''].join('|'); if (!force && sig === lbLast) return; lbLast = sig;
+  const sig = [S.bal, S.level, S.disp, S.color, S.st.biggest, Object.keys(S.ach).length, S.owner ? 1 : 0, S.wk && S.wk.v, S.tit, S.frm, S.clan ? S.clan.tag : ''].join('|'); if (!force && sig === lbLast) return; lbLast = sig;
   const f = { name: { stringValue: S.name }, disp: { stringValue: S.disp }, bal: { doubleValue: S.bal }, level: { integerValue: String(S.level) }, color: { integerValue: String(S.color || 0) }, ts: { integerValue: String(Date.now()) } };
   const full = Object.assign({}, f, { big: { doubleValue: S.st.biggest || 0 }, net: { doubleValue: S.st.net || 0 }, bxp: { doubleValue: S.bx.pnl || 0 }, wag: { doubleValue: S.st.wagered || 0 }, since: { integerValue: String(S.created || Date.now()) }, best: { stringValue: S.st.bestGame || '' }, ach: { integerValue: String(Object.keys(S.ach).length) } });
   const send = fields => fetch(`${FS()}/rang/${lbId()}?key=${ONLINE.apiKey}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) });
-  const withOwn = Object.assign({}, full, { own: { booleanValue: !!S.owner }, tit: { stringValue: S.tit || '' }, frm: { stringValue: S.frm || '' }, clan: { stringValue: S.clan ? S.clan.tag : '' } });
+  wkAdd(0); const withOwn = Object.assign({}, full, { wk: { doubleValue: S.wk.v }, wkk: { stringValue: S.wk.k }, own: { booleanValue: !!S.owner }, tit: { stringValue: S.tit || '' }, frm: { stringValue: S.frm || '' }, clan: { stringValue: S.clan ? S.clan.tag : '' } });
   (lbOwn ? send(withOwn) : Promise.resolve({ ok: false, status: 403 }))
     .then(r => { if (r.ok) return; if (r.status === 403 || r.status === 400) { lbOwn = false; return lbFull ? send(full) : { ok: false, status: 403 }; } return r; })
     .then(r => { if (!r || r.ok) return; if (r.status === 403 || r.status === 400) { lbFull = false; return send(f).then(r2 => { if (!r2.ok) lbLast = ''; }); } lbLast = ''; })
     .catch(() => { lbLast = ''; });
 }
 async function fetchTop() {
-  const r = await fetch(`${FS()}:runQuery?key=${ONLINE.apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ structuredQuery: { from: [{ collectionId: 'rang' }], orderBy: [{ field: { fieldPath: 'bal' }, direction: 'DESCENDING' }], limit: 10 } }) });
+  const r = await fetch(`${FS()}:runQuery?key=${ONLINE.apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ structuredQuery: { from: [{ collectionId: 'rang' }], orderBy: [{ field: { fieldPath: 'bal' }, direction: 'DESCENDING' }], limit: 80 } }) });
   if (!r.ok) throw new Error('HTTP ' + r.status);
   const j = await r.json();
   return j.filter(x => x.document).map(x => { const f = x.document.fields, id = x.document.name.split('/').pop(); const n = v => v ? +(v.doubleValue ?? v.integerValue ?? 0) : 0; return { k: id, name: f.name?.stringValue || '?', disp: f.disp?.stringValue || f.name?.stringValue || '?', bal: n(f.bal), lvl: n(f.level) || 1, color: n(f.color), ts: n(f.ts), me: S.lbId === id,
-      big: f.big ? n(f.big) : null, net: f.net ? n(f.net) : null, bxp: f.bxp ? n(f.bxp) : null, wag: f.wag ? n(f.wag) : null, since: f.since ? n(f.since) : null, best: f.best?.stringValue || '', ach: f.ach ? n(f.ach) : null, own: !!f.own?.booleanValue, tit: f.tit?.stringValue || '', frm: f.frm?.stringValue || '', clan: f.clan?.stringValue || '' }; });
+      big: f.big ? n(f.big) : null, net: f.net ? n(f.net) : null, bxp: f.bxp ? n(f.bxp) : null, wag: f.wag ? n(f.wag) : null, since: f.since ? n(f.since) : null, best: f.best?.stringValue || '', ach: f.ach ? n(f.ach) : null, own: !!f.own?.booleanValue, tit: f.tit?.stringValue || '', frm: f.frm?.stringValue || '', clan: f.clan?.stringValue || '' }; }).filter(r => r.ts >= RESET_TS).slice(0, 10);
 }
 function ago(ts) { const s = (Date.now() - ts) / 1000; return s < 3600 ? `vor ${Math.max(1, Math.floor(s / 60))} Min.` : s < 86400 ? `vor ${Math.floor(s / 3600)} Std.` : `vor ${Math.floor(s / 86400)} T.`; }
 async function fsCount(where) {
@@ -3267,6 +3273,11 @@ function cloudLink(key) {
 function startApp(key) {
   const all = Accounts.all(); ACC = key;
   S = Object.assign(newState(all[key].name), all[key].save || {});
+  if (S.ep !== RESET_EP) {
+    const keep = { name: S.name, disp: S.disp, photo: S.photo, color: S.color, lbId: S.lbId, owner: S.owner, cheat: S.cheat, set: S.set, clan: S.clan };
+    S = Object.assign(newState(all[key].name), keep); all[key].save = S; all[key].ts = Date.now(); Accounts.put(all);
+    setTimeout(() => sheet(`<h2>🔄 Neustart!</h2><p class="hint" style="font-size:18px">Alle Konten wurden zurückgesetzt – jeder startet wieder mit ${fmt(500)}. Die Spielhalle hat neue, fairere Regeln: All-In ist begrenzt, Level steigen langsamer und die Börse hat höchstens Hebel 1:20.<br><br>Name, Passwort, Profilbild und Clan bleiben. Viel Glück! 🍀</p><button class="btn white w" data-close>Los geht's</button>`, { center: true }), 600);
+  }
   S.st = Object.assign(newState('').st, S.st); S.bx = Object.assign(newState('').bx, S.bx); S.set = Object.assign({ snd: true, vib: true }, S.set);
   const away = Date.now() - (all[key].ts || Date.now());
   if (S.potAct) S.potAct.left = Math.min(S.potAct.left, POT_R[S.potAct.m] || 4);
@@ -3363,6 +3374,8 @@ function extInit() {
   if (!S.bp || S.bp.s !== seasonKey()) S.bp = { s: seasonKey(), pts: 0, got: [] };
   S.titles = S.titles || []; S.frames = S.frames || [];
   S.cal = S.cal || { last: '', day: 0 };
+  if (S.bx && S.bx.lev > 20) S.bx.lev = 20;
+  wkAdd(0);
   if (S.tit && !titOk(S.tit)) S.tit = '';
   if (S.frm && !frOk(S.frm)) S.frm = '';
   save();
@@ -3732,8 +3745,28 @@ function feedDraw() {
     ${FD.items.length ? FD.items.slice(0, 5).map(x => `<div class="fdi"><b>${tagHTML(x.clan)}${esc(x.disp)}</b> ${esc(x.txt)} <small>${ago(x.ts)}</small></div>`).join('') : '<div class="fdi" style="color:var(--mut)">Noch keine großen Gewinne – sei der Erste! 🍀</div>'}`;
 }
 
+/* ================= Wochen-Bestenliste ================= */
+function wkAdd(v) { if (!S) return; const k = weekKey(); if (!S.wk || S.wk.k !== k) S.wk = { k, v: 0 }; S.wk.v = r2(S.wk.v + v); }
+async function renderWoche(el) {
+  el.innerHTML = `<button class="btn dark sm" id="back">${icon('left')} Bestenliste</button><h1 class="t" style="margin-top:16px">Wochen-Bestenliste</h1>
+    <p class="sub">Wer hat diese Woche am meisten gewonnen? Startet jeden Montag neu.</p><div id="wkB"><div class="empty">Lade …</div></div>`;
+  $('#back', el).onclick = () => go('rang');
+  const B = $('#wkB', el); wkAdd(0);
+  if (!onlineOn()) { B.innerHTML = '<div class="empty">Braucht die Online-Verbindung.</div>'; return; }
+  pushScore(true);
+  try {
+    await new Promise(r => setTimeout(r, 500));
+    const rows = (await fsQuery({ from: [{ collectionId: 'rang' }], where: fEq('wkk', S.wk.k), limit: 300 })).sort((a, b) => (b.wk || 0) - (a.wk || 0)).slice(0, 20);
+    if (!B.isConnected) return;
+    const mi = rows.findIndex(r => r.id === S.lbId);
+    B.innerHTML = `<div class="card myrank" style="margin-bottom:14px"><div class="mr-n num">${mi >= 0 ? '#' + (mi + 1) : '–'}</div>${avaHTML({ ...S })}<div class="who"><b>Dein Wochen-Plus</b><small>${mi >= 0 ? 'Platz ' + (mi + 1) + ' diese Woche' : 'Spiel eine Runde, um dabei zu sein'}</small></div><span class="w num ${S.wk.v < 0 ? 'neg' : 'pos'}">${fmt(S.wk.v, { sign: true })}</span></div>
+      ${rows.length ? `<div class="card tight list rl">${rows.map((r, i) => `<div class="it ${r.id === S.lbId ? 'me' : ''}"><span class="rn">${i + 1}</span>${avaHTML({ disp: r.disp, name: r.name, color: r.color, frm: r.frm })}<div class="who"><b>${tagHTML(r.clan)}${esc(r.disp || r.name)}</b><small>@${esc(r.name)}${titName(r.tit) ? ' · ' + esc(titName(r.tit)) : ''}</small></div><span class="w num ${(r.wk || 0) < 0 ? 'neg' : 'pos'}">${fmt(r.wk || 0, { sign: true })}</span></div>`).join('')}</div>` : '<div class="empty">Diese Woche hat noch niemand gespielt.</div>'}
+      <p class="hint">Zählt alles, was du diese Woche gewonnen minus eingesetzt hast (plus Belohnungen).</p>`;
+  } catch (e) { if (B.isConnected) B.innerHTML = '<div class="empty">Gerade nicht erreichbar. Sind die neuen Firebase-Regeln veröffentlicht?</div>'; }
+}
+
 /* ================= Seiten erweitern ================= */
-PAGES.crash = renderCrash; PAGES.pass = renderPass; PAGES.clan = renderClan;
+PAGES.crash = renderCrash; PAGES.pass = renderPass; PAGES.clan = renderClan; PAGES.woche = renderWoche;
 (() => {
   const H = PAGES.halle; PAGES.halle = el => { H(el); if (onlineOn()) { const t = $('.halle-top', el); if (t) { t.insertAdjacentHTML('afterend', '<div class="card feed" id="feedBox"></div>'); feedDraw(); } } };
   const Sp = PAGES.spiele; PAGES.spiele = el => {
@@ -3746,7 +3779,7 @@ PAGES.crash = renderCrash; PAGES.pass = renderPass; PAGES.clan = renderClan;
     </div>`);
     $$('[data-x]', el).forEach(b => b.onclick = () => { SND.click(); const x = b.dataset.x; if (x === 'cal') openCal(); else go(x); });
   };
-  const Ra = PAGES.rang; PAGES.rang = el => { const p = Ra(el); const sub = $('.sub', el); if (sub) { sub.insertAdjacentHTML('afterend', '<button class="btn dark w" id="toClan" style="margin-bottom:16px">🏢 Clans &amp; Clan-Bestenliste</button>'); $('#toClan', el).onclick = () => go('clan'); } return p; };
+  const Ra = PAGES.rang; PAGES.rang = el => { const p = Ra(el); const sub = $('.sub', el); if (sub) { sub.insertAdjacentHTML('afterend', '<div class="two" style="margin-bottom:16px"><button class="btn gold" id="toWk">📅 Diese Woche</button><button class="btn dark" id="toClan">🏢 Clans</button></div>'); $('#toClan', el).onclick = () => go('clan'); $('#toWk', el).onclick = () => go('woche'); } return p; };
   const Pr = PAGES.profil; PAGES.profil = el => {
     Pr(el);
     const b = $('.prof .pinfo b', el); if (b) b.insertAdjacentHTML('afterend', titHTML(S.tit) + (S.clan ? `<small>${tagHTML(S.clan.tag)} ${esc(S.clan.name)}</small>` : ''));
