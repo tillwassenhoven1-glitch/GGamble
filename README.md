@@ -55,7 +55,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /konten/{id} {
-      allow get, create, update, delete: if request.resource == null || request.resource.data.keys().hasOnly(['data','ts']);
+      allow get, delete: if true;
+      allow create, update: if request.resource.data.keys().hasOnly(['data','ts']);
       allow list: if false;
     }
     match /namen/{id} {
