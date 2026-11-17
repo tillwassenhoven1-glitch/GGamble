@@ -736,6 +736,45 @@ body.inmach #app *{animation-play-state:paused!important}
 .myrank .who b{display:block;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .myrank .who small{color:var(--mut);font-size:13px}
 .myrank .w{font-size:16px;font-weight:800;white-space:nowrap}
+
+/* ===== 0.1.5 ===== */
+.avatar.fr-silber{box-shadow:0 0 0 3px #d8dde3,0 0 12px rgba(220,225,235,.45)}
+.avatar.fr-gold{box-shadow:0 0 0 3px #f2cf5a,0 0 16px rgba(242,207,90,.6)}
+.avatar.fr-neon{box-shadow:0 0 0 3px #39f3ff,0 0 16px #39f3ff,0 0 26px #c040ff;animation:frNeon 2.4s linear infinite}
+@keyframes frNeon{50%{box-shadow:0 0 0 3px #ff4ad8,0 0 16px #ff4ad8,0 0 26px #39f3ff}}
+.avatar.fr-feuer{box-shadow:0 0 0 3px #ff7a1a,0 -4px 16px #ff4500,0 0 26px #ffb31a;animation:frFire 1s ease-in-out infinite alternate}
+@keyframes frFire{to{box-shadow:0 0 0 3px #ffb31a,0 -8px 24px #ff2a00,0 0 32px #ff7a1a}}
+.avatar.fr-diamant{box-shadow:0 0 0 3px #bdf3ff,0 0 0 6px rgba(95,200,255,.35),0 0 22px #9ae8ff}
+.avatar.fr-regen{animation:frRb 3s linear infinite}
+@keyframes frRb{0%,100%{box-shadow:0 0 0 3px #ff5a5a,0 0 16px #ff5a5a}25%{box-shadow:0 0 0 3px #ffd447,0 0 16px #ffd447}50%{box-shadow:0 0 0 3px #4ad8ff,0 0 16px #4ad8ff}75%{box-shadow:0 0 0 3px #b98cff,0 0 16px #b98cff}}
+.titl{display:inline-block;align-self:flex-start;padding:3px 10px;border-radius:999px;background:rgba(201,164,62,.16);color:var(--gold2);font-size:13px;font-weight:800}
+.ctag{color:#7cc8ff;font-weight:800;margin-right:5px}
+.frg{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:12px}
+.fri{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 6px;border-radius:18px;background:#151517;border:2px solid transparent}
+.fri.on{border-color:var(--gold2)}.fri.lk{opacity:.4}.fri .avatar{width:56px;height:56px}.fri small{color:var(--mut);font-size:11px;text-align:center}
+.xg{display:grid;gap:0;margin-top:18px}
+.bpbar{height:14px;border-radius:999px;background:#232327;overflow:hidden;margin-top:14px}.bpbar.sm{height:8px;margin-top:0}
+.bpbar i{display:block;height:100%;background:linear-gradient(90deg,#b98f2a,#f2d27a);border-radius:999px}
+.bpi{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;background:#111113;border:1px solid var(--line);margin-bottom:8px;opacity:.55}
+.bpi.ok{opacity:1;border-color:rgba(201,164,62,.5)}.bpi.got{opacity:.8}
+.bpn{width:34px;font-weight:900;color:var(--mut);text-align:center}.bpic{font-size:24px}.bpt{flex:1;font-weight:700}
+.calg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.cald{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border-radius:16px;background:#151517;border:1px solid var(--line);text-align:center}
+.cald small{color:var(--mut);font-size:12px}.cald b{font-size:12px;line-height:1.2}.calic{font-size:26px}
+.cald.got{opacity:.5}.cald.now{border-color:var(--gold2);box-shadow:0 0 18px rgba(232,196,90,.35)}
+.cald.big{grid-column:span 4;flex-direction:row;justify-content:center;gap:12px;background:linear-gradient(135deg,#3a2c06,#151517)}
+.crh{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px;min-height:10px}.crh .chip{padding:6px 10px;font-size:14px}
+.crsky{position:relative;height:260px;border-radius:24px;overflow:hidden;margin-bottom:14px;background:radial-gradient(circle at 70% 20%,#1a2350,#07080f 70%);border:1px solid var(--line)}
+.crsky svg{position:absolute;inset:0;width:100%;height:100%}
+.crr{position:absolute;left:8%;bottom:10%;font-size:40px;transform:translate(-50%,50%) rotate(0deg);transition:left .04s linear,bottom .04s linear}
+.crsky.fly .crr{animation:crW .3s ease-in-out infinite alternate}@keyframes crW{to{transform:translate(-50%,50%) rotate(-8deg)}}
+.crsky.boom{background:radial-gradient(circle at 50% 50%,#5a1408,#07080f 70%)}
+.crm{position:absolute;left:0;right:0;top:34%;text-align:center;font-size:56px;font-weight:900;text-shadow:0 4px 20px rgba(0,0,0,.6)}
+.crs{position:absolute;left:0;right:0;top:62%;text-align:center;color:#cfcfd4;font-size:17px;font-weight:700}
+.feed{padding:16px 18px}.fdi{padding:8px 0;border-top:1px solid var(--line);font-size:15px;line-height:1.35}.fdi:first-of-type{margin-top:8px}.fdi small{color:var(--mut)}
+.chatlog.lobby{max-height:50vh;min-height:200px;overflow-y:auto;background:#111113;border-radius:18px;padding:12px 14px;border:1px solid var(--line)}
+.chatlog.lobby p{margin:0 0 8px;line-height:1.35;font-size:16px;word-wrap:break-word}.chatlog.lobby p small{color:var(--mut2);font-size:11px}.chatlog.lobby p.mine b{color:#7cff6b}
+#hChat{position:relative}#hChat.dot::after{content:'';position:absolute;top:6px;right:6px;width:12px;height:12px;border-radius:50%;background:var(--red);box-shadow:0 0 0 2px #0d0d0f}
 </style>
 </head>
 <body>
@@ -799,7 +838,7 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 
 /* ===== core.js ===== */
 'use strict';
-const VERSION = '0.1.2 Open Beta';
+const VERSION = '0.1.5 Open Beta';
 /* ================= Helfer ================= */
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1097,7 +1136,7 @@ function bet(a, game) {
   S.bal = r2(S.bal - a); touchToday(); S.today.v = r2(S.today.v - a);
   S.st.wagered += a; S.st.rounds++; S.st.net = r2(S.st.net - a);
   if (S.note > 0) { const rp = r2(Math.min(S.note, Math.max(.01, a * .1))); S.bal = r2(S.bal - rp); S.note = r2(S.note - rp); S.st.noteSpin = r2((S.st.noteSpin || 0) + rp); if (S.note <= 0.004) { S.note = 0; setTimeout(() => { toast('Schuldschein komplett abbezahlt! 🎉', 'good'); FX.burst(80); SND.win(); }, 500); } }
-  addXP(Math.min(a, 25 + S.level * 25));
+  addXP(Math.min(a, 25 + S.level * 25)); bpAdd(1);
   taskProg('wager', a); taskProg('rounds', 1);
   hdr(); checkAch(); save(); return true;
 }
@@ -1111,7 +1150,7 @@ function payout(a, game, stake) {
   if (a > S.st.biggest) { S.st.biggest = r2(a); S.st.bestGame = game; }
   if (stake) S.st.maxMult = Math.max(S.st.maxMult, a / stake);
   if (cut > 0) setTimeout(() => toast(`Inkasso Krause kassiert ${fmt(cut)} (40 %)`), 900);
-  afterMoney(); return got;
+  afterMoney(); feedWin(a, game, stake); return got;
 }
 /* Geld aus Minispielen, Bonus, Aufgaben, Geschäften */
 function earn(a, why) {
@@ -1146,7 +1185,7 @@ function initials(n) { const p = String(n).trim().split(/\s+/); return (p.length
 const AVA_COLS = ['radial-gradient(circle at 35% 30%,#e3c25a,#a8862a)', 'radial-gradient(circle at 35% 30%,#8fd0ff,#2f6fd0)', 'radial-gradient(circle at 35% 30%,#ff9ea0,#c23a4a)', 'radial-gradient(circle at 35% 30%,#b5f59a,#3d9a3a)', 'radial-gradient(circle at 35% 30%,#e0b0ff,#7a3ad0)', 'radial-gradient(circle at 35% 30%,#f0f0f0,#8a8a8a)'];
 function avaHTML(o, cls = '') {
   const st = o.photo ? `background-image:url(${o.photo})` : `background:${AVA_COLS[o.color || 0]}`;
-  return `<div class="avatar ${cls}" style="${st}">${o.photo ? '' : esc(o.ini || initials(o.disp || o.name))}</div>`;
+  return `<div class="avatar ${cls}${typeof frmCls === 'function' ? frmCls(o.frm) : ''}" style="${st}">${o.photo ? '' : esc(o.ini || initials(o.disp || o.name))}</div>`;
 }
 function hdr(anim) {
   if (!S) return; touchToday();
@@ -1637,7 +1676,7 @@ function openBonus() {
       S.bonus = { last: dayKey(), streak }; S.st.bonusStreak = Math.max(S.st.bonusStreak, streak);
       earn(amt, 'Tagesbonus'); o.close(); hdr(true);
       await celebrate(amt, mult >= 3 ? 12 : mult * 3, mult >= 3 ? 'TAGES BONUS' : null);
-      toast(`Tagesbonus: ${mult}× → ${fmt(amt)} 🎁`, 'good');
+      toast(`Tagesbonus: ${mult}× → ${fmt(amt)} 🎁`, 'good'); setTimeout(() => S && calMaybe(), 2500);
     }, 5400);
   };
 }
@@ -2536,11 +2575,11 @@ let lbFull = true;
 let lbOwn = true;
 function pushScore(force) {
   if (!onlineOn() || !S) return;
-  const sig = [S.bal, S.level, S.disp, S.color, S.st.biggest, Object.keys(S.ach).length, S.owner ? 1 : 0].join('|'); if (!force && sig === lbLast) return; lbLast = sig;
+  const sig = [S.bal, S.level, S.disp, S.color, S.st.biggest, Object.keys(S.ach).length, S.owner ? 1 : 0, S.tit, S.frm, S.clan ? S.clan.tag : ''].join('|'); if (!force && sig === lbLast) return; lbLast = sig;
   const f = { name: { stringValue: S.name }, disp: { stringValue: S.disp }, bal: { doubleValue: S.bal }, level: { integerValue: String(S.level) }, color: { integerValue: String(S.color || 0) }, ts: { integerValue: String(Date.now()) } };
   const full = Object.assign({}, f, { big: { doubleValue: S.st.biggest || 0 }, net: { doubleValue: S.st.net || 0 }, bxp: { doubleValue: S.bx.pnl || 0 }, wag: { doubleValue: S.st.wagered || 0 }, since: { integerValue: String(S.created || Date.now()) }, best: { stringValue: S.st.bestGame || '' }, ach: { integerValue: String(Object.keys(S.ach).length) } });
   const send = fields => fetch(`${FS()}/rang/${lbId()}?key=${ONLINE.apiKey}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) });
-  const withOwn = Object.assign({}, full, { own: { booleanValue: !!S.owner } });
+  const withOwn = Object.assign({}, full, { own: { booleanValue: !!S.owner }, tit: { stringValue: S.tit || '' }, frm: { stringValue: S.frm || '' }, clan: { stringValue: S.clan ? S.clan.tag : '' } });
   (lbOwn ? send(withOwn) : Promise.resolve({ ok: false, status: 403 }))
     .then(r => { if (r.ok) return; if (r.status === 403 || r.status === 400) { lbOwn = false; return lbFull ? send(full) : { ok: false, status: 403 }; } return r; })
     .then(r => { if (!r || r.ok) return; if (r.status === 403 || r.status === 400) { lbFull = false; return send(f).then(r2 => { if (!r2.ok) lbLast = ''; }); } lbLast = ''; })
@@ -2551,7 +2590,7 @@ async function fetchTop() {
   if (!r.ok) throw new Error('HTTP ' + r.status);
   const j = await r.json();
   return j.filter(x => x.document).map(x => { const f = x.document.fields, id = x.document.name.split('/').pop(); const n = v => v ? +(v.doubleValue ?? v.integerValue ?? 0) : 0; return { k: id, name: f.name?.stringValue || '?', disp: f.disp?.stringValue || f.name?.stringValue || '?', bal: n(f.bal), lvl: n(f.level) || 1, color: n(f.color), ts: n(f.ts), me: S.lbId === id,
-      big: f.big ? n(f.big) : null, net: f.net ? n(f.net) : null, bxp: f.bxp ? n(f.bxp) : null, wag: f.wag ? n(f.wag) : null, since: f.since ? n(f.since) : null, best: f.best?.stringValue || '', ach: f.ach ? n(f.ach) : null, own: !!f.own?.booleanValue }; });
+      big: f.big ? n(f.big) : null, net: f.net ? n(f.net) : null, bxp: f.bxp ? n(f.bxp) : null, wag: f.wag ? n(f.wag) : null, since: f.since ? n(f.since) : null, best: f.best?.stringValue || '', ach: f.ach ? n(f.ach) : null, own: !!f.own?.booleanValue, tit: f.tit?.stringValue || '', frm: f.frm?.stringValue || '', clan: f.clan?.stringValue || '' }; });
 }
 function ago(ts) { const s = (Date.now() - ts) / 1000; return s < 3600 ? `vor ${Math.max(1, Math.floor(s / 60))} Min.` : s < 86400 ? `vor ${Math.floor(s / 3600)} Std.` : `vor ${Math.floor(s / 86400)} T.`; }
 async function fsCount(where) {
@@ -2571,7 +2610,7 @@ function localTop() {
   return localAll().slice(0, 10);
 }
 function localAll() {
-  return Object.entries(Accounts.all()).map(([k, a]) => { const v = a.save || {}, st = v.st || {}; return { k, disp: a.disp || a.name, name: a.name, photo: a.photo, color: v.color || 0, bal: v.bal || 0, lvl: v.level || 1, ts: a.ts || a.created, me: k === ACC, big: st.biggest ?? null, net: st.net ?? null, bxp: v.bx ? v.bx.pnl : null, wag: st.wagered ?? null, since: v.created || a.created, best: st.bestGame || '', ach: v.ach ? Object.keys(v.ach).length : null }; }).sort((a, b) => b.bal - a.bal);
+  return Object.entries(Accounts.all()).map(([k, a]) => { const v = a.save || {}, st = v.st || {}; return { k, disp: a.disp || a.name, name: a.name, photo: a.photo, color: v.color || 0, bal: v.bal || 0, lvl: v.level || 1, ts: a.ts || a.created, me: k === ACC, tit: v.tit || '', frm: v.frm || '', clan: v.clan ? v.clan.tag : '', big: st.biggest ?? null, net: st.net ?? null, bxp: v.bx ? v.bx.pnl : null, wag: st.wagered ?? null, since: v.created || a.created, best: st.bestGame || '', ach: v.ach ? Object.keys(v.ach).length : null }; }).sort((a, b) => b.bal - a.bal);
 }
 /* 👑 Besitzer = das Konto, das den Namen „till“ online reserviert hat (fest an dessen Bestenlisten-ID gebunden) */
 let OWNER_RID = localStorage.getItem('gg_owner') || '';
@@ -2600,10 +2639,10 @@ async function renderRang(el) {
   const body = $('#rgBody', el); if (!body) return;
   const pod = (r, i) => r ? `<div class="p${i + 1}"><div class="pa">${avaHTML(r)}<span class="rk" style="background:${['#d8b85a', '#cfcfd4', '#c8875a'][i]}">${i + 1}</span></div><div class="nm ${nameCls(r)}">${esc(r.disp)}</div>${ownOn(r) ? '<div class="owner" style="margin-top:4px">👑 Besitzer</div>' : ''}<div class="vv num">${fmt(r.bal)}</div><div class="blk" style="height:${[150, 110, 80][i]}px"></div></div>` : '<div></div>';
   const meI = rows.findIndex(r => r.me);
-  const meRow = { disp: S.disp, name: S.name, photo: S.photo, color: S.color, bal: S.bal };
+  const meRow = { disp: S.disp, name: S.name, photo: S.photo, color: S.color, bal: S.bal, frm: S.frm, tit: S.tit, clan: S.clan ? S.clan.tag : '' };
   body.innerHTML = `<p class="hint" style="margin-top:-8px">Du bist auf Platz ${NF0.format(mine.rank)} 🏆</p>
     <div class="podium">${pod(rows[1], 1)}${pod(rows[0], 0)}${pod(rows[2], 2)}</div>
-    ${rows.length ? `<div class="card tight list rl">${rows.map((r, i) => `<div class="it ${r.me ? 'me' : ''}" data-i="${i}"><span class="rn">${i + 1}</span>${avaHTML(r)}<div class="who"><b><span class="${nameCls(r)}">${esc(r.disp)}</span>${ownerTag(r)}</b><small>@${esc(r.name)} · ${ago(r.ts)}</small></div><span class="w num ${r.bal < 0 ? 'neg' : ''}">${fmt(r.bal)}</span></div>`).join('')}</div>` : '<div class="empty">Noch niemand in der Bestenliste.</div>'}
+    ${rows.length ? `<div class="card tight list rl">${rows.map((r, i) => `<div class="it ${r.me ? 'me' : ''}" data-i="${i}"><span class="rn">${i + 1}</span>${avaHTML(r)}<div class="who"><b>${tagHTML(r.clan)}<span class="${nameCls(r)}">${esc(r.disp)}</span>${ownerTag(r)}</b><small>@${esc(r.name)}${titName(r.tit) ? ' · ' + esc(titName(r.tit)) : ''} · ${ago(r.ts)}</small></div><span class="w num ${r.bal < 0 ? 'neg' : ''}">${fmt(r.bal)}</span></div>`).join('')}</div>` : '<div class="empty">Noch niemand in der Bestenliste.</div>'}
     <div class="sec">Dein Platz</div>
     <div class="card myrank"><div class="mr-n num">#${NF0.format(mine.rank)}</div>${avaHTML(meRow)}<div class="who"><b class="${nameCls(ME_O())}">${esc(S.disp)}</b><small>${ownOn(ME_O()) ? '<span class="owner">👑 Besitzer</span> · ' : ''}${mine.total ? `von ${NF0.format(mine.total)} Spieler${mine.total === 1 ? '' : 'n'}` : '@' + esc(S.name)}${mine.rank <= 10 ? ' · Top 10 🔥' : ''}</small></div><span class="w num ${S.bal < 0 ? 'neg' : ''}">${fmt(S.bal)}</span></div>
     ${info ? `<p class="hint">${info}</p>` : ''}`;
@@ -2621,7 +2660,7 @@ function playerProfile(r, rank) {
   const v = x => x === null || x === undefined ? '–' : null;
   sheet(`<div class="row sb" style="margin-bottom:10px"><span class="chip">🏆 Platz ${rank}</span><button class="x" data-close>${icon('x')}</button></div>
     <div class="card prof" style="margin:0 0 14px"><div class="ban"></div><div class="pa">${avaHTML(r)}</div>
-      <div class="pinfo"><b class="${nameCls(r)}">${esc(r.disp)}</b><small>@${esc(r.name)}${ownOn(r) ? ' · <span class="owner">👑 Besitzer</span>' : ''}</small><small style="font-size:14px">zuletzt aktiv ${ago(r.ts)}</small></div></div>
+      <div class="pinfo"><b class="${nameCls(r)}">${tagHTML(r.clan)}${esc(r.disp)}</b>${titHTML(r.tit)}<small>@${esc(r.name)}${ownOn(r) ? ' · <span class="owner">👑 Besitzer</span>' : ''}</small><small style="font-size:14px">zuletzt aktiv ${ago(r.ts)}</small></div></div>
     <div class="stats">
       <div class="stat"><small>Level</small><b>${r.lvl}</b></div>
       <div class="stat"><small>Kontostand</small><b class="num ${r.bal < 0 ? 'neg' : ''}">${fmt(r.bal)}</b></div>
@@ -3051,7 +3090,7 @@ function openSettings() {
   bindCheat();
   $('#rst', o).onclick = async () => {
     if (!await confirmBox('Konto zurücksetzen?', `Der Spielstand von <b>${esc(S.disp)}</b> startet komplett neu mit ${fmt(500)} – Geld, Level, Erfolge, Geschäfte und Börse sind weg. Name, Passwort, Profilbild und Einstellungen bleiben. Das geht nicht rückgängig.`, 'Zurücksetzen', true)) return;
-    const keep = { name: S.name, disp: S.disp, photo: S.photo, color: S.color, lbId: S.lbId, owner: S.owner, cheat: S.cheat, set: S.set };
+    const keep = { name: S.name, disp: S.disp, photo: S.photo, color: S.color, lbId: S.lbId, owner: S.owner, cheat: S.cheat, set: S.set, titles: S.titles, frames: S.frames, tit: S.tit, frm: S.frm, clan: S.clan };
     S = Object.assign(newState(S.name), keep); persist();
     const a = Accounts.all()[ACC];
     try { if (onlineOn() && a && a.cid) { await cloudPut(a.cid, a, S); lbLast = ''; pushScore(true); } } catch (e) { }
@@ -3220,7 +3259,7 @@ function startApp(key) {
   $('#hChat').innerHTML = icon('chat'); $('#hChat').onclick = openChat;
   $('#hLock').innerHTML = icon('lock');
   hdr(); go('halle'); checkAch(); loadOwner();
-  setTimeout(() => cloudLink(key), 1500);
+  setTimeout(() => cloudLink(key), 1500); extInit();
   if (onlineOn() && all[key].cid) cloudGet(all[key].cid).then(cl => { const cur = Accounts.all(), x = cur[key]; if (!cl || !x || !x.ts || cl.ts <= x.ts + 5000) return; x.save = cl.d.save; x.ts = cl.ts; Accounts.put(cur); S = null; toast('Neuerer Spielstand von anderem Gerät geladen ☁️', 'good'); setTimeout(() => location.reload(), 900); }).catch(() => { });
   const pend = shopPending(); if (pend > 1 && away > 6e4) setTimeout(() => toast(`Deine Geschäfte haben ${fmt(pend)} verdient – im Imperium einsammeln 🏪`, 'good', 4500), 1600);
   if (bonusReady()) setTimeout(() => S && openBonus(), 900);
@@ -3268,6 +3307,432 @@ Promise.all([Promise.race([TIME.sync(), new Promise(r => setTimeout(r, 4000))]),
   if (k && all[k]) startApp(k); else showLogin();
 });
 
+</script>
+<script>
+/* ===== extra.js (Version 0.1.5): Crash, Battle Pass, Titel, Profilrahmen, Login-Kalender, Clans, Lobby-Chat, Live-Feed ===== */
+'use strict';
+const yKey = () => { const y = new Date(Date.now()); y.setDate(y.getDate() - 1); return dayKey(y); };
+const MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+const seasonKey = () => { const d = new Date(Date.now()); return d.getFullYear() + '-' + (d.getMonth() + 1); };
+const seasonName = () => MONATE[new Date(Date.now()).getMonth()];
+const seasonLeft = () => { const n = new Date(Date.now()), e = new Date(n.getFullYear(), n.getMonth() + 1, 1); const d = Math.ceil((e - n) / 864e5); return d <= 1 ? 'endet heute' : `noch ${d} Tage`; };
+
+/* ---------- Firestore-Helfer ---------- */
+const fstr = s => ({ stringValue: String(s) }), fint = n => ({ integerValue: String(Math.round(n)) });
+const fval = v => v === undefined || v === null ? undefined : v.stringValue !== undefined ? v.stringValue : v.integerValue !== undefined ? +v.integerValue : v.doubleValue !== undefined ? +v.doubleValue : v.booleanValue;
+async function fsQuery(q) {
+  const r = await fetch(`${FS()}:runQuery?key=${ONLINE.apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ structuredQuery: q }) });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return (await r.json()).filter(x => x.document).map(x => { const f = x.document.fields || {}, o = { id: x.document.name.split('/').pop() }; for (const k in f) o[k] = fval(f[k]); return o; });
+}
+function fsCreate(col, id, fields) {
+  return fetch(`${FS()}/${col}?${id ? 'documentId=' + encodeURIComponent(id) + '&' : ''}key=${ONLINE.apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) });
+}
+const fEq = (f, v) => ({ fieldFilter: { field: { fieldPath: f }, op: 'EQUAL', value: fstr(v) } });
+const myTag = () => S && S.clan ? S.clan.tag : '';
+const tagHTML = t => t ? `<span class="ctag">[${esc(t)}]</span>` : '';
+
+/* ---------- Start ---------- */
+function extInit() {
+  if (!S) return;
+  if (!S.bp || S.bp.s !== seasonKey()) S.bp = { s: seasonKey(), pts: 0, got: [] };
+  S.titles = S.titles || []; S.frames = S.frames || [];
+  S.cal = S.cal || { last: '', day: 0 };
+  if (S.tit && !titOk(S.tit)) S.tit = '';
+  if (S.frm && !frOk(S.frm)) S.frm = '';
+  save();
+  if (!bonusReady()) setTimeout(calMaybe, 1500);
+  feedStart(); chatBg();
+}
+
+/* ================= Belohnungen (Battle Pass + Kalender) ================= */
+function rwTxt([t, v]) {
+  if (t === 'm') return fmt(r2(v * base()));
+  if (t === 'p') return `Glückstrank ×${v}`;
+  if (t === 'e') return `+${v} ⚡ Energie`;
+  if (t === 'f') return `Rahmen „${frName(v)}“`;
+  if (t === 't') return `Titel „${titName(v)}“`;
+  if (t === 'ft') { const [f, ti] = v.split('|'); return `Rahmen „${frName(f)}“ + Titel „${titName(ti)}“`; }
+  if (t === 'big') return `${fmt(r2(v * base()))} + Glückstrank ×6`;
+  return '';
+}
+function rwIcon(t) { return { m: '💰', p: '🧪', e: '⚡', f: '🖼️', t: '🏷️', ft: '🔥', big: '🎁' }[t] || '🎁'; }
+function giveRw([t, v]) {
+  const txt = rwTxt([t, v]);
+  if (t === 'm') earn(r2(v * base()), 'Belohnung');
+  else if (t === 'p') S.pot[v] = (S.pot[v] || 0) + 1;
+  else if (t === 'e') addEnergy(v);
+  else if (t === 'f') { if (!S.frames.includes(v)) S.frames.push(v); }
+  else if (t === 't') { if (!S.titles.includes(v)) S.titles.push(v); }
+  else if (t === 'ft') { const [f, ti] = v.split('|'); if (!S.frames.includes(f)) S.frames.push(f); if (!S.titles.includes(ti)) S.titles.push(ti); }
+  else if (t === 'big') { earn(r2(v * base()), 'Kalender'); S.pot[6] = (S.pot[6] || 0) + 1; }
+  hdr(true); checkAch(); save();
+  return txt;
+}
+
+/* ================= Battle Pass ================= */
+const BP_PER = 60, BP_N = 30;
+const BP_R = [
+  ['m', 2], ['p', 2], ['m', 3], ['e', 3], ['m', 5], ['p', 2], ['m', 6], ['p', 4], ['m', 8], ['f', 'gold'],
+  ['m', 10], ['e', 5], ['m', 12], ['p', 4], ['t', 'saison'], ['m', 15], ['p', 6], ['m', 18], ['e', 10], ['f', 'neon'],
+  ['m', 22], ['p', 4], ['m', 26], ['p', 6], ['m', 30], ['e', 10], ['m', 40], ['p', 6], ['m', 60], ['ft', 'feuer|legende'],
+];
+const bpLv = () => Math.min(BP_N, Math.floor((S.bp ? S.bp.pts : 0) / BP_PER));
+const bpOpen = () => { let n = 0; for (let i = 0; i < bpLv(); i++) if (!S.bp.got.includes(i)) n++; return n; };
+function bpAdd(n) {
+  if (!S) return;
+  if (!S.bp || S.bp.s !== seasonKey()) S.bp = { s: seasonKey(), pts: 0, got: [] };
+  const old = bpLv(); S.bp.pts += n; const nw = bpLv();
+  if (nw > old) whenFree(() => setTimeout(() => { toast(`🎟️ Battle Pass Stufe ${nw}! Belohnung unter Spiele abholen`, 'good', 3500); SND.win(); }, 600));
+}
+function bpClaim(i) {
+  if (i >= bpLv() || S.bp.got.includes(i)) return null;
+  S.bp.got.push(i); return giveRw(BP_R[i]);
+}
+function renderPass(el) {
+  const lv = bpLv(), pts = S.bp.pts, inLv = lv >= BP_N ? BP_PER : pts % BP_PER, open = bpOpen();
+  el.innerHTML = `<button class="btn dark sm" id="back">${icon('left')} Minispiele</button>
+    <h1 class="t" style="margin-top:16px">Battle Pass</h1><p class="sub">Saison ${seasonName()} · ${seasonLeft()} · jede Runde = 1 Punkt, Login-Kalender +20</p>
+    <div class="card"><div class="row sb"><b style="font-size:26px">Stufe ${lv} / ${BP_N}</b><span class="chip gold num">${NF0.format(pts)} Punkte</span></div>
+      <div class="bpbar"><i style="width:${lv >= BP_N ? 100 : inLv / BP_PER * 100}%"></i></div>
+      <p class="hint">${lv >= BP_N ? 'Alles geschafft – stark! 🔥' : `Noch ${BP_PER - inLv} Punkte bis Stufe ${lv + 1}`}</p>
+      ${open ? `<button class="btn gold w" id="bpAll">Alle ${open} Belohnungen abholen</button>` : ''}</div>
+    <div class="bpl">${BP_R.map((r, i) => { const got = S.bp.got.includes(i), ok = i < lv; return `<div class="bpi ${got ? 'got' : ok ? 'ok' : ''}"><span class="bpn">${i + 1}</span><span class="bpic">${rwIcon(r[0])}</span><span class="bpt">${rwTxt(r)}</span>${got ? '<span class="chip">✓</span>' : ok ? `<button class="btn gold xs" data-bp="${i}">Abholen</button>` : '<span class="chip">🔒</span>'}</div>`; }).join('')}</div>
+    <p class="hint">Jeden Monat startet eine neue Saison. Rahmen und Titel bleiben für immer.</p>`;
+  $('#back', el).onclick = () => go('spiele');
+  const all = $('#bpAll', el); if (all) all.onclick = () => { const t = []; for (let i = 0; i < bpLv(); i++) { const x = bpClaim(i); if (x) t.push(x); } SND.big(); FX.burst(80, { coins: true }); toast(`🎟️ ${t.length} Belohnungen abgeholt!`, 'good'); go('pass', true); };
+  el.onclick = e => { const b = e.target.closest('[data-bp]'); if (!b) return; const t = bpClaim(+b.dataset.bp); if (t) { SND.win(); FX.burst(40, { coins: true }); toast(`🎟️ ${t}`, 'good'); go('pass', true); } };
+}
+
+/* ================= Titel & Profilrahmen ================= */
+const TITLES = [
+  ['neuling', 'Neuling', () => true, 'Für alle'],
+  ['stamm', 'Stammgast', s => s.st.rounds >= 100, '100 Runden gespielt'],
+  ['rubbel', 'Rubbelkönig', s => s.st.scratches >= 50, '50 Lose gerubbelt'],
+  ['hai', 'Börsenhai', s => s.st.tradeProfit >= 10, '10 Trades mit Gewinn'],
+  ['pleite', 'Pleitegeier', s => s.st.inkasso >= 1 || s.st.insolv >= 1, 'Schulden verkauft oder Insolvenz'],
+  ['wett', 'Wettkönig', s => s.st.betWins >= 10, '10 Sportwetten gewonnen'],
+  ['rakete', 'Raketenpilot', s => (s.st.crashBest || 0) >= 10, 'Bei Crash mit 10× ausgestiegen'],
+  ['jp', 'Jackpot-Jäger', s => s.st.jackpots >= 1, 'Einen Jackpot geknackt'],
+  ['alch', 'Alchemist', s => (s.st.pot6 || 0) >= 1, 'Einen ×6-Trank gebraut'],
+  ['treu', 'Treue Seele', s => (s.st.cal7 || 0) >= 1, '7 Tage Login-Kalender am Stück'],
+  ['dauer', 'Dauerzocker', s => s.st.rounds >= 1000, '1.000 Runden gespielt'],
+  ['mio', 'Millionär', s => s.st.maxBal >= 1e6, '1 Mio. € auf dem Konto'],
+  ['imp', 'Imperator', s => Object.keys(s.shops).length >= 8, 'Alle 8 Geschäfte'],
+  ['mrd', 'Milliardär', s => s.st.maxBal >= 1e9, '1 Mrd. € auf dem Konto'],
+  ['saison', 'Saisonheld', s => (s.titles || []).includes('saison'), 'Battle Pass Stufe 15'],
+  ['legende', 'Battle-Pass-Legende', s => (s.titles || []).includes('legende'), 'Battle Pass Stufe 30'],
+];
+const FRAMES = [
+  ['', 'Kein Rahmen', () => true, ''],
+  ['silber', 'Silber', s => s.level >= 5, 'Level 5'],
+  ['gold', 'Gold', s => s.level >= 15 || (s.frames || []).includes('gold'), 'Level 15 oder Battle Pass Stufe 10'],
+  ['neon', 'Neon', s => (s.frames || []).includes('neon'), 'Battle Pass Stufe 20'],
+  ['feuer', 'Feuer', s => (s.frames || []).includes('feuer'), 'Battle Pass Stufe 30'],
+  ['diamant', 'Diamant', s => s.st.maxBal >= 1e9, '1 Mrd. € auf dem Konto'],
+  ['regen', 'Regenbogen', s => Object.keys(s.ach).length >= ACH.length, 'Alle Erfolge'],
+];
+const titName = id => (TITLES.find(x => x[0] === id) || [])[1] || '';
+const titOk = id => { const t = TITLES.find(x => x[0] === id); return !!t && t[2](S); };
+const frName = id => (FRAMES.find(x => x[0] === id) || [])[1] || '';
+const frOk = id => { const f = FRAMES.find(x => x[0] === id); return !!f && f[2](S); };
+const frmCls = id => id && FRAMES.some(f => f[0] === id) ? ' fr-' + id : '';
+const titHTML = id => titName(id) ? `<span class="titl">${esc(titName(id))}</span>` : '';
+function openStyle() {
+  let tit = S.tit || '', frm = S.frm || '';
+  const o = sheet(`<div class="row sb"><h2>Titel &amp; Rahmen</h2><button class="x" data-close>${icon('x')}</button></div>
+    <div class="lbl2">Profilrahmen</div><div class="frg" id="sF"></div>
+    <div class="lbl2">Titel (steht unter deinem Namen)</div><div class="card tight list" id="sT" style="background:#151517"></div>
+    <button class="btn white w" id="sS" style="margin-top:18px">Speichern</button>`);
+  const draw = () => {
+    $('#sF', o).innerHTML = FRAMES.map(([id, n, f, d]) => { const ok = f(S); return `<button class="fri ${ok ? '' : 'lk'} ${frm === id ? 'on' : ''}" data-f="${id}" ${ok ? '' : 'disabled'}>${avaHTML({ ...S, frm: id })}<b>${n}</b><small>${ok ? (frm === id ? 'Ausgewählt' : '') : '🔒 ' + d}</small></button>`; }).join('');
+    $('#sT', o).innerHTML = `<div class="it" data-t=""><span class="lbl">Kein Titel</span>${tit === '' ? '<span class="chip gold">✓</span>' : ''}</div>` + TITLES.map(([id, n, f, d]) => { const ok = f(S); return `<div class="it ${ok ? '' : 'lk'}" data-t="${id}" style="${ok ? '' : 'opacity:.45'}"><div style="flex:1"><b>${n}</b><small style="display:block;color:var(--mut)">${ok ? d : '🔒 ' + d}</small></div>${tit === id ? '<span class="chip gold">✓</span>' : ''}</div>`; }).join('');
+  };
+  draw();
+  $('#sF', o).onclick = e => { const b = e.target.closest('[data-f]'); if (!b || b.disabled) return; frm = b.dataset.f; SND.click(); draw(); };
+  $('#sT', o).onclick = e => { const b = e.target.closest('[data-t]'); if (!b || b.classList.contains('lk')) return; tit = b.dataset.t; SND.click(); draw(); };
+  $('#sS', o).onclick = () => { S.tit = tit; S.frm = frm; save(); pushScore(true); toast('Gespeichert ✓', 'good'); o.close(); if (curPage === 'profil') go('profil', true); };
+}
+
+/* ================= Login-Kalender ================= */
+const CAL = [['m', 1], ['m', 2], ['p', 2], ['m', 4], ['e', 5], ['m', 8], ['big', 25]];
+function calState() { const t = dayKey(); if (S.cal.last === t) return { ready: false, day: S.cal.day }; return { ready: true, day: S.cal.last === yKey() ? (S.cal.day % 7) + 1 : 1 }; }
+let calTry = 0;
+function calMaybe() { if (!S || !calState().ready) return; if (document.querySelector('.ov')) { if (++calTry < 40) setTimeout(calMaybe, 3000); return; } openCal(); }
+function openCal() {
+  const st = calState();
+  const o = sheet(`<div class="row sb"><h2>📆 Login-Kalender</h2><button class="x" data-close>${icon('x')}</button></div>
+    <p class="hint" style="font-size:17px">Komm jeden Tag wieder! Wer einen Tag auslässt, fängt wieder bei Tag 1 an. Am 7. Tag gibt's den großen Preis.</p>
+    <div class="calg">${CAL.map((r, i) => { const d = i + 1, done = st.ready ? d < st.day : d <= st.day, now = st.ready && d === st.day; return `<div class="cald ${done ? 'got' : ''} ${now ? 'now' : ''} ${d === 7 ? 'big' : ''}"><small>Tag ${d}</small><span class="calic">${done ? '✅' : rwIcon(r[0])}</span><b>${rwTxt(r)}</b></div>`; }).join('')}</div>
+    ${st.ready ? `<button class="btn gold w" id="calGo" style="margin-top:16px;font-size:20px">Tag ${st.day} abholen</button>` : `<p class="hint" style="text-align:center;font-size:17px">✅ Heute schon abgeholt – morgen geht's weiter (Tag ${(st.day % 7) + 1}).</p>`}`, { center: true });
+  const b = $('#calGo', o); if (b) b.onclick = () => {
+    const s2 = calState(); if (!s2.ready) return;
+    S.cal = { last: dayKey(), day: s2.day };
+    const t = giveRw(CAL[s2.day - 1]); bpAdd(20);
+    if (s2.day === 7) { S.st.cal7 = (S.st.cal7 || 0) + 1; FX.burst(140, { coins: true }); SND.big(); vib([80, 40, 120]); } else { FX.burst(50, { coins: true }); SND.win(); }
+    save(); o.close(); toast(`📆 Tag ${s2.day}: ${t}`, 'good', 3500);
+    if (curPage === 'spiele') go('spiele', true);
+  };
+}
+
+/* ================= Crash ================= */
+const CR = { hist: [], run: null, stake: 10, auto: '' };
+const CR_K = .00009;
+function crashPoint() { const u = Math.random(); return Math.min(1000, Math.max(1, Math.floor(.96 / (1 - u) * 100) / 100)); }
+const crFmt = m => NF2.format(m) + '×';
+const crCol = m => m < 2 ? '#e8524a' : m < 10 ? '#4cc265' : '#e8c45a';
+function renderCrash(el) {
+  const mx = Math.max(.1, Math.floor(maxStake() * 100) / 100);
+  el.innerHTML = `<button class="btn dark sm" id="back">${icon('left')} Minispiele</button>
+    <h1 class="t" style="margin-top:16px">Crash 🚀</h1><p class="sub">Der Multiplikator steigt – steig aus, bevor die Rakete explodiert!</p>
+    <div class="crh" id="crH"></div>
+    <div class="crsky" id="crSky"><svg viewBox="0 0 300 160" preserveAspectRatio="none"><path id="crP" d="" fill="none" stroke="#e8c45a" stroke-width="3" stroke-linecap="round"/></svg>
+      <div class="crr" id="crR">🚀</div><div class="crm num" id="crM">1,00×</div><div class="crs" id="crT">Bereit</div></div>
+    <div class="card"><div class="lbl2" style="margin-top:0">Einsatz (max. ${fmt(mx)})</div>
+      <input class="inp num" id="crS" type="number" inputmode="decimal" min="0.1" step="0.1" value="${Math.min(CR.stake, mx)}">
+      <div class="row" id="crQ" style="gap:8px;margin-top:10px"><button class="btn dark xs" data-q="h">½</button><button class="btn dark xs" data-q="d">×2</button><button class="btn dark xs" data-q="min">Min</button><button class="btn dark xs" data-q="max">Max</button></div>
+      <div class="lbl2">Automatisch aussteigen bei (optional, z. B. 2)</div><input class="inp num" id="crA" type="number" inputmode="decimal" placeholder="z. B. 2" value="${CR.auto}">
+      <button class="btn white w" id="crGo" style="margin-top:16px;font-size:22px">Starten</button></div>
+    <p class="hint">Die Rakete kann jederzeit explodieren – manchmal sofort, manchmal erst bei 100×. Drück rechtzeitig auf „Aussteigen“. Mit Auto-Aussteigen läuft die Runde auch weiter, wenn du die Seite wechselst.</p>`;
+  $('#back', el).onclick = () => go('spiele');
+  const inp = $('#crS', el);
+  $('#crQ', el).onclick = e => { const b = e.target.closest('[data-q]'); if (!b) return; let v = +inp.value || .1; v = { h: v / 2, d: v * 2, min: .1, max: mx }[b.dataset.q]; inp.value = Math.max(.1, Math.min(mx, Math.round(v * 100) / 100)); SND.click(); };
+  $('#crGo', el).onclick = () => { if (CR.run && !CR.run.done) crCash(); else crStart(el); };
+  if (CR.run) CR.run.el = el;
+  crDraw(el, CR.run && !CR.run.done ? crMult(CR.run) : 1);
+}
+function crHist(el) { const h = $('#crH', el); if (h) h.innerHTML = CR.hist.map(m => `<span class="chip num" style="color:${crCol(m)}">${crFmt(m)}</span>`).join(''); }
+function crStart(el) {
+  const mx = Math.max(.1, Math.floor(maxStake() * 100) / 100);
+  let st = Math.round((+$('#crS', el).value || 0) * 100) / 100, au = +$('#crA', el).value || 0;
+  if (!isFinite(st) || st < .1) { toast('Mindestens 0,10 €', 'bad'); SND.err(); return; }
+  if (st > mx) { toast(`Höchstens ${fmt(mx)} auf deinem Level`, 'bad'); SND.err(); return; }
+  if (au && au < 1.01) { toast('Auto-Aussteigen muss über 1,00× liegen', 'bad'); return; }
+  CR.stake = st; CR.auto = au || '';
+  if (!bet(st, 'Crash')) return;
+  CR.run = { stake: st, cp: crashPoint(), auto: au, t0: performance.now(), done: false, el };
+  SND.click(); vib(10); crTick();
+}
+function crMult(run) { return Math.max(1, Math.floor(Math.exp(CR_K * (performance.now() - run.t0)) * 100) / 100); }
+function crTick() {
+  const run = CR.run; if (!run || run.done) return;
+  const m = crMult(run);
+  if (run.auto && run.auto < run.cp && m >= run.auto) return crEnd(run, 'cash', run.auto);
+  if (m >= run.cp) return crEnd(run, 'boom', run.cp);
+  crDraw(run.el, m);
+  setTimeout(crTick, 40);
+}
+function crCash() { const run = CR.run; if (!run || run.done) return; const m = crMult(run); if (m >= run.cp) return crEnd(run, 'boom', run.cp); crEnd(run, 'cash', m); }
+function crEnd(run, how, m) {
+  run.done = true; run.res = how; run.m = m;
+  CR.hist.unshift(run.cp); CR.hist.length = Math.min(CR.hist.length, 12);
+  const vis = run.el && run.el.isConnected;
+  if (how === 'cash') {
+    const w = r2(run.stake * m); payout(w, 'Crash', run.stake);
+    S.st.crashBest = Math.max(S.st.crashBest || 0, m); checkAch(); save();
+    if (vis) { celebrate(w, m); } else toast(`🚀 Crash: bei ${crFmt(m)} ausgestiegen → ${fmt(w)}`, 'good');
+  } else if (vis) { flash(); SND.lose(); vib([80, 40, 120]); shake($('#crSky', run.el)); }
+  else toast(`💥 Crash bei ${crFmt(run.cp)} – Einsatz weg`, 'bad');
+  hdr(true);
+  if (vis) crDraw(run.el);
+}
+function crDraw(el, m) {
+  if (!el || !el.isConnected) return;
+  const run = CR.run, live = run && !run.done, sky = $('#crSky', el), mEl = $('#crM', el), tEl = $('#crT', el), btn = $('#crGo', el), rk = $('#crR', el), p = $('#crP', el);
+  crHist(el);
+  if (live) {
+    const t = performance.now() - run.t0, x = Math.min(1, t / 25000), y = Math.min(1, (m - 1) / 9);
+    mEl.textContent = crFmt(m); mEl.style.color = '#fff'; tEl.textContent = `Gewinn: ${fmt(r2(run.stake * m))}`;
+    rk.style.left = (8 + x * 78) + '%'; rk.style.bottom = (10 + y * 70) + '%'; rk.textContent = '🚀';
+    const pts = []; for (let i = 0; i <= 30; i++) { const xi = i / 30 * x, mi = Math.exp(CR_K * xi * 25000), yi = Math.min(1, (mi - 1) / 9); pts.push(`${(8 + xi * 78) * 3},${160 - (10 + yi * 70) * 1.6}`); } p.setAttribute('d', 'M' + pts.join(' L'));
+    btn.textContent = `Aussteigen · ${fmt(r2(run.stake * m))}`; btn.className = 'btn gold w'; sky.classList.add('fly'); sky.classList.remove('boom');
+  } else {
+    sky.classList.remove('fly'); btn.className = 'btn white w'; btn.textContent = 'Starten'; btn.style.fontSize = '22px';
+    if (run && run.done) {
+      if (run.res === 'boom') { mEl.textContent = crFmt(run.cp); mEl.style.color = '#e8524a'; tEl.textContent = '💥 Explodiert!'; rk.textContent = '💥'; sky.classList.add('boom'); }
+      else { mEl.textContent = crFmt(run.m); mEl.style.color = '#4cc265'; tEl.textContent = `✅ Ausgestiegen · Rakete flog bis ${crFmt(run.cp)}`; }
+    }
+  }
+}
+
+/* ================= Clans ================= */
+const CLAN_COST = 10000, CLAN_MAX = 20;
+let clanTab = 0;
+async function clanList() { return fsQuery({ from: [{ collectionId: 'clans' }], orderBy: [{ field: { fieldPath: 'ts' }, direction: 'DESCENDING' }], limit: 100 }); }
+async function clanMembers(tag) { return (await fsQuery({ from: [{ collectionId: 'rang' }], where: fEq('clan', tag), limit: 60 })).sort((a, b) => (b.bal || 0) - (a.bal || 0)); }
+async function clanTop() {
+  const all = await fsQuery({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'clan' }, op: 'GREATER_THAN', value: fstr('') } }, limit: 500 });
+  const g = {}; all.forEach(r => { const t = r.clan; if (!t) return; (g[t] = g[t] || { tag: t, sum: 0, n: 0 }); g[t].sum += r.bal || 0; g[t].n++; });
+  return Object.values(g).sort((a, b) => b.sum - a.sum);
+}
+async function renderClan(el) {
+  el.innerHTML = `<button class="btn dark sm" id="back">${icon('left')} Bestenliste</button><h1 class="t" style="margin-top:16px">Clans</h1>
+    <p class="sub">Tu dich mit Freunden zusammen – euer Geld zählt zusammen</p>
+    <div class="tabs" id="clT"><button data-t="0">Mein Clan</button><button data-t="1">Clan-Bestenliste</button></div><div id="clB"><div class="empty">Lade …</div></div>`;
+  $('#back', el).onclick = () => go('rang');
+  $$('#clT button', el).forEach(b => { b.classList.toggle('on', +b.dataset.t === clanTab); b.onclick = () => { clanTab = +b.dataset.t; SND.click(); renderClan(el); }; });
+  const B = $('#clB', el);
+  if (!onlineOn()) { B.innerHTML = '<div class="empty">Clans brauchen die Online-Verbindung (Firebase).</div>'; return; }
+  try {
+    const clans = await clanList(), byTag = {}; clans.forEach(c => byTag[c.id] = c);
+    if (!B.isConnected) return;
+    if (clanTab === 1) {
+      const top = await clanTop(); if (!B.isConnected) return;
+      B.innerHTML = top.length ? `<div class="card tight list rl">${top.slice(0, 20).map((c, i) => `<div class="it ${c.tag === myTag() ? 'me' : ''}"><span class="rn">${i + 1}</span><div class="who"><b>${tagHTML(c.tag)} ${esc(byTag[c.tag] ? byTag[c.tag].name : c.tag)}</b><small>${c.n} Mitglied${c.n === 1 ? '' : 'er'}</small></div><span class="w num ${c.sum < 0 ? 'neg' : ''}">${fmt(r2(c.sum))}</span></div>`).join('')}</div>` : '<div class="empty">Noch keine Clans – gründe den ersten!</div>';
+      return;
+    }
+    if (S.clan) {
+      const mem = await clanMembers(S.clan.tag); if (!B.isConnected) return;
+      const sum = r2(mem.reduce((a, r) => a + (r.bal || 0), 0)), c = byTag[S.clan.tag];
+      B.innerHTML = `<div class="card"><div class="row sb"><div><h2 style="font-size:30px">${tagHTML(S.clan.tag)} ${esc(c ? c.name : S.clan.name)}</h2><small style="color:var(--mut)">gegründet von @${esc(c ? c.own : '?')}</small></div></div>
+        <div class="stat" style="margin-top:14px"><small>Gemeinsamer Kontostand</small><b class="num ${sum < 0 ? 'neg' : 'pos'}" style="font-size:30px">${fmt(sum)}</b></div></div>
+        <div class="sec">Mitglieder · ${mem.length} / ${CLAN_MAX}</div>
+        <div class="card tight list rl">${mem.map((r, i) => `<div class="it ${r.name === S.name ? 'me' : ''}"><span class="rn">${i + 1}</span>${avaHTML({ disp: r.disp, name: r.name, color: r.color, frm: r.frm })}<div class="who"><b>${esc(r.disp || r.name)}</b><small>@${esc(r.name)}${titName(r.tit) ? ' · ' + esc(titName(r.tit)) : ''}</small></div><span class="w num ${r.bal < 0 ? 'neg' : ''}">${fmt(r.bal || 0)}</span></div>`).join('') || '<div class="empty">Gleich da – dein Eintrag wird gerade hochgeladen.</div>'}</div>
+        <button class="btn dark w" id="clLeave" style="margin-top:10px">Clan verlassen</button>`;
+      $('#clLeave', B).onclick = async () => { if (!await confirmBox('Clan verlassen?', `Du verlässt <b>[${esc(S.clan.tag)}]</b>. Du kannst später wieder beitreten.`, 'Verlassen', true)) return; S.clan = null; save(); lbLast = ''; pushScore(true); toast('Clan verlassen'); renderClan(el); };
+      return;
+    }
+    B.innerHTML = `<div class="card"><h3 style="font-size:24px">Clan gründen</h3><p class="hint">Kostet ${fmt(CLAN_COST)}. Das Kürzel (2–5 Buchstaben/Zahlen) steht dann vor dem Namen aller Mitglieder.</p>
+        <input class="inp" id="clN" maxlength="24" placeholder="Clan-Name, z. B. Die Zocker"><input class="inp" id="clK" maxlength="5" placeholder="Kürzel, z. B. ZOCK" style="margin-top:10px;text-transform:uppercase">
+        <button class="btn gold w" id="clMk" style="margin-top:12px">Gründen · ${fmt(CLAN_COST)}</button></div>
+      <div class="sec">Clan beitreten</div>
+      ${clans.length ? `<div class="card tight list">${clans.map(c => `<div class="it"><div class="who"><b>${tagHTML(c.id)} ${esc(c.name)}</b><small>von @${esc(c.own)}</small></div><button class="btn dark xs" data-j="${esc(c.id)}">Beitreten</button></div>`).join('')}</div>` : '<div class="empty">Noch keine Clans – gründe den ersten!</div>'}`;
+    $('#clMk', B).onclick = async function () {
+      const name = $('#clN', B).value.trim(), tag = $('#clK', B).value.trim().toUpperCase();
+      if (name.length < 3) return toast('Name: mindestens 3 Zeichen', 'bad');
+      if (!/^[A-Z0-9]{2,5}$/.test(tag)) return toast('Kürzel: 2–5 Buchstaben oder Zahlen', 'bad');
+      if (S.bal < CLAN_COST) return toast(`Dafür brauchst du ${fmt(CLAN_COST)} Guthaben.`, 'bad');
+      this.disabled = true;
+      try {
+        const r = await fsCreate('clans', tag, { name: fstr(name), tag: fstr(tag), own: fstr(S.name), ts: fint(Date.now()) });
+        if (r.status === 409) { this.disabled = false; return toast('Das Kürzel gibt es schon – nimm ein anderes.', 'bad'); }
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        S.bal = r2(S.bal - CLAN_COST); S.clan = { tag, name }; save(); hdr(true); lbLast = ''; pushScore(true);
+        SND.big(); FX.burst(100); toast(`🏢 Clan [${esc(tag)}] gegründet!`, 'good'); renderClan(el);
+      } catch (e) { this.disabled = false; toast('Hat nicht geklappt – Internet & Firebase-Regeln prüfen.', 'bad'); }
+    };
+    B.onclick = async e => {
+      const b = e.target.closest('[data-j]'); if (!b) return; b.disabled = true;
+      try {
+        const tag = b.dataset.j, mem = await clanMembers(tag);
+        if (mem.length >= CLAN_MAX) { b.disabled = false; return toast(`Der Clan ist voll (${CLAN_MAX} Mitglieder).`, 'bad'); }
+        S.clan = { tag, name: byTag[tag] ? byTag[tag].name : tag }; save(); lbLast = ''; pushScore(true);
+        SND.win(); toast(`Willkommen bei [${esc(tag)}]! 🎉`, 'good'); setTimeout(() => renderClan(el), 1200);
+      } catch (er) { b.disabled = false; toast('Keine Verbindung', 'bad'); }
+    };
+  } catch (e) { if (B.isConnected) B.innerHTML = '<div class="empty">Clans gerade nicht erreichbar. Sind die neuen Firebase-Regeln veröffentlicht?</div>'; }
+}
+
+/* ================= Lobby-Chat (für alle) ================= */
+const CH = { msgs: [], seen: 0, sent: 0, bg: 0 };
+async function chatFetch(since, lim) {
+  const q = { from: [{ collectionId: 'chat' }], orderBy: [{ field: { fieldPath: 'ts' }, direction: 'DESCENDING' }], limit: lim };
+  if (since) q.where = { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(since) } };
+  return (await fsQuery(q)).reverse();
+}
+const chatTime = ts => new Date(ts).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+function chatHTML() { return CH.msgs.map(m => `<p class="${m.name === S.name ? 'mine' : ''}"><b>${tagHTML(m.clan)}${esc(m.disp || m.name)}</b> ${esc(m.txt)} <small>${chatTime(m.ts)}</small></p>`).join('') || '<p class="hint">Noch keine Nachrichten – schreib die erste! 👋</p>'; }
+openChat = function () {
+  if (!onlineOn()) { toast('Der Lobby-Chat braucht die Online-Verbindung.', 'bad'); return; }
+  const inRoom = typeof T !== 'undefined' && T.room;
+  const o = sheet(`<div class="row sb"><h2>💬 Lobby-Chat</h2><button class="x" data-close>${icon('x')}</button></div>
+    <p class="hint" style="margin-top:-4px">Alle Spieler sehen diesen Chat. Sei nett! 🙂</p>
+    ${inRoom ? '<button class="btn dark sm w" id="toRoom" style="margin-bottom:8px">📹 Zum Chat in deinem Treff-Raum</button>' : ''}
+    <div class="chatlog lobby" id="lcLog">${chatHTML()}</div>
+    <div class="row" style="margin-top:10px"><input class="inp" id="lcIn" maxlength="200" placeholder="Nachricht …" autocomplete="off"><button class="btn gold sm" id="lcGo">Senden</button></div>`);
+  $('#hChat').classList.remove('dot');
+  const log = $('#lcLog', o), draw = () => { log.innerHTML = chatHTML(); log.scrollTop = 1e6; };
+  if (inRoom) $('#toRoom', o).onclick = () => { o.close(); roomUI(); };
+  const pull = async first => {
+    try {
+      const last = CH.msgs.length ? CH.msgs[CH.msgs.length - 1].ts : 0;
+      const n = await chatFetch(first ? 0 : last, first ? 50 : 30);
+      if (first) CH.msgs = n; else { const ids = new Set(CH.msgs.map(m => m.id)); n.forEach(m => { if (!ids.has(m.id)) CH.msgs.push(m); }); }
+      if (CH.msgs.length > 120) CH.msgs = CH.msgs.slice(-120);
+      if (CH.msgs.length) CH.seen = Math.max(CH.seen, CH.msgs[CH.msgs.length - 1].ts);
+      if (n.length || first) draw();
+    } catch (e) { if (first) log.innerHTML = '<p class="hint">Chat gerade nicht erreichbar. Sind die neuen Firebase-Regeln veröffentlicht?</p>'; }
+  };
+  pull(true);
+  const iv = setInterval(() => { if (!o.isConnected) return clearInterval(iv); pull(false); }, 4000);
+  const send = async () => {
+    const inp = $('#lcIn', o), txt = inp.value.trim(); if (!txt) return;
+    if (Date.now() - CH.sent < 3000) return toast('Nicht so schnell 😉', 'bad');
+    CH.sent = Date.now(); inp.value = '';
+    try {
+      const r = await fsCreate('chat', null, { name: fstr(S.name), disp: fstr(S.disp), txt: fstr(txt.slice(0, 200)), ts: fint(Date.now()), clan: fstr(myTag()) });
+      if (!r.ok) throw new Error(); SND.click(); pull(false);
+    } catch (e) { toast('Nachricht nicht gesendet – Internet prüfen.', 'bad'); inp.value = txt; }
+  };
+  $('#lcGo', o).onclick = send; $('#lcIn', o).onkeydown = e => { if (e.key === 'Enter') send(); };
+};
+function chatBg() {
+  if (!onlineOn() || CH.bg) return;
+  const chk = async () => {
+    if (!S || document.hidden || document.querySelector('#lcLog')) return;
+    try { const since = CH.seen || (Date.now() - 6 * 36e5); const n = await chatFetch(since, 1); if (n.length && n[0].name !== S.name) $('#hChat').classList.add('dot'); if (!CH.seen && n.length) CH.seen = since; } catch (e) { }
+  };
+  CH.bg = setInterval(chk, 60000); setTimeout(chk, 5000);
+}
+
+/* ================= Live-Feed (große Gewinne für alle) ================= */
+const FD = { items: [], last: 0, posted: 0, iv: 0, first: true };
+function feedWin(a, game, stake) {
+  if (!S || !onlineOn() || !(a > 0)) return;
+  const x = stake ? a / stake : 0;
+  if (!(a >= 1e6 || (x >= 100 && a >= 1e4))) return;
+  if (Date.now() - FD.posted < 20000) return; FD.posted = Date.now();
+  const txt = `hat gerade ${fmt(a)}${x >= 2 ? ` (${x >= 1000 ? NF0.format(Math.round(x)) : NF2.format(x)}×)` : ''} bei ${game} gewonnen! 🎉`;
+  fsCreate('feed', null, { name: fstr(S.name), disp: fstr(S.disp), txt: fstr(txt.slice(0, 120)), ts: fint(Date.now()), clan: fstr(myTag()) }).then(() => setTimeout(feedPoll, 1500)).catch(() => { });
+}
+async function feedPoll() {
+  if (!S || !onlineOn()) return;
+  try {
+    const q = { from: [{ collectionId: 'feed' }], orderBy: [{ field: { fieldPath: 'ts' }, direction: 'DESCENDING' }], limit: 15 };
+    if (FD.last) q.where = { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(FD.last) } };
+    const n = await fsQuery(q);
+    if (n.length) {
+      FD.last = Math.max(FD.last, ...n.map(x => x.ts || 0));
+      const ids = new Set(FD.items.map(x => x.id)), fresh = n.filter(x => !ids.has(x.id));
+      if (!FD.first) fresh.filter(x => x.name !== S.name).slice(0, 2).forEach((x, i) => setTimeout(() => toast(`📣 <b>${esc(x.disp)}</b> ${esc(x.txt)}`, 'good', 4500), i * 1500));
+      FD.items = [...fresh, ...FD.items].sort((a, b) => b.ts - a.ts).slice(0, 15);
+    }
+    FD.first = false; feedDraw();
+  } catch (e) { }
+}
+function feedStart() { if (FD.iv || !onlineOn()) return; feedPoll(); FD.iv = setInterval(() => { if (!document.hidden) feedPoll(); }, 30000); }
+function feedDraw() {
+  const box = $('#feedBox'); if (!box) return;
+  box.innerHTML = `<div class="row sb"><b style="font-size:18px">📣 Live</b><small style="color:var(--mut)">große Gewinne aller Spieler</small></div>
+    ${FD.items.length ? FD.items.slice(0, 5).map(x => `<div class="fdi"><b>${tagHTML(x.clan)}${esc(x.disp)}</b> ${esc(x.txt)} <small>${ago(x.ts)}</small></div>`).join('') : '<div class="fdi" style="color:var(--mut)">Noch keine großen Gewinne – sei der Erste! 🍀</div>'}`;
+}
+
+/* ================= Seiten erweitern ================= */
+PAGES.crash = renderCrash; PAGES.pass = renderPass; PAGES.clan = renderClan;
+(() => {
+  const H = PAGES.halle; PAGES.halle = el => { H(el); if (onlineOn()) { const t = $('.halle-top', el); if (t) { t.insertAdjacentHTML('afterend', '<div class="card feed" id="feedBox"></div>'); feedDraw(); } } };
+  const Sp = PAGES.spiele; PAGES.spiele = el => {
+    Sp(el); const sub = $('.sub', el); if (!sub) return;
+    const cs = calState(), op = bpOpen();
+    sub.insertAdjacentHTML('afterend', `<div class="xg">
+      <button class="card gm xcard" data-x="crash" style="position:relative"><span class="neu">NEU</span><div class="ibox" style="font-size:38px">🚀</div><h4>Crash</h4><p>Steig aus, bevor die Rakete explodiert!</p></button>
+      <button class="card gm xcard" data-x="pass" style="position:relative">${op ? `<span class="neu">${op}</span>` : ''}<div class="ibox" style="font-size:38px">🎟️</div><h4>Battle Pass</h4><p>Saison ${seasonName()} · Stufe ${bpLv()} / ${BP_N}</p><div class="bpbar sm"><i style="width:${bpLv() >= BP_N ? 100 : (S.bp.pts % BP_PER) / BP_PER * 100}%"></i></div></button>
+      <button class="card gm xcard" data-x="cal" style="position:relative">${cs.ready ? '<span class="neu">!</span>' : ''}<div class="ibox" style="font-size:38px">📆</div><h4>Login-Kalender</h4><p>${cs.ready ? `Tag ${cs.day} wartet auf dich!` : `Heute abgeholt · Tag ${cs.day} / 7`}</p></button>
+    </div>`);
+    $$('[data-x]', el).forEach(b => b.onclick = () => { SND.click(); const x = b.dataset.x; if (x === 'cal') openCal(); else go(x); });
+  };
+  const Ra = PAGES.rang; PAGES.rang = el => { const p = Ra(el); const sub = $('.sub', el); if (sub) { sub.insertAdjacentHTML('afterend', '<button class="btn dark w" id="toClan" style="margin-bottom:16px">🏢 Clans &amp; Clan-Bestenliste</button>'); $('#toClan', el).onclick = () => go('clan'); } return p; };
+  const Pr = PAGES.profil; PAGES.profil = el => {
+    Pr(el);
+    const b = $('.prof .pinfo b', el); if (b) b.insertAdjacentHTML('afterend', titHTML(S.tit) + (S.clan ? `<small>${tagHTML(S.clan.tag)} ${esc(S.clan.name)}</small>` : ''));
+    const sec = $('.sec', el); if (sec) sec.insertAdjacentHTML('beforebegin', `<div class="sec">Style &amp; Freunde</div><div class="card tight list">
+      <div class="it" id="xSty"><div class="ibox">🏷️</div><span class="lbl">Titel &amp; Profilrahmen</span><span class="val">${esc(titName(S.tit) || frName(S.frm) || 'auswählen')}</span>${icon('right', 'chev')}</div>
+      <div class="it" id="xPass"><div class="ibox">🎟️</div><span class="lbl">Battle Pass</span><span class="val">Stufe ${bpLv()}</span>${icon('right', 'chev')}</div>
+      <div class="it" id="xClan"><div class="ibox">🏢</div><span class="lbl">Clan</span><span class="val">${S.clan ? '[' + esc(S.clan.tag) + ']' : 'keiner'}</span>${icon('right', 'chev')}</div></div>`);
+    const q = (id, f) => { const x = $(id, el); if (x) x.onclick = f; };
+    q('#xSty', openStyle); q('#xPass', () => go('pass')); q('#xClan', () => go('clan'));
+  };
+})();
 </script>
 </body>
 </html>

@@ -7,7 +7,7 @@ Eine Spielhalle im Browser – nur mit Spielgeld: Automaten mit Freispielen und 
 👉 **https://tillwassenhoven1-glitch.github.io/GGamble/**
 
 Keine Installation, keine Werbung, keine Käufe, kein echtes Geld – läuft auf Handy, iPad und PC. 🎮
-Version 0.1.2 · Open Beta
+Version 0.1.5 · Open Beta
 
 ## 🔐 Konto
 
@@ -31,6 +31,11 @@ Version 0.1.2 · Open Beta
 - 🏆 **Wetten** – GG Liga mit 18 Teams: alle 5 Minuten ein neuer Spieltag, Live-Ticker, Kombiwetten, Über/Unter und „Beide treffen“
 - 📊 **Börse** – läuft auch offline weiter (Stop Loss, Take Profit, Orders) – 5 erfundene Märkte (XRZ-Coin, Döner AG, Kiosk-Kette, Gold, GG/EUR) mit Kerzen-Chart, Long/Short, Hebel bis 1:100, Stop Loss, Take Profit, Limit- und Stop-Orders
 - 🎲 **Spiele** – Hütchenspiel, Kassensturz, Pfandflaschen und Inventur (10 Energie, alle 5 Min. +1 – auch offline; nur wer alle Aufgaben schafft, bekommt extra Energie), Tages- und Wochenaufgaben, das **Glückslabor** und dein **Imperium** aus 8 Geschäften, die auch offline Geld bringen
+- 🚀 **Crash** – der Multiplikator steigt, steig aus, bevor die Rakete explodiert (mit Auto-Aussteigen)
+- 🎟️ **Battle Pass** – jeden Monat eine neue Saison mit 30 Stufen: Geld, Tränke, Energie, Rahmen und Titel
+- 📆 **Login-Kalender** – 7 Tage am Stück einloggen, am 7. Tag gibt's den großen Preis
+- 🏢 **Clans** – gründe einen Clan oder tritt einem bei: gemeinsamer Kontostand und eigene Clan-Bestenliste
+- 💬 **Lobby-Chat** für alle Spieler und 📣 **Live-Feed** mit den größten Gewinnen
 - 🧪 **Glückstränke** – ×2, ×4 oder ×6: Jeder Dreh und jedes Los wird mehrmals gewürfelt, du bekommst das beste Ergebnis
 - 🥇 **Rang** – Online-Bestenliste: Top 10 aller echten Spieler mit Podest
 - 📹 **Treff** – Video-Räume mit Chat und Kamera-Filtern, die weiterlaufen, während du spielst – plus 💣 **Minenfeld-Duell**: fordere andere mit Einsatz heraus, wer die Bombe findet, verliert und zahlt
@@ -40,6 +45,7 @@ Version 0.1.2 · Open Beta
 - 💥 Krasse Gewinn-Animationen: BIG WIN, MEGA WIN, EPIC WIN mit Münzregen, Konfetti, Blitz und Wackeln
 - 🏆 30 Erfolge mit Belohnungen
 - 👤 Profil mit Statistiken, eigener Farbe oder eigenem Profilbild
+- 🏷️ **Titel** (z. B. Börsenhai, Rubbelkönig, Pleitegeier) und 🖼️ **Profilrahmen** (Silber, Gold, Neon, Feuer, Diamant, Regenbogen)
 - 😎 Cheat-Menü mit Code (Profil → Einstellungen → Code eingeben)
 - 👑 Besitzer-Abzeichen in der Bestenliste – im Cheat-Menü an- und ausschaltbar, bleibt auch nach dem Neuladen gespeichert
 - 🔊 Sounds und Vibration (abschaltbar)
@@ -66,13 +72,32 @@ service cloud.firestore {
     }
     match /rang/{id} {
       function ok() {
-        return request.resource.data.keys().hasOnly(['name','disp','bal','level','color','ts','big','net','bxp','wag','since','best','ach','own'])
+        return request.resource.data.keys().hasOnly(['name','disp','bal','level','color','ts','big','net','bxp','wag','since','best','ach','own','tit','frm','clan'])
           && request.resource.data.bal is number
           && request.resource.data.bal < 1000000000000000;
       }
       allow read: if true;
       allow create: if ok();
       allow update: if ok() && request.resource.data.name == resource.data.name;
+    }
+    match /clans/{id} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['name','tag','own','ts'])
+                    && request.resource.data.tag == id
+                    && request.resource.data.name is string && request.resource.data.name.size() <= 24;
+      allow update, delete: if false;
+    }
+    match /chat/{id} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['name','disp','txt','ts','clan'])
+                    && request.resource.data.txt is string && request.resource.data.txt.size() <= 200;
+      allow update, delete: if false;
+    }
+    match /feed/{id} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['name','disp','txt','ts','clan'])
+                    && request.resource.data.txt is string && request.resource.data.txt.size() <= 120;
+      allow update, delete: if false;
     }
   }
 }
