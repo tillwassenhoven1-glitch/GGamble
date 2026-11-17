@@ -2616,7 +2616,7 @@ async function fetchTop() {
   if (!r.ok) throw new Error('HTTP ' + r.status);
   const j = await r.json();
   return j.filter(x => x.document).map(x => { const f = x.document.fields, id = x.document.name.split('/').pop(); const n = v => v ? +(v.doubleValue ?? v.integerValue ?? 0) : 0; return { k: id, name: f.name?.stringValue || '?', disp: f.disp?.stringValue || f.name?.stringValue || '?', bal: n(f.bal), lvl: n(f.level) || 1, color: n(f.color), ts: n(f.ts), me: S.lbId === id,
-      big: f.big ? n(f.big) : null, net: f.net ? n(f.net) : null, bxp: f.bxp ? n(f.bxp) : null, wag: f.wag ? n(f.wag) : null, since: f.since ? n(f.since) : null, best: f.best?.stringValue || '', ach: f.ach ? n(f.ach) : null, own: !!f.own?.booleanValue, tit: f.tit?.stringValue || '', frm: f.frm?.stringValue || '', clan: f.clan?.stringValue || '' }; }).filter(r => r.ts >= RESET_TS).slice(0, 10);
+      big: f.big ? n(f.big) : null, net: f.net ? n(f.net) : null, bxp: f.bxp ? n(f.bxp) : null, wag: f.wag ? n(f.wag) : null, since: f.since ? n(f.since) : null, best: f.best?.stringValue || '', ach: f.ach ? n(f.ach) : null, own: !!f.own?.booleanValue, tit: f.tit?.stringValue || '', frm: f.frm?.stringValue || '', clan: f.clan?.stringValue || '' }; }).filter(r => (r.since || 0) >= RESET_TS).slice(0, 10); // nur Konten nach dem Neustart
 }
 function ago(ts) { const s = (Date.now() - ts) / 1000; return s < 3600 ? `vor ${Math.max(1, Math.floor(s / 60))} Min.` : s < 86400 ? `vor ${Math.floor(s / 3600)} Std.` : `vor ${Math.floor(s / 86400)} T.`; }
 async function fsCount(where) {
@@ -3276,6 +3276,7 @@ function startApp(key) {
   if ((all[key].save || {}).ep !== RESET_EP) { // alte Spielstände haben noch kein ep → werden zurückgesetzt
     const keep = { name: S.name, disp: S.disp, photo: S.photo, color: S.color, lbId: S.lbId, owner: S.owner, cheat: S.cheat, set: S.set, clan: S.clan };
     S = Object.assign(newState(all[key].name), keep); all[key].save = S; all[key].ts = Date.now(); Accounts.put(all);
+    setTimeout(() => { try { cloudLast = ''; cloudPush(true); lbLast = ''; pushScore(true); } catch (e) { } }, 2500);
     setTimeout(() => sheet(`<h2>🔄 Neustart!</h2><p class="hint" style="font-size:18px">Alle Konten wurden zurückgesetzt – jeder startet wieder mit ${fmt(500)}. Die Spielhalle hat neue, fairere Regeln: All-In ist begrenzt, Level steigen langsamer und die Börse hat höchstens Hebel 1:20.<br><br>Name, Passwort, Profilbild und Clan bleiben. Viel Glück! 🍀</p><button class="btn white w" data-close>Los geht's</button>`, { center: true }), 600);
   }
   S.st = Object.assign(newState('').st, S.st); S.bx = Object.assign(newState('').bx, S.bx); S.set = Object.assign({ snd: true, vib: true }, S.set);
@@ -3313,7 +3314,7 @@ function checkUpdate() {
   if (!/^https?:/.test(location.protocol) || document.readyState === 'loading') return;
   if (!MY_HASH) MY_HASH = codeHash(document);
   // nicht mitten in Freispielen oder einer Crash-Runde neu laden
-  if ((typeof MS !== 'undefined' && MS) || (typeof CR !== 'undefined' && CR.run && !CR.run.done)) return;
+  if ((typeof MS !== 'undefined' && MS && (MS.busy || MS.fs > 0)) || (typeof CR !== 'undefined' && CR.run && !CR.run.done)) return;
   fetch(location.pathname + '?nc=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.text() : null).then(t => {
     if (!t) return;
     const h = codeHash(new DOMParser().parseFromString(t, 'text/html'));
@@ -3597,10 +3598,10 @@ function crDraw(el, m) {
 const CLAN_COST = 10000, CLAN_MAX = 20;
 let clanTab = 0;
 async function clanList() { return fsQuery({ from: [{ collectionId: 'clans' }], orderBy: [{ field: { fieldPath: 'ts' }, direction: 'DESCENDING' }], limit: 100 }); }
-async function clanMembers(tag) { return (await fsQuery({ from: [{ collectionId: 'rang' }], where: fEq('clan', tag), limit: 60 })).sort((a, b) => (b.bal || 0) - (a.bal || 0)); }
+async function clanMembers(tag) { return (await fsQuery({ from: [{ collectionId: 'rang' }], where: fEq('clan', tag), limit: 60 })).filter(r => (r.since || 0) >= RESET_TS).sort((a, b) => (b.bal || 0) - (a.bal || 0)); }
 async function clanTop() {
   const all = await fsQuery({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'clan' }, op: 'GREATER_THAN', value: fstr('') } }, limit: 500 });
-  const g = {}; all.forEach(r => { const t = r.clan; if (!t) return; (g[t] = g[t] || { tag: t, sum: 0, n: 0 }); g[t].sum += r.bal || 0; g[t].n++; });
+  const g = {}; all.forEach(r => { const t = r.clan; if (!t || (r.since || 0) < RESET_TS) return; (g[t] = g[t] || { tag: t, sum: 0, n: 0 }); g[t].sum += r.bal || 0; g[t].n++; });
   return Object.values(g).sort((a, b) => b.sum - a.sum);
 }
 async function renderClan(el) {
@@ -3756,7 +3757,7 @@ async function renderWoche(el) {
   pushScore(true);
   try {
     await new Promise(r => setTimeout(r, 500));
-    const rows = (await fsQuery({ from: [{ collectionId: 'rang' }], where: fEq('wkk', S.wk.k), limit: 300 })).sort((a, b) => (b.wk || 0) - (a.wk || 0)).slice(0, 20);
+    const rows = (await fsQuery({ from: [{ collectionId: 'rang' }], where: fEq('wkk', S.wk.k), limit: 300 })).filter(r => (r.since || 0) >= RESET_TS).sort((a, b) => (b.wk || 0) - (a.wk || 0)).slice(0, 20);
     if (!B.isConnected) return;
     const mi = rows.findIndex(r => r.id === S.lbId);
     B.innerHTML = `<div class="card myrank" style="margin-bottom:14px"><div class="mr-n num">${mi >= 0 ? '#' + (mi + 1) : '–'}</div>${avaHTML({ ...S })}<div class="who"><b>Dein Wochen-Plus</b><small>${mi >= 0 ? 'Platz ' + (mi + 1) + ' diese Woche' : 'Spiel eine Runde, um dabei zu sein'}</small></div><span class="w num ${S.wk.v < 0 ? 'neg' : 'pos'}">${fmt(S.wk.v, { sign: true })}</span></div>
