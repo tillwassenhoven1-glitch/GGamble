@@ -3287,7 +3287,9 @@ function cloudLink(key) {
 function startApp(key) {
   const all = Accounts.all(); ACC = key;
   S = Object.assign(newState(all[key].name), all[key].save || {});
-  if ((all[key].save || {}).ep !== RESET_EP) { // alte Spielstände haben noch kein ep → werden zurückgesetzt
+  const sv0 = all[key].save || {};
+  // zurücksetzen, wenn: alter Spielstand ohne ep ODER Konto wurde vor dem Neustart angelegt (kurzzeitiger Fehler hatte ep zu früh gesetzt)
+  if (sv0.ep !== RESET_EP || (sv0.created || 0) < RESET_TS) {
     const keep = { name: S.name, disp: S.disp, photo: S.photo, color: S.color, lbId: S.lbId, owner: S.owner, cheat: S.cheat, set: S.set, clan: S.clan };
     S = Object.assign(newState(all[key].name), keep); all[key].save = S; all[key].ts = Date.now(); Accounts.put(all);
     setTimeout(() => { try { cloudLast = ''; cloudPush(true); lbLast = ''; pushScore(true); } catch (e) { } }, 2500);
@@ -3818,7 +3820,9 @@ async function renderRang2(el) {
   } else info = 'ℹ️ Die Online-Bestenliste ist nicht eingerichtet – du siehst nur die Konten auf diesem Gerät.';
   if (!all) { persist(); all = localAll().filter(r => !r.me && (r.since || 0) >= RESET_TS); }
   // mich selbst immer mit den aktuellen Werten
-  all = all.filter(r => !r.me && r.k !== S.lbId); all.push(rgMe());
+  all = all.filter(r => !r.me && r.k !== S.lbId && String(r.name).toLowerCase() !== meKey());
+  { const by = {}; all.forEach(r => { const n = String(r.name).toLowerCase(); if (!by[n] || (r.ts || 0) > (by[n].ts || 0)) by[n] = r; }); all = Object.values(by); } // pro Name nur ein Eintrag
+  all.push(rgMe());
   const body = $('#rgBody', el); if (!body) return;
   const key = RG_TABS[rgTab][1], isBal = key === 'bal';
   const val = r => isBal ? r.bal : r[key];
