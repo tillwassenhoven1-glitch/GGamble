@@ -2497,14 +2497,17 @@ const FS = () => `https://firestore.googleapis.com/v1/projects/${ONLINE.projectI
 function lbId() { if (!S.lbId) { S.lbId = (ACC.replace(/[^a-z0-9]/g, '') || 'x').slice(0, 12) + '-' + Math.random().toString(36).slice(2, 10); save(); } return S.lbId; }
 let lbLast = '';
 let lbFull = true;
+let lbOwn = true;
 function pushScore(force) {
   if (!onlineOn() || !S) return;
-  const sig = [S.bal, S.level, S.disp, S.color, S.st.biggest, Object.keys(S.ach).length].join('|'); if (!force && sig === lbLast) return; lbLast = sig;
+  const sig = [S.bal, S.level, S.disp, S.color, S.st.biggest, Object.keys(S.ach).length, S.owner ? 1 : 0].join('|'); if (!force && sig === lbLast) return; lbLast = sig;
   const f = { name: { stringValue: S.name }, disp: { stringValue: S.disp }, bal: { doubleValue: S.bal }, level: { integerValue: String(S.level) }, color: { integerValue: String(S.color || 0) }, ts: { integerValue: String(Date.now()) } };
   const full = Object.assign({}, f, { big: { doubleValue: S.st.biggest || 0 }, net: { doubleValue: S.st.net || 0 }, bxp: { doubleValue: S.bx.pnl || 0 }, wag: { doubleValue: S.st.wagered || 0 }, since: { integerValue: String(S.created || Date.now()) }, best: { stringValue: S.st.bestGame || '' }, ach: { integerValue: String(Object.keys(S.ach).length) } });
   const send = fields => fetch(`${FS()}/rang/${lbId()}?key=${ONLINE.apiKey}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) });
-  (lbFull ? send(full) : Promise.resolve({ ok: false, status: 403 }))
-    .then(r => { if (r.ok) return; if (r.status === 403 || r.status === 400) { lbFull = false; return send(f).then(r2 => { if (!r2.ok) lbLast = ''; }); } lbLast = ''; })
+  const withOwn = Object.assign({}, full, { own: { booleanValue: !!S.owner } });
+  (lbOwn ? send(withOwn) : Promise.resolve({ ok: false, status: 403 }))
+    .then(r => { if (r.ok) return; if (r.status === 403 || r.status === 400) { lbOwn = false; return lbFull ? send(full) : { ok: false, status: 403 }; } return r; })
+    .then(r => { if (!r || r.ok) return; if (r.status === 403 || r.status === 400) { lbFull = false; return send(f).then(r2 => { if (!r2.ok) lbLast = ''; }); } lbLast = ''; })
     .catch(() => { lbLast = ''; });
 }
 async function fetchTop() {
@@ -2512,7 +2515,7 @@ async function fetchTop() {
   if (!r.ok) throw new Error('HTTP ' + r.status);
   const j = await r.json();
   return j.filter(x => x.document).map(x => { const f = x.document.fields, id = x.document.name.split('/').pop(); const n = v => v ? +(v.doubleValue ?? v.integerValue ?? 0) : 0; return { k: id, name: f.name?.stringValue || '?', disp: f.disp?.stringValue || f.name?.stringValue || '?', bal: n(f.bal), lvl: n(f.level) || 1, color: n(f.color), ts: n(f.ts), me: S.lbId === id,
-      big: f.big ? n(f.big) : null, net: f.net ? n(f.net) : null, bxp: f.bxp ? n(f.bxp) : null, wag: f.wag ? n(f.wag) : null, since: f.since ? n(f.since) : null, best: f.best?.stringValue || '', ach: f.ach ? n(f.ach) : null }; });
+      big: f.big ? n(f.big) : null, net: f.net ? n(f.net) : null, bxp: f.bxp ? n(f.bxp) : null, wag: f.wag ? n(f.wag) : null, since: f.since ? n(f.since) : null, best: f.best?.stringValue || '', ach: f.ach ? n(f.ach) : null, own: !!f.own?.booleanValue }; });
 }
 function ago(ts) { const s = (Date.now() - ts) / 1000; return s < 3600 ? `vor ${Math.max(1, Math.floor(s / 60))} Min.` : s < 86400 ? `vor ${Math.floor(s / 3600)} Std.` : `vor ${Math.floor(s / 86400)} T.`; }
 async function fsCount(where) {
@@ -2538,8 +2541,11 @@ function localAll() {
 let OWNER_RID = localStorage.getItem('gg_owner') || '';
 const isOwner = id => !!OWNER_RID && id === OWNER_RID;
 function loadOwner() { if (!onlineOn()) return; fetch(fsDoc('namen/till'), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(j => { const rid = j?.fields?.rid?.stringValue || ''; if (rid === OWNER_RID) return; OWNER_RID = rid; try { localStorage.setItem('gg_owner', rid); } catch (e) { } if (S && typeof curPage !== 'undefined' && ['rang', 'profil'].includes(curPage)) go(curPage, true); }).catch(() => { }); }
-const ownerTag = n => isOwner(n) ? '<span class="owner">👑 Besitzer</span>' : '';
-const nameCls = n => isOwner(n) ? 'ownername' : '';
+// 👑 Abzeichen nur sichtbar, wenn der Besitzer es im Cheat-Menü eingeschaltet hat (bleibt gespeichert)
+const ownOn = r => !!r && isOwner(r.k) && (r.me ? !!(S && S.owner) : !!r.own);
+const ME_O = () => ({ k: S.lbId, me: true });
+const ownerTag = r => ownOn(r) ? '<span class="owner">👑 Besitzer</span>' : '';
+const nameCls = r => ownOn(r) ? 'ownername' : '';
 const RANG_WIP = false; // Bestenliste ist in Arbeit
 async function renderRang(el) {
   if (RANG_WIP) { el.innerHTML = `<h1 class="t">Bestenliste</h1><p class="sub">Top 10 online – nur echte Spieler</p>
@@ -2556,14 +2562,14 @@ async function renderRang(el) {
   if (!mine) { const all = localAll(); mine = { rank: all.findIndex(r => r.me) + 1 || all.length + 1, total: all.length }; }
   const topI = rows.findIndex(r => r.me); if (topI >= 0) mine.rank = topI + 1;
   const body = $('#rgBody', el); if (!body) return;
-  const pod = (r, i) => r ? `<div class="p${i + 1}"><div class="pa">${avaHTML(r)}<span class="rk" style="background:${['#d8b85a', '#cfcfd4', '#c8875a'][i]}">${i + 1}</span></div><div class="nm ${nameCls(r.k)}">${esc(r.disp)}</div>${isOwner(r.k) ? '<div class="owner" style="margin-top:4px">👑 Besitzer</div>' : ''}<div class="vv num">${fmt(r.bal)}</div><div class="blk" style="height:${[150, 110, 80][i]}px"></div></div>` : '<div></div>';
+  const pod = (r, i) => r ? `<div class="p${i + 1}"><div class="pa">${avaHTML(r)}<span class="rk" style="background:${['#d8b85a', '#cfcfd4', '#c8875a'][i]}">${i + 1}</span></div><div class="nm ${nameCls(r)}">${esc(r.disp)}</div>${ownOn(r) ? '<div class="owner" style="margin-top:4px">👑 Besitzer</div>' : ''}<div class="vv num">${fmt(r.bal)}</div><div class="blk" style="height:${[150, 110, 80][i]}px"></div></div>` : '<div></div>';
   const meI = rows.findIndex(r => r.me);
   const meRow = { disp: S.disp, name: S.name, photo: S.photo, color: S.color, bal: S.bal };
   body.innerHTML = `<p class="hint" style="margin-top:-8px">Du bist auf Platz ${NF0.format(mine.rank)} 🏆</p>
     <div class="podium">${pod(rows[1], 1)}${pod(rows[0], 0)}${pod(rows[2], 2)}</div>
-    ${rows.length ? `<div class="card tight list rl">${rows.map((r, i) => `<div class="it ${r.me ? 'me' : ''}" data-i="${i}"><span class="rn">${i + 1}</span>${avaHTML(r)}<div class="who"><b><span class="${nameCls(r.k)}">${esc(r.disp)}</span>${ownerTag(r.k)}</b><small>@${esc(r.name)} · ${ago(r.ts)}</small></div><span class="w num ${r.bal < 0 ? 'neg' : ''}">${fmt(r.bal)}</span></div>`).join('')}</div>` : '<div class="empty">Noch niemand in der Bestenliste.</div>'}
+    ${rows.length ? `<div class="card tight list rl">${rows.map((r, i) => `<div class="it ${r.me ? 'me' : ''}" data-i="${i}"><span class="rn">${i + 1}</span>${avaHTML(r)}<div class="who"><b><span class="${nameCls(r)}">${esc(r.disp)}</span>${ownerTag(r)}</b><small>@${esc(r.name)} · ${ago(r.ts)}</small></div><span class="w num ${r.bal < 0 ? 'neg' : ''}">${fmt(r.bal)}</span></div>`).join('')}</div>` : '<div class="empty">Noch niemand in der Bestenliste.</div>'}
     <div class="sec">Dein Platz</div>
-    <div class="card myrank"><div class="mr-n num">#${NF0.format(mine.rank)}</div>${avaHTML(meRow)}<div class="who"><b class="${nameCls(S.lbId)}">${esc(S.disp)}</b><small>${isOwner(S.lbId) ? '<span class="owner">👑 Besitzer</span> · ' : ''}${mine.total ? `von ${NF0.format(mine.total)} Spieler${mine.total === 1 ? '' : 'n'}` : '@' + esc(S.name)}${mine.rank <= 10 ? ' · Top 10 🔥' : ''}</small></div><span class="w num ${S.bal < 0 ? 'neg' : ''}">${fmt(S.bal)}</span></div>
+    <div class="card myrank"><div class="mr-n num">#${NF0.format(mine.rank)}</div>${avaHTML(meRow)}<div class="who"><b class="${nameCls(ME_O())}">${esc(S.disp)}</b><small>${ownOn(ME_O()) ? '<span class="owner">👑 Besitzer</span> · ' : ''}${mine.total ? `von ${NF0.format(mine.total)} Spieler${mine.total === 1 ? '' : 'n'}` : '@' + esc(S.name)}${mine.rank <= 10 ? ' · Top 10 🔥' : ''}</small></div><span class="w num ${S.bal < 0 ? 'neg' : ''}">${fmt(S.bal)}</span></div>
     ${info ? `<p class="hint">${info}</p>` : ''}`;
   const myProf = rk => { persist(); const me = localAll().find(x => x.me) || meRow; playerProfile({ ...me, k: S.lbId, lvl: S.level, bal: S.bal, ts: Date.now() }, rk); };
   body.querySelector('.myrank').onclick = () => myProf(mine.rank);
@@ -2579,7 +2585,7 @@ function playerProfile(r, rank) {
   const v = x => x === null || x === undefined ? '–' : null;
   sheet(`<div class="row sb" style="margin-bottom:10px"><span class="chip">🏆 Platz ${rank}</span><button class="x" data-close>${icon('x')}</button></div>
     <div class="card prof" style="margin:0 0 14px"><div class="ban"></div><div class="pa">${avaHTML(r)}</div>
-      <div class="pinfo"><b class="${nameCls(r.k)}">${esc(r.disp)}</b><small>@${esc(r.name)}${isOwner(r.k) ? ' · <span class="owner">👑 Besitzer</span>' : ''}</small><small style="font-size:14px">zuletzt aktiv ${ago(r.ts)}</small></div></div>
+      <div class="pinfo"><b class="${nameCls(r)}">${esc(r.disp)}</b><small>@${esc(r.name)}${ownOn(r) ? ' · <span class="owner">👑 Besitzer</span>' : ''}</small><small style="font-size:14px">zuletzt aktiv ${ago(r.ts)}</small></div></div>
     <div class="stats">
       <div class="stat"><small>Level</small><b>${r.lvl}</b></div>
       <div class="stat"><small>Kontostand</small><b class="num ${r.bal < 0 ? 'neg' : ''}">${fmt(r.bal)}</b></div>
@@ -2942,7 +2948,7 @@ function renderProfil(el) {
   const got = ACH.filter(a => S.ach[a[0]]).length;
   const ordered = [...ACH].sort((a, b) => (!!S.ach[b[0]]) - (!!S.ach[a[0]]));
   el.innerHTML = `<div class="card prof"><div class="ban"></div><div class="pa">${avaHTML(S)}</div>
-      <div class="pinfo"><b class="${nameCls(S.lbId)}">${esc(S.disp)}</b><small>@${esc(S.name)}${isOwner(S.lbId) ? ' · <span class="owner">👑 Besitzer</span>' : ''}</small><button class="btn dark sm" id="pEd" style="align-self:flex-start">${icon('edit')} Bearbeiten</button></div></div>
+      <div class="pinfo"><b class="${nameCls(ME_O())}">${esc(S.disp)}</b><small>@${esc(S.name)}${ownOn(ME_O()) ? ' · <span class="owner">👑 Besitzer</span>' : ''}</small><button class="btn dark sm" id="pEd" style="align-self:flex-start">${icon('edit')} Bearbeiten</button></div></div>
     <div class="stats">
       <div class="stat"><small>Level</small><b>${S.level}</b></div>
       <div class="stat"><small>Kontostand</small><b class="num ${S.bal < 0 ? 'neg' : ''}">${fmt(S.bal)}</b></div>
@@ -3003,7 +3009,7 @@ function openSettings() {
   const bindCheat = () => {
     const box = $('#cheatBox', o), g = $('#cGo2', o);
     if (g) g.onclick = () => { if ($('#cCode', o).value.trim() === '4uT2-U6G3') { S.cheat = true; save(); toast('😎 Cheat-Menü freigeschaltet!', 'good'); SND.win(); box.innerHTML = cheatHTML(); bindCheat(); } else { toast('❌ Falscher Code', 'bad'); SND.err(); } };
-    box.onclick = e => { const b = e.target.closest('[data-ch]'); if (!b) return; doCheat(b.dataset.ch); if (!S.cheat) box.innerHTML = `<div class="row"><input class="inp" id="cCode" placeholder="Code…" autocomplete="off"><button class="btn dark sm" id="cGo2">OK</button></div>`; bindCheat(); };
+    box.onclick = e => { const b = e.target.closest('[data-ch]'); if (!b) return; doCheat(b.dataset.ch); box.innerHTML = S.cheat ? cheatHTML() : `<div class="row"><input class="inp" id="cCode" placeholder="Code…" autocomplete="off"><button class="btn dark sm" id="cGo2">OK</button></div>`; bindCheat(); };
   };
   bindCheat();
   $('#out', o).onclick = () => { persist(); localStorage.removeItem(SES_KEY); location.reload(); };
@@ -3012,7 +3018,7 @@ function openSettings() {
 
 /* ================= Cheat-Menü (Code 4uT2-U6G3) ================= */
 const CHEATS = [['m1', '💰 +1.000 €'], ['m2', '💰 +1 Mio. €'], ['m3', '💰 +1 Mrd. €'], ['lv', '⭐ +5 Level'], ['lvmax', '🔓 Alles freischalten (Level 50)'], ['en', '⚡ Energie voll'], ['pot', '🧪 +3 von jedem Trank'], ['debt', '🧾 Schulden weg'], ['bonus', '🎁 Tagesbonus nochmal'], ['off', '🔒 Cheats ausblenden']];
-function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px">${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
+function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px">${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
 function doCheat(k) {
   const add = v => { S.bal = r2(S.bal + v); S.st.maxBal = Math.max(S.st.maxBal, S.bal); };
   if (k === 'm1') add(1000); else if (k === 'm2') add(1e6); else if (k === 'm3') add(1e9);
@@ -3021,6 +3027,7 @@ function doCheat(k) {
   else if (k === 'pot') { [2, 4, 6].forEach(m => S.pot[m] += 3); }
   else if (k === 'debt') { if (S.bal < 0) S.bal = 0; S.note = 0; }
   else if (k === 'bonus') { S.bonus.last = ''; }
+  else if (k === 'own') { if (!isOwner(S.lbId)) return; S.owner = !S.owner; save(); pushScore(true); SND.win(); toast(S.owner ? '👑 Besitzer-Abzeichen aktiviert' : 'Besitzer-Abzeichen deaktiviert', 'good', 1600); return; }
   else if (k === 'off') { S.cheat = false; toast('Cheats ausgeblendet'); save(); return; }
   SND.coin(); FX.burst(30, { coins: true }); hdr(true); checkAch(); save(); toast('😎 ' + CHEATS.find(c => c[0] === k)[1], 'good', 1600);
 }

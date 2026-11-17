@@ -41,6 +41,7 @@ Version 0.1.2 · Open Beta
 - 🏆 30 Erfolge mit Belohnungen
 - 👤 Profil mit Statistiken, eigener Farbe oder eigenem Profilbild
 - 😎 Cheat-Menü mit Code (Profil → Einstellungen → Code eingeben)
+- 👑 Besitzer-Abzeichen in der Bestenliste – im Cheat-Menü an- und ausschaltbar, bleibt auch nach dem Neuladen gespeichert
 - 🔊 Sounds und Vibration (abschaltbar)
 - 📲 Für Handy gemacht, läuft auch am PC
 
@@ -65,7 +66,7 @@ service cloud.firestore {
     }
     match /rang/{id} {
       allow read: if true;
-      allow write: if request.resource.data.keys().hasOnly(['name','disp','bal','level','color','ts','big','net','bxp','wag','since','best','ach'])
+      allow write: if request.resource.data.keys().hasOnly(['name','disp','bal','level','color','ts','big','net','bxp','wag','since','best','ach','own'])
                    && request.resource.data.bal is number;
     }
   }
