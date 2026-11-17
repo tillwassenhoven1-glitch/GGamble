@@ -659,6 +659,11 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .vgrid .vwait{position:absolute;inset:0;display:grid;place-items:center;color:var(--mut);font-size:13px;font-weight:700;background:#151517}
 .dturn{text-align:center;font-weight:800;font-size:18px;padding:12px;border-radius:16px;background:#1d1d20;margin:14px 0}
 .dturn.me{background:linear-gradient(180deg,#3a2d08,#1d1d20);color:var(--gold2);box-shadow:0 0 20px rgba(232,196,90,.25)}
+.fdgg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px}.fdgg .btn{padding:14px 8px;font-size:16px}
+.fdsc{display:flex;align-items:center;justify-content:center;gap:22px;margin:6px 0 10px}.fdsc div{text-align:center}.fdsc small{display:block;color:var(--mut);font-size:13px}.fdsc b{font-size:46px}.fdsc span{font-size:34px;color:var(--mut)}
+.fdhist{display:flex;flex-direction:column;gap:6px}.fdr{display:grid;grid-template-columns:70px 1fr 26px 1fr 80px;align-items:center;gap:6px;padding:8px 12px;border-radius:14px;background:#151517;font-size:20px;text-align:center}
+.fdr small{color:var(--mut);font-size:12px}.fdr b{font-size:13px;color:var(--mut)}.fdr.w{background:rgba(76,194,101,.15)}.fdr.w b{color:#4cc265}.fdr.l{background:rgba(232,82,74,.13)}.fdr.l b{color:#e8524a}
+.fdrps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.fdrps .btn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 4px;font-size:15px}.fdrps .btn span{font-size:40px}
 .dgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
 .dgrid button{aspect-ratio:1;border-radius:14px;background:linear-gradient(180deg,#3a3a40,#24242a);border:1px solid var(--line2);font-size:26px;box-shadow:0 4px 0 #111;transition:transform .12s}
 .dgrid button:not(:disabled):active{transform:translateY(3px);box-shadow:0 1px 0 #111}
@@ -2967,17 +2972,17 @@ function duelEnd(winner, why, by) {
   const me = T.peer && T.peer.id, won = winner && winner === me;
   if (D.paid) {
     if (why === 'draw') { earn(D.stake); toast('Unentschieden – alle sicheren Felder sind weg. Einsatz zurück.'); }
-    else if (won) { payout(D.stake * 2, 'Minenfeld', D.stake); }
+    else if (won) { payout(potWin(D.stake), 'Minenfeld', D.stake); }
   }
   duelDraw();
   if (D.ov) {
     const t = $('#dT', D.ov);
-    t.innerHTML = why === 'draw' ? '🤝 Unentschieden' : why === 'left' ? (won ? '🏃 Gegner ist weg – du gewinnst!' : 'Duell abgebrochen') : won ? `🎉 ${esc(T.names[D.opp] || 'Gegner')} hat die Bombe gefunden – du gewinnst ${fmt(D.stake * 2)}!` : '💥 BOOM – du hast die Bombe gefunden!';
+    t.innerHTML = why === 'draw' ? '🤝 Unentschieden' : why === 'left' ? (won ? '🏃 Gegner ist weg – du gewinnst!' : 'Duell abgebrochen') : won ? `🎉 ${esc(T.names[D.opp] || 'Gegner')} hat die Bombe gefunden – du gewinnst ${fmt(potWin(D.stake))}!` : '💥 BOOM – du hast die Bombe gefunden!';
     t.classList.toggle('me', !!won);
     const bt = document.createElement('button'); bt.className = 'btn white w'; bt.style.marginTop = '14px'; bt.textContent = 'Schließen';
     bt.onclick = () => { D.ov.close(); T.duel = null; refreshRoom(); }; D.ov.querySelector('.sheet').appendChild(bt);
   }
-  if (why === 'bomb') { if (won) { celebrate(D.stake * 2, 2); FX.burst(120, { coins: true }); } else { flash(); shake(D.ov ? D.ov.querySelector('.sheet') : document.body); SND.lose(); vib([100, 50, 200]); } }
+  if (why === 'bomb') { if (won) { celebrate(potWin(D.stake), 2); FX.burst(120, { coins: true }); } else { flash(); shake(D.ov ? D.ov.querySelector('.sheet') : document.body); SND.lose(); vib([100, 50, 200]); } }
   else if (won) { SND.win(); FX.burst(60, { coins: true }); }
   hdr(true); save();
   if (!D.ov) { T.duel = null; refreshRoom(); }
@@ -3390,7 +3395,7 @@ function extInit() {
   if (S.frm && !frOk(S.frm)) S.frm = '';
   save();
   if (!bonusReady()) setTimeout(calMaybe, 1500);
-  feedStart(); chatBg(); dmStart();
+  feedStart(); chatBg(); dmStart(); fdStart();
 }
 
 /* ================= Belohnungen (Battle Pass + Kalender) ================= */
@@ -3888,8 +3893,8 @@ function renderFreunde(el) {
   frList();
   const others = [...new Set(DM.inbox.map(m => m.von))].filter(k => !isFriend(k));
   const item = (k, d, fr) => { const u = unreadFrom(k), last = DM.inbox.filter(m => m.von === k).sort((a, b) => b.ts - a.ts)[0];
-    return `<div class="it" data-k="${esc(k)}" data-d="${esc(d)}">${avaHTML({ disp: d, name: k })}<div class="who" style="flex:1"><b>${esc(d)}</b><small>${last ? esc(last.txt).slice(0, 40) : '@' + esc(k)}</small></div>${u ? `<span class="chip red">${u}</span>` : ''}${fr ? '' : `<button class="btn gold xs" data-add="${esc(k)}">➕</button>`}${icon('right', 'chev')}</div>`; };
-  el.innerHTML = `<h1 class="t">Freunde</h1><p class="sub">Füg Freunde hinzu und schreib ihnen private Nachrichten</p>
+    return `<div class="it" data-k="${esc(k)}" data-d="${esc(d)}">${avaHTML({ disp: d, name: k })}<div class="who" style="flex:1"><b>${esc(d)}</b><small>${last ? esc(last.txt).slice(0, 40) : '@' + esc(k)}</small></div>${u ? `<span class="chip red">${u}</span>` : ''}${fr ? `<button class="btn gold xs" data-duel="${esc(k)}" data-dd="${esc(d)}">🎮</button>` : `<button class="btn gold xs" data-add="${esc(k)}">➕</button>`}${icon('right', 'chev')}</div>`; };
+  el.innerHTML = `<h1 class="t">Freunde</h1><p class="sub">Füg Freunde hinzu, schreib ihnen und fordere sie mit 🎮 zum Duell heraus</p>
     <div class="card"><div class="row"><input class="inp" id="frIn" maxlength="18" placeholder="Name des Spielers" autocomplete="off"><button class="btn gold sm" id="frGo">Hinzufügen</button></div>
       <p class="hint" style="margin-bottom:0">Tipp: Du kannst Spieler auch direkt in der Bestenliste antippen und hinzufügen.</p></div>
     ${others.length ? `<div class="sec">Neue Nachrichten</div><div class="card tight list">${others.map(k => { const m = DM.inbox.find(x => x.von === k); return item(k, m.disp || k, false); }).join('')}</div>` : ''}
@@ -3899,6 +3904,7 @@ function renderFreunde(el) {
   const go_ = async () => { const v = $('#frIn', el).value; if (await frAdd(v)) renderFreunde(el); };
   $('#frGo', el).onclick = go_; $('#frIn', el).onkeydown = e => { if (e.key === 'Enter') go_(); };
   el.onclick = async e => {
+    const du = e.target.closest('[data-duel]'); if (du) { e.stopPropagation(); fdPick(du.dataset.duel, du.dataset.dd); return; }
     const a = e.target.closest('[data-add]'); if (a) { e.stopPropagation(); const m = DM.inbox.find(x => x.von === a.dataset.add); if (await frAdd(a.dataset.add, m && m.disp)) renderFreunde(el); return; }
     const it = e.target.closest('[data-k]'); if (it) openDM(it.dataset.k, it.dataset.d, () => curPage === 'freunde' && renderFreunde(el));
   };
@@ -3908,7 +3914,7 @@ function openDM(k, d, onClose) {
   frList(); DM.open = k;
   const fr = isFriend(k);
   const o = sheet(`<div class="row sb"><h2>💬 ${esc(d)}</h2><button class="x" data-close>${icon('x')}</button></div>
-    <div class="row" style="gap:8px;margin:-4px 0 10px">${fr ? `<button class="btn dark xs" id="dmDel">Freund entfernen</button>` : `<button class="btn gold xs" id="dmAdd">➕ Als Freund hinzufügen</button>`}</div>
+    <div class="row" style="gap:8px;margin:-4px 0 10px;flex-wrap:wrap"><button class="btn gold xs" id="dmDuel">🎮 Duell (💣 / 🚀)</button>${fr ? `<button class="btn dark xs" id="dmDel">Freund entfernen</button>` : `<button class="btn dark xs" id="dmAdd">➕ Als Freund hinzufügen</button>`}</div>
     <div class="chatlog lobby" id="dmLog"><p class="hint">Lade …</p></div>
     <div class="row" style="margin-top:10px"><input class="inp" id="dmIn" maxlength="300" placeholder="Nachricht an ${esc(d)} …" autocomplete="off"><button class="btn gold sm" id="dmGo">Senden</button></div>
     <p class="hint" style="font-size:12px">Hinweis: Nachrichten sind nicht verschlüsselt – schreib nichts Geheimes (keine Passwörter!).</p>`, { onClose: () => { DM.open = null; onClose && onClose(); } });
@@ -3931,9 +3937,277 @@ function openDM(k, d, onClose) {
     try { await dmSend(k, t); SND.click(); pull(false); } catch (e) { toast('Nicht gesendet – Internet prüfen.', 'bad'); inp.value = t; }
   };
   $('#dmGo', o).onclick = send; $('#dmIn', o).onkeydown = e => { if (e.key === 'Enter') send(); };
+  $('#dmDuel', o).onclick = () => { o.close(); fdPick(k, d); };
   const del = $('#dmDel', o); if (del) del.onclick = () => { S.friends = S.friends.filter(f => f.k !== k); save(); toast('Freund entfernt'); o.close(); };
   const add = $('#dmAdd', o); if (add) add.onclick = async () => { if (await frAdd(k, d)) { add.remove(); } };
 }
+
+/* ================= Freundes-Duelle: Minenfeld & Crash (Topf, 5 % Gebühr) ================= */
+const DUEL_TAX = .05;
+const FDG = { mines: ['💣', 'Minenfeld'], crash: ['🚀', 'Crash-Duell'], rps: ['✊', 'Schere-Stein-Papier'], dice: ['🎲', 'Würfelduell'] };
+const FDX = { cur: null, iv: 0, seen: new Set(), busy: false };
+const potWin = st => r2(st * 2 * (1 - DUEL_TAX));
+const fdUrl = (id, mask) => `${FS()}/duelle/${id}?${mask ? mask.map(m => 'updateMask.fieldPaths=' + m + '&').join('') : ''}key=${ONLINE.apiKey}`;
+async function fdGet(id) { const r = await fetch(fdUrl(id), { cache: 'no-store' }); if (!r.ok) throw new Error('HTTP ' + r.status); const j = await r.json(); const o = { id }; for (const k in (j.fields || {})) o[k] = fval(j.fields[k]); return o; }
+function fdFields(obj) { const f = {}; for (const [k, v] of Object.entries(obj)) f[k] = typeof v === 'number' ? (Number.isInteger(v) ? fint(v) : { doubleValue: v }) : fstr(v); return f; }
+async function fdSet(id, obj) { const r = await fetch(fdUrl(id, Object.keys(obj)), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: fdFields(obj) }) }); if (!r.ok) throw new Error('HTTP ' + r.status); }
+const fdBombs = seed => { const r = mulberry(seed), b = []; while (b.length < DUEL_B) { const c = Math.floor(r() * DUEL_N); if (!b.includes(c)) b.push(c); } return b; };
+const fdCp = seed => { const u = mulberry(seed ^ 0x5bd1e995)(); return Math.min(1000, Math.max(1, Math.floor(.96 / (1 - u) * 100) / 100)); };
+const fdMoves = d => (d.mv || '').split(',').filter(x => x !== '').map(Number);
+
+/* --- Einladen --- */
+function fdPick(k, d) {
+  if (!onlineOn()) return toast('Braucht die Online-Verbindung', 'bad');
+  if (FDX.cur) return toast('Du bist schon in einem Duell.', 'bad');
+  let g = 'mines';
+  const o = sheet(`<div class="row sb"><h2>🎮 ${esc(d)} herausfordern</h2><button class="x" data-close>${icon('x')}</button></div>
+    <div class="fdgg" id="fdG">${Object.entries(FDG).map(([k, [ic, n]]) => `<button class="btn dark" data-g="${k}">${ic} ${n}</button>`).join('')}</div>
+    <p class="hint" id="fdH"></p>
+    <div class="lbl2">Einsatz pro Spieler (max. ${fmt(duelMax())})</div><input class="inp num" id="fdS" type="number" inputmode="decimal" value="${Math.min(10, duelMax())}">
+    <p class="hint" id="fdP"></p>
+    <button class="btn white w" id="fdGo" style="margin-top:8px">Herausfordern</button>`);
+  const H = { mines: 'Ihr deckt abwechselnd Felder auf. Wer eine Bombe erwischt, verliert.', crash: 'Eine Rakete für beide! Wer später aussteigt, gewinnt – aber wer zu lange wartet, explodiert.', rps: 'Best of 3: Wer zuerst 2 Runden gewinnt, bekommt den Topf. Beide wählen gleichzeitig.', dice: 'Best of 3: Beide würfeln – die höhere Zahl gewinnt die Runde. Wer zuerst 2 Runden hat, gewinnt.' };
+  const upd = () => { $$('#fdG button', o).forEach(b => b.className = 'btn ' + (b.dataset.g === g ? 'gold' : 'dark')); $('#fdH', o).textContent = H[g]; const st = +$('#fdS', o).value || 0; $('#fdP', o).innerHTML = st > 0 ? `Topf: <b>${fmt(st * 2)}</b> · Gewinner bekommt <b class="goldc">${fmt(potWin(st))}</b> (5 % Gebühr)` : ''; };
+  $('#fdG', o).onclick = e => { const b = e.target.closest('[data-g]'); if (b) { g = b.dataset.g; SND.click(); upd(); } };
+  $('#fdS', o).oninput = upd; upd();
+  $('#fdGo', o).onclick = async function () {
+    const st = Math.round((+$('#fdS', o).value || 0) * 100) / 100;
+    if (!(st >= 1)) return toast('Mindestens 1 €', 'bad');
+    if (st > duelMax() + 1e-9) return toast(`Höchstens ${fmt(duelMax())} auf deinem Level`, 'bad');
+    if (S.bal < st) return toast('Dafür hast du nicht genug Geld.', 'bad');
+    this.disabled = true;
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    try {
+      const r = await fsCreate('duelle', id, fdFields({ a: meKey(), b: k, ad: S.disp, bd: d, g, st, s: 'inv', bi: k, seed: 0, mv: '', tn: 'a', fi: 'a', ac: 0, bc: 0, am: '', bm: '', w: '', ts: Date.now(), t0: 0 }));
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+    } catch (e) { this.disabled = false; return toast('Ging nicht – Internet & Firebase-Regeln prüfen.', 'bad'); }
+    o.close(); fdWait({ id, me: 'a', st, g, opp: d });
+  };
+}
+function fdWait(D) {
+  FDX.cur = D;
+  const o = sheet(`<h2>${FDG[D.g][0]} Warte auf ${esc(D.opp)} …</h2><p class="hint" style="font-size:17px">Einladung zum ${FDG[D.g][1]} ist raus. Einsatz ${fmt(D.st)} · Gewinner bekommt ${fmt(potWin(D.st))}.</p><div class="empty">⏳</div><button class="btn dark w" id="fdC">Abbrechen</button>`, { center: true, lock: true });
+  const t0 = Date.now(); let done = false;
+  const stop = msg => { done = true; clearInterval(iv); o.close(); FDX.cur = null; if (msg) toast(msg); };
+  $('#fdC', o).onclick = () => { fdSet(D.id, { s: 'cancel', bi: '' }).catch(() => { }); stop('Herausforderung abgebrochen'); };
+  const iv = setInterval(async () => {
+    if (done) return;
+    if (Date.now() - t0 > 60000) { fdSet(D.id, { s: 'cancel', bi: '' }).catch(() => { }); return stop('Keine Antwort – Herausforderung abgelaufen.'); }
+    let d; try { d = await fdGet(D.id); } catch (e) { return; }
+    if (done) return;
+    if (d.s === 'no') return stop(`${D.opp} hat abgelehnt.`);
+    if (d.s === 'cancel') return stop('Herausforderung abgebrochen.');
+    if (d.s === 'ok') {
+      done = true; clearInterval(iv);
+      if (!bet(D.st, FDG[D.g][1])) { fdSet(D.id, { s: 'cancel' }).catch(() => { }); o.close(); FDX.cur = null; return; }
+      D.paid = true; S.fdPend = { id: D.id, st: D.st, me: 'a' }; save();
+      const seed = (Math.random() * 2 ** 31) | 0, tn = Math.random() < .5 ? 'a' : 'b', start = Date.now() + 3500;
+      try { await fdSet(D.id, { s: 'run', seed, tn, fi: tn, t0: start, ts: Date.now() }); } catch (e) { }
+      o.close(); fdPlay(D);
+    }
+  }, 1500);
+}
+
+/* --- Einladungen empfangen --- */
+async function fdInbox() {
+  if (!S || !onlineOn() || FDX.cur || document.hidden) return;
+  try {
+    const n = await fsQuery({ from: [{ collectionId: 'duelle' }], where: fEq('bi', meKey()), limit: 5 });
+    const d = n.find(x => x.s === 'inv' && Date.now() - (x.ts || 0) < 60000 && !FDX.seen.has(x.id));
+    if (d) { FDX.seen.add(d.id); fdIncoming(d); }
+  } catch (e) { }
+}
+function fdIncoming(d) {
+  if (FDX.cur) return;
+  SND.big(); vib([60, 40, 60]);
+  const o = sheet(`<h2>${FDG[d.g] ? FDG[d.g][0] : '🎮'} Herausforderung!</h2><p class="hint" style="font-size:18px"><b>${esc(d.ad)}</b> fordert dich zum <b>${FDG[d.g] ? FDG[d.g][1] : 'Duell'}</b> heraus.<br>Einsatz: <b class="goldc">${fmt(d.st)}</b> · Gewinner bekommt <b class="goldc">${fmt(potWin(d.st))}</b></p>
+    <div class="two"><button class="btn dark" id="fiNo">Ablehnen</button><button class="btn gold" id="fiOk">Annehmen</button></div>`, { center: true });
+  const tm = setTimeout(() => o.isConnected && o.close(), 45000);
+  $('#fiNo', o).onclick = () => { clearTimeout(tm); fdSet(d.id, { s: 'no', bi: '' }).catch(() => { }); o.close(); };
+  $('#fiOk', o).onclick = async () => {
+    clearTimeout(tm);
+    if (d.st > duelMax() + 1e-9) { toast(`Einsatz zu hoch für dein Level (max. ${fmt(duelMax())})`, 'bad'); fdSet(d.id, { s: 'no', bi: '' }).catch(() => { }); return o.close(); }
+    let cur; try { cur = await fdGet(d.id); } catch (e) { return toast('Keine Verbindung', 'bad'); }
+    if (cur.s !== 'inv') { o.close(); return toast('Die Herausforderung ist schon vorbei.'); }
+    if (!bet(d.st, FDG[d.g][1])) { fdSet(d.id, { s: 'no', bi: '' }).catch(() => { }); return o.close(); }
+    const D = { id: d.id, me: 'b', st: d.st, g: d.g, opp: d.ad, paid: true }; FDX.cur = D; S.fdPend = { id: d.id, st: d.st, me: 'b' }; save();
+    try { await fdSet(d.id, { s: 'ok', bi: '' }); } catch (e) { earn(d.st); FDX.cur = null; S.fdPend = null; save(); o.close(); return toast('Keine Verbindung – Einsatz zurück.', 'bad'); }
+    o.close();
+    const w = sheet(`<h2>${FDG[d.g][0]} Gleich geht's los …</h2><div class="empty">⏳</div>`, { center: true, lock: true });
+    const t0 = Date.now();
+    const iv = setInterval(async () => {
+      let x; try { x = await fdGet(d.id); } catch (e) { return; }
+      if (x.s === 'run') { clearInterval(iv); w.close(); fdPlay(D); }
+      else if (x.s === 'cancel' || Date.now() - t0 > 30000) { clearInterval(iv); w.close(); fdSettle(D, 'refund'); toast('Duell abgebrochen – Einsatz zurück.'); }
+    }, 1200);
+  };
+}
+
+/* --- Spielen --- */
+function fdPlay(D) {
+  FDX.cur = D; D.end = false;
+  const other = D.me === 'a' ? 'b' : 'a';
+  const o = sheet(`<div class="row sb"><div><h2 style="font-size:26px">${FDG[D.g][0]} ${FDG[D.g][1]}</h2><small style="color:var(--mut)">gegen ${esc(D.opp)} · Topf ${fmt(D.st * 2)} · Gewinn ${fmt(potWin(D.st))}</small></div></div>
+    <div class="dturn" id="fT">Verbinde …</div><div id="fBody"></div><div id="fFoot"></div>`, { center: true, lock: true });
+  D.ov = o;
+  let doc = null, iv = 0;
+  const T_ = $('#fT', o), B = $('#fBody', o), F = $('#fFoot', o);
+  const finish = (res, txt) => {
+    if (D.end) return; D.end = true; clearInterval(iv);
+    fdSettle(D, res);
+    const act = $('#fAct', o); if (act) act.innerHTML = '';
+    T_.innerHTML = txt; T_.classList.toggle('me', res === 'win');
+    if (res === 'win') { celebrate(potWin(D.st), 2); FX.burst(120, { coins: true }); } else if (res === 'lose') { flash(); SND.lose(); vib([100, 50, 200]); } else SND.win();
+    F.innerHTML = '<button class="btn white w" style="margin-top:14px" id="fX">Schließen</button>';
+    $('#fX', o).onclick = () => { o.close(); FDX.cur = null; };
+  };
+  if (D.g === 'mines') {
+    B.innerHTML = `<div class="dgrid" id="fG">${Array.from({ length: DUEL_N }, (_, i) => `<button data-c="${i}"></button>`).join('')}</div><p class="hint" style="text-align:center">${DUEL_B} Bomben versteckt · wer eine findet, verliert</p>`;
+    let bombs = [], opened = [], turn = 'a', sending = false;
+    const draw = () => {
+      const mine = turn === D.me;
+      if (!D.end) { T_.textContent = mine ? '👉 Du bist dran – wähl ein Feld!' : `⏳ ${D.opp} ist dran …`; T_.classList.toggle('me', mine); }
+      $$('#fG button', o).forEach(b => { const c = +b.dataset.c, op = opened.includes(c), bomb = bombs.includes(c); b.className = op ? (bomb ? 'boom' : 'safe') : (D.end && bomb ? 'bomb' : ''); b.textContent = op ? (bomb ? '💥' : '💎') : (D.end && bomb ? '💣' : ''); b.disabled = op || D.end || !mine || sending; });
+    };
+    const evalEnd = d => {
+      const mv = fdMoves(d); opened = mv; turn = d.tn;
+      const hit = mv.findIndex(c => bombs.includes(c));
+      if (hit >= 0) { const by = hit % 2 === 0 ? d.fi : (d.fi === 'a' ? 'b' : 'a'); draw(); return finish(by === D.me ? 'lose' : 'win', by === D.me ? '💥 BOOM – du hast die Bombe gefunden!' : `🎉 ${esc(D.opp)} hat die Bombe gefunden – du gewinnst ${fmt(potWin(D.st))}!`); }
+      if (DUEL_N - DUEL_B - mv.length <= 0) { draw(); return finish('draw', '🤝 Unentschieden – Einsatz zurück'); }
+      if (d.s === 'end' && d.w) { draw(); return finish(d.w === D.me ? 'win' : 'lose', d.w === D.me ? `🏃 ${esc(D.opp)} ist weg – du gewinnst ${fmt(potWin(D.st))}!` : 'Du warst zu lange weg – Duell verloren.'); }
+      draw();
+    };
+    $('#fG', o).onclick = async e => {
+      const b = e.target.closest('[data-c]'); if (!b || D.end || !doc || turn !== D.me || sending) return;
+      const c = +b.dataset.c; if (opened.includes(c)) return;
+      const mv = [...opened, c]; sending = true; draw();
+      try { await fdSet(D.id, { mv: mv.join(','), tn: other, ts: Date.now() }); doc.mv = mv.join(','); doc.tn = other; SND.coin(mv.length % 6); vib(8); evalEnd(doc); }
+      catch (er) { toast('Zug nicht gesendet – nochmal tippen.', 'bad'); }
+      sending = false; draw();
+    };
+    const tick = async () => {
+      let d; try { d = await fdGet(D.id); } catch (e) { return; }
+      if (D.end) return;
+      if (!doc) bombs = fdBombs(d.seed);
+      doc = d;
+      if (fdMoves(d).length !== opened.length || d.s === 'end') { if (fdMoves(d).length > opened.length) SND.coin(3); evalEnd(d); } else { turn = d.tn; draw(); }
+      // Gegner weg?
+      if (!D.end && turn !== D.me && Date.now() - (d.ts || 0) > 60000 && !$('#fClaim', o)) {
+        F.innerHTML = `<button class="btn gold w" id="fClaim" style="margin-top:12px">${esc(D.opp)} reagiert nicht – Sieg holen</button>`;
+        $('#fClaim', o).onclick = async () => { try { const x = await fdGet(D.id); if (Date.now() - (x.ts || 0) < 60000 || x.tn === D.me) return toast('Dein Gegner ist doch noch da 🙂'); await fdSet(D.id, { s: 'end', w: D.me }); x.s = 'end'; x.w = D.me; evalEnd(x); } catch (e) { } };
+      }
+    };
+    tick(); iv = setInterval(tick, 1000);
+  } else if (D.g === 'rps' || D.g === 'dice') {
+    const rps = D.g === 'rps', IC = { S: '✌️', T: '✊', P: '✋' }, NM = { S: 'Schere', T: 'Stein', P: 'Papier' };
+    const beats = (x, y) => (x === 'S' && y === 'P') || (x === 'T' && y === 'S') || (x === 'P' && y === 'T');
+    const roll = (seed, r, who) => 1 + Math.floor(mulberry((seed ^ (r * 7919 + (who === 'a' ? 17 : 91))) >>> 0)() * 6);
+    B.innerHTML = `<div class="fdsc"><div><small>Du</small><b class="num" id="fW1">0</b></div><span>:</span><div><small>${esc(D.opp)}</small><b class="num" id="fW2">0</b></div></div>
+      <div class="fdhist" id="fHist"></div>
+      <div id="fAct" style="margin-top:14px"></div>`;
+    let seed = 0, sending = false;
+    const lists = d => [(d.am || '').split(',').filter(Boolean), (d.bm || '').split(',').filter(Boolean)];
+    const state = d => {
+      const [la, lb] = lists(d), mine = D.me === 'a' ? la : lb, theirs = D.me === 'a' ? lb : la, n = Math.min(la.length, lb.length), rounds = [];
+      let w1 = 0, w2 = 0;
+      for (let r = 0; r < n; r++) {
+        let res;
+        if (rps) res = mine[r] === theirs[r] ? 0 : beats(mine[r], theirs[r]) ? 1 : -1;
+        else { const a = roll(seed, r, D.me), b = roll(seed, r, other); res = a === b ? 0 : a > b ? 1 : -1; rounds.push({ a, b, res }); continue; }
+        rounds.push({ a: mine[r], b: theirs[r], res });
+      }
+      rounds.forEach(x => { if (x.res > 0) w1++; else if (x.res < 0) w2++; });
+      return { mine, theirs, n, rounds, w1, w2 };
+    };
+    const draw = d => {
+      const st = state(d);
+      $('#fW1', o).textContent = st.w1; $('#fW2', o).textContent = st.w2;
+      $('#fHist', o).innerHTML = st.rounds.map((x, i) => `<div class="fdr ${x.res > 0 ? 'w' : x.res < 0 ? 'l' : ''}"><small>Runde ${i + 1}</small><span>${rps ? IC[x.a] : '🎲 ' + x.a}</span><small>vs</small><span>${rps ? IC[x.b] : '🎲 ' + x.b}</span><b>${x.res > 0 ? 'gewonnen' : x.res < 0 ? 'verloren' : 'gleich'}</b></div>`).join('');
+      if (st.w1 >= 2 || st.w2 >= 2) return finish(st.w1 >= 2 ? 'win' : 'lose', st.w1 >= 2 ? `🎉 ${st.w1}:${st.w2} – du gewinnst ${fmt(potWin(D.st))}!` : `😬 ${st.w1}:${st.w2} – ${esc(D.opp)} gewinnt.`);
+      if (st.n >= 9) return finish('draw', '🤝 Zu viele Unentschieden – Einsatz zurück');
+      if (d.s === 'end' && d.w) return finish(d.w === D.me ? 'win' : 'lose', d.w === D.me ? `🏃 ${esc(D.opp)} ist weg – du gewinnst ${fmt(potWin(D.st))}!` : 'Du warst zu lange weg – Duell verloren.');
+      const waiting = st.mine.length > st.n;
+      T_.textContent = waiting ? `⏳ Warte auf ${D.opp} …` : `Runde ${st.n + 1} – ${rps ? 'wähl deine Hand!' : 'würfle!'}`; T_.classList.toggle('me', !waiting);
+      const A = $('#fAct', o);
+      if (waiting) A.innerHTML = `<p class="hint" style="text-align:center">Du hast ${rps ? IC[st.mine[st.n]] + ' ' + NM[st.mine[st.n]] + ' gewählt' : 'gewürfelt'} – gleich wird aufgedeckt.</p>`;
+      else A.innerHTML = rps ? `<div class="fdrps">${['S', 'T', 'P'].map(k => `<button class="btn dark" data-m="${k}" ${sending ? 'disabled' : ''}><span>${IC[k]}</span>${NM[k]}</button>`).join('')}</div>` : `<button class="btn gold w" data-m="x" style="font-size:22px" ${sending ? 'disabled' : ''}>🎲 Würfeln</button>`;
+      if (!waiting || Date.now() - (d.ts || 0) < 60000 || $('#fClaim', o)) return;
+      F.innerHTML = `<button class="btn gold w" id="fClaim" style="margin-top:12px">${esc(D.opp)} reagiert nicht – Sieg holen</button>`;
+      $('#fClaim', o).onclick = async () => { try { const x = await fdGet(D.id); const s2 = state(x); if (Date.now() - (x.ts || 0) < 60000 || s2.theirs.length >= s2.mine.length) return toast('Dein Gegner ist doch noch da 🙂'); await fdSet(D.id, { s: 'end', w: D.me }); x.s = 'end'; x.w = D.me; draw(x); } catch (e) { } };
+    };
+    $('#fAct', o).onclick = async e => {
+      const b = e.target.closest('[data-m]'); if (!b || D.end || sending || !doc) return;
+      const st = state(doc); if (st.mine.length > st.n) return;
+      sending = true; const nl = [...st.mine, b.dataset.m].join(',');
+      try { await fdSet(D.id, { [D.me + 'm']: nl, ts: Date.now() }); doc[D.me + 'm'] = nl; doc.ts = Date.now(); SND.click(); vib(10); } catch (er) { toast('Nicht gesendet – nochmal tippen.', 'bad'); }
+      sending = false; draw(doc);
+    };
+    const tick = async () => { let d; try { d = await fdGet(D.id); } catch (e) { return; } if (D.end) return; if (!seed) seed = d.seed; const before = doc ? state(doc).n : 0; doc = d; if (state(d).n > before) SND.coin(3); draw(d); };
+    tick(); iv = setInterval(tick, 1000);
+  } else {
+    B.innerHTML = `<div class="crsky" id="fSky" style="height:220px"><div class="crr" id="fR">🚀</div><div class="crm num" id="fM">1,00×</div><div class="crs" id="fS"></div></div>
+      <div class="two"><div class="stat"><small>Du</small><b class="num" id="fMe">–</b></div><div class="stat"><small>${esc(D.opp)}</small><b class="num" id="fOp">–</b></div></div>
+      <button class="btn gold w" id="fCash" style="margin-top:14px;font-size:22px" disabled>Gleich geht's los …</button>`;
+    let cp = 0, t0 = 0, myC = 0, opC = 0, raf = 0;
+    const mult = () => Math.max(1, Math.floor(Math.exp(CR_K * (Date.now() - t0)) * 100) / 100);
+    const crashAt = () => t0 + Math.log(cp) / CR_K;
+    const anim = () => {
+      if (D.end || !o.isConnected) return;
+      const now = Date.now(), btn = $('#fCash', o);
+      if (now < t0) { $('#fM', o).textContent = Math.ceil((t0 - now) / 1000) + ' …'; $('#fS', o).textContent = 'Gleich startet die Rakete'; }
+      else if (now < crashAt()) {
+        const m = mult(); $('#fM', o).textContent = crFmt(m); $('#fM', o).style.color = '#fff'; $('#fS', o).textContent = myC ? `Du bist bei ${crFmt(myC)} raus` : 'Steig aus, bevor sie explodiert!';
+        const x = Math.min(1, (now - t0) / 25000), y = Math.min(1, (m - 1) / 9); $('#fR', o).style.left = (8 + x * 78) + '%'; $('#fR', o).style.bottom = (10 + y * 70) + '%';
+        $('#fSky', o).classList.add('fly');
+        if (!myC) { btn.disabled = false; btn.textContent = `Aussteigen bei ${crFmt(m)}`; }
+      } else {
+        $('#fM', o).textContent = crFmt(cp); $('#fM', o).style.color = '#e8524a'; $('#fR', o).textContent = '💥'; $('#fSky', o).classList.remove('fly'); $('#fSky', o).classList.add('boom'); $('#fS', o).textContent = '💥 Explodiert!';
+        btn.disabled = true; if (!myC) btn.textContent = 'Zu spät 💥';
+      }
+      raf = requestAnimationFrame(anim);
+    };
+    $('#fCash', o).onclick = async () => {
+      if (myC || D.end || !t0 || Date.now() < t0) return;
+      const m = mult(); if (Date.now() >= crashAt() || m >= cp) return;
+      myC = m; SND.coin(4); vib(10); $('#fMe', o).textContent = crFmt(m); $('#fCash', o).disabled = true; $('#fCash', o).textContent = `Ausgestiegen bei ${crFmt(m)}`;
+      try { await fdSet(D.id, { [D.me + 'c']: m }); } catch (e) { try { await fdSet(D.id, { [D.me + 'c']: m }); } catch (e2) { } }
+    };
+    const tick = async () => {
+      let d; try { d = await fdGet(D.id); } catch (e) { return; }
+      if (D.end) return;
+      if (!t0) { t0 = d.t0; cp = fdCp(d.seed); raf = requestAnimationFrame(anim); }
+      opC = +d[other + 'c'] || 0; if (opC) $('#fOp', o).textContent = crFmt(opC);
+      const both = (+d.ac || 0) > 0 && (+d.bc || 0) > 0, over = Date.now() > crashAt() + 2500;
+      if (both || over) {
+        const me = +d[D.me + 'c'] || myC || 0;
+        $('#fMe', o).textContent = me ? crFmt(me) : '💥'; $('#fOp', o).textContent = opC ? crFmt(opC) : '💥';
+        if (!both && Date.now() < crashAt()) return; // warten bis Rakete explodiert
+        cancelAnimationFrame(raf);
+        if (me === opC) finish('draw', me ? `🤝 Beide bei ${crFmt(me)} – Unentschieden, Einsatz zurück` : '💥 Beide explodiert – Unentschieden, Einsatz zurück');
+        else finish(me > opC ? 'win' : 'lose', me > opC ? `🎉 Du warst mutiger – du gewinnst ${fmt(potWin(D.st))}!` : `😬 ${esc(D.opp)} war mutiger (${opC ? crFmt(opC) : '–'}) – verloren.`);
+        if (D.me === 'a') fdSet(D.id, { s: 'end', w: me === opC ? 'draw' : me > opC ? D.me : other }).catch(() => { });
+        if (both && Date.now() < crashAt()) { $('#fS', o).textContent = `Die Rakete flog bis ${crFmt(cp)}`; }
+      }
+    };
+    tick(); iv = setInterval(tick, 1000);
+  }
+}
+function fdSettle(D, res) {
+  if (!D || D.settled) return; D.settled = true;
+  if (D.paid) { if (res === 'win') payout(potWin(D.st), 'Duell', D.st); else if (res === 'draw' || res === 'refund') earn(D.st); }
+  S.fdPend = null; S.st.duels = (S.st.duels || 0) + (res === 'win' || res === 'lose' ? 1 : 0); hdr(true); save();
+}
+/* Nach Absturz: offenes Duell abrechnen */
+async function fdRecover() {
+  const p = S && S.fdPend; if (!p || !onlineOn()) return;
+  try {
+    const d = await fdGet(p.id), D = { id: p.id, st: p.st, me: p.me, paid: true, g: d.g };
+    if (d.s === 'cancel' || d.s === 'no' || d.s === 'inv' || (d.s === 'ok' && Date.now() - (d.ts || 0) > 60000)) { fdSettle(D, 'refund'); toast('Duell wurde nicht gestartet – Einsatz zurück.'); }
+    else if (d.s === 'end' && d.w) { fdSettle(D, d.w === 'draw' ? 'draw' : d.w === p.me ? 'win' : 'lose'); toast(d.w === p.me ? '🎉 Dein letztes Duell hast du gewonnen!' : 'Dein letztes Duell ist vorbei.'); }
+    else if (Date.now() - (d.ts || 0) > 5 * 60000) { S.fdPend = null; save(); }
+  } catch (e) { }
+}
+function fdStart() { if (FDX.iv || !onlineOn()) return; setTimeout(fdRecover, 3000); FDX.iv = setInterval(fdInbox, 8000); setTimeout(fdInbox, 4000); }
 
 /* Spielerprofil: Freund hinzufügen / Nachricht schreiben */
 (() => {
@@ -3944,9 +4218,10 @@ function openDM(k, d, onClose) {
     const k = String(r.name || '').toLowerCase(); if (!k || k === meKey()) return;
     const sh = [...document.querySelectorAll('.ov .sheet')].pop(); if (!sh) return;
     const pi = sh.querySelector('.prof'); if (!pi) return;
-    pi.insertAdjacentHTML('afterend', `<div class="two" style="margin-bottom:14px">${isFriend(k) ? '<button class="btn dark sm" disabled>✓ Freund</button>' : '<button class="btn gold sm" id="ppAdd">➕ Freund</button>'}<button class="btn dark sm" id="ppMsg">💬 Nachricht</button></div>`);
+    pi.insertAdjacentHTML('afterend', `<div class="two" style="margin-bottom:14px">${isFriend(k) ? '<button class="btn dark sm" disabled>✓ Freund</button>' : '<button class="btn gold sm" id="ppAdd">➕ Freund</button>'}<button class="btn dark sm" id="ppMsg">💬 Nachricht</button></div><button class="btn gold sm w" id="ppDuel" style="margin:-6px 0 14px">🎮 Zum Duell herausfordern</button>`);
     const a = sh.querySelector('#ppAdd'); if (a) a.onclick = async () => { if (await frAdd(k, r.disp)) { a.textContent = '✓ Freund'; a.disabled = true; a.className = 'btn dark sm'; } };
     sh.querySelector('#ppMsg').onclick = () => openDM(k, r.disp || r.name);
+    sh.querySelector('#ppDuel').onclick = () => { const ov = sh.closest('.ov'); ov && ov.close && ov.close(); fdPick(k, r.disp || r.name); };
   };
 })();
 

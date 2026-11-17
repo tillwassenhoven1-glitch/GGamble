@@ -35,7 +35,7 @@ Version 0.1.6 · Open Beta
 - 🎟️ **Battle Pass** – jeden Monat eine neue Saison mit 30 Stufen: Geld, Tränke, Energie, Rahmen und Titel
 - 📆 **Login-Kalender** – 7 Tage am Stück einloggen, am 7. Tag gibt's den großen Preis
 - 🏢 **Clans** – gründe einen Clan oder tritt einem bei: gemeinsamer Kontostand und eigene Clan-Bestenliste
-- 👥 **Freunde** hinzufügen und private Nachrichten schreiben
+- 👥 **Freunde** hinzufügen, private Nachrichten schreiben und zum **Duell** herausfordern (💣 Minenfeld, 🚀 Crash-Duell, ✊ Schere-Stein-Papier oder 🎲 Würfelduell – beide zahlen in den Topf, der Gewinner bekommt 95 %)
 - 💬 **Lobby-Chat** für alle Spieler und 📣 **Live-Feed** mit den größten Gewinnen
 - 🧪 **Glückstränke** – ×2, ×4 oder ×6: Jeder Dreh und jedes Los wird mehrmals gewürfelt, du bekommst das beste Ergebnis
 - 🥇 **Rang** – Online-Bestenliste: Top 10 aller echten Spieler mit Podest, dazu Gewinn-Ranglisten für **heute, diese Woche und diesen Monat** – Top 10, dein Platz und „Mehr anzeigen“ für alle
@@ -99,6 +99,16 @@ service cloud.firestore {
       allow create: if request.resource.data.keys().hasOnly(['von','an','disp','txt','ts','cts','ats'])
                     && request.resource.data.txt is string && request.resource.data.txt.size() <= 300;
       allow update, delete: if false;
+    }
+    match /duelle/{id} {
+      function keysOk() {
+        return request.resource.data.keys().hasOnly(['a','b','ad','bd','g','st','s','bi','seed','mv','tn','fi','ac','bc','am','bm','w','ts','t0']);
+      }
+      allow read: if true;
+      allow create: if keysOk() && request.resource.data.st is number && request.resource.data.st >= 1;
+      allow update: if keysOk() && request.resource.data.a == resource.data.a
+                    && request.resource.data.b == resource.data.b && request.resource.data.st == resource.data.st;
+      allow delete: if false;
     }
     match /feed/{id} {
       allow read: if true;
