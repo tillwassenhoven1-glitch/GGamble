@@ -1935,11 +1935,15 @@ Object.entries(SYMS).forEach(([k, s], i) => {
   s.seed = i * 7777;
 });
 function vnoise(s, t, step) { const i = Math.floor(t / step), f = t / step - i, u = f * f * (3 - 2 * f); return (hash32(s.seed + i) * (1 - u) + hash32(s.seed + i + 1) * u) - .5; }
+/* Kurs = Zufallsrauschen auf vielen Zeitebenen (kein festes Muster, nicht vorhersagbar) */
+const OCT = [[6, .9], [30, .9], [150, 1], [700, 1], [3000, 1], [11000, 1], [43000, 1], [170000, .9], [690000, .8], [2800000, .7]];
+function vn2(seed, x) { const i = Math.floor(x), f = x - i, u = f * f * f * (f * (f * 6 - 15) + 10); return (hash32(seed + i * 7919) * (1 - u) + hash32(seed + (i + 1) * 7919) * u) * 2 - 1; }
 function mid(sym, tMs) {
   const s = SYMS[sym], t = tMs / 1000; let x = 0;
-  for (const w of s.waves) x += w.a * Math.sin(2 * Math.PI * t / w.T + w.ph);
-  x += vnoise(s, t, 20) * s.vol * .08 + vnoise(s, t, 3) * s.vol * .03;
-  return s.base * Math.exp(x);
+  for (let k = 0; k < OCT.length; k++) { const [st, w] = OCT[k]; x += vn2(s.seed * 31 + k * 104729, t / st + k * .37) * w * Math.sqrt(st / 86400); }
+  // Volatilität schwankt (ruhige und wilde Phasen)
+  const regime = .65 + .7 * (vn2(s.seed + 999331, t / 20000) * .5 + .5);
+  return s.base * Math.exp(x * s.vol * .55 * regime);
 }
 function quote(sym, t = Date.now()) { const m = mid(sym, t), sp = m * SYMS[sym].sp; return { bid: m - sp / 2, ask: m + sp / 2, mid: m, sp }; }
 const pf = (sym, v) => v.toLocaleString('de-DE', { minimumFractionDigits: SYMS[sym].dec, maximumFractionDigits: SYMS[sym].dec });
