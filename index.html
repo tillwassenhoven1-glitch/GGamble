@@ -726,7 +726,8 @@ body.inmach #app *{animation-play-state:paused!important}
 @keyframes tzpulse2{from{opacity:.45}to{opacity:1}}
 .lines path{vector-effect:non-scaling-stroke}
 .ownername{color:#ff4b3e!important;text-shadow:0 0 12px rgba(255,60,40,.45)}
-.owner{display:inline-block;padding:2px 9px;border-radius:999px;background:linear-gradient(180deg,#ff5a4a,#b3180c);color:#fff;font-size:12px;font-weight:900;letter-spacing:.3px;vertical-align:middle;box-shadow:0 0 12px rgba(255,60,40,.45);white-space:nowrap}
+.owner{display:inline-block;margin-left:8px;text-shadow:none;padding:2px 9px;border-radius:999px;background:linear-gradient(180deg,#ff5a4a,#b3180c);color:#fff;font-size:12px;font-weight:900;letter-spacing:.3px;vertical-align:middle;box-shadow:0 2px 6px rgba(0,0,0,.45);white-space:nowrap}
+.podium .owner,small .owner{margin-left:0}
 .podium .owner{font-size:11px}
 .myrank{display:flex;align-items:center;gap:12px;padding:14px 16px;border-color:rgba(232,196,90,.45);background:linear-gradient(90deg,rgba(232,196,90,.12),#0d0d0f 60%);cursor:pointer}
 .myrank .mr-n{font-size:26px;font-weight:900;color:var(--gold2);min-width:58px}
@@ -750,7 +751,6 @@ body.inmach #app *{animation-play-state:paused!important}
     <input id="lPw2" class="fld" type="password" placeholder="Passwort wiederholen" autocomplete="new-password">
     <div class="err" id="lErr"></div>
     <button class="btn white w" id="lGo">Los geht's</button>
-    <button class="btn dark w" id="lImp" style="margin-top:10px;font-size:15px">📋 Konto von anderem Gerät holen (Spielstand-Code)</button>
     <p class="small">Dein Konto wird in diesem Browser gespeichert – du bleibst eingeloggt.<br>Kein echtes Geld, keine Käufe, keine Werbung.<br><span id="lVer" style="opacity:.6"></span></p>
   </div>
 </div>
@@ -1016,10 +1016,29 @@ function persist() {
   if (!S || !ACC) return;
   const all = Accounts.all(); if (!all[ACC]) return;
   all[ACC].save = S; all[ACC].bal = S.bal; all[ACC].level = S.level; all[ACC].disp = S.disp; all[ACC].photo = S.photo; all[ACC].ts = Date.now();
-  Accounts.put(all);
+  Accounts.put(all); cloudPush();
+}
+/* ☁️ Cloud-Konten: mit Name + Passwort auf jedem Gerät anmelden */
+const cloudId = async (key, pw) => 'k' + (await Accounts.hash(pw, 'gg-cloud1|' + key)).slice(0, 40);
+const fsDoc = p => `${FS()}/${p}?key=${ONLINE.apiKey}`;
+async function cloudGet(cid) {
+  const r = await fetch(fsDoc('konten/' + cid), { cache: 'no-store' }); if (r.status === 404) return null; if (!r.ok) throw new Error('HTTP ' + r.status);
+  const f = (await r.json()).fields || {}; return { d: JSON.parse(f.data.stringValue), ts: +(f.ts?.integerValue || 0) };
+}
+async function nameTaken(key) { const r = await fetch(fsDoc('namen/' + encodeURIComponent(key)), { cache: 'no-store' }); if (r.status === 404) return false; if (!r.ok) throw new Error('HTTP ' + r.status); return true; }
+function claimName(key) { return fetch(`${FS()}/namen?documentId=${encodeURIComponent(key)}&key=${ONLINE.apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: { t: { integerValue: String(Date.now()) } } }) }).catch(() => { }); }
+function cloudPut(cid, a, sv) {
+  const data = JSON.stringify({ name: a.name, created: a.created, save: sv }), body = JSON.stringify({ fields: { data: { stringValue: data }, ts: { integerValue: String(Date.now()) } } });
+  return fetch(fsDoc('konten/' + cid), { method: 'PATCH', keepalive: body.length < 60000, headers: { 'Content-Type': 'application/json' }, body });
+}
+let cloudT = 0, cloudLast = '';
+function cloudPush(now) {
+  if (typeof ONLINE === 'undefined' || !onlineOn() || !S || !ACC) return;
+  const run = () => { cloudT = 0; const a = Accounts.all()[ACC]; if (!a || !a.cid) return; const sig = JSON.stringify(S); if (sig === cloudLast) return; cloudPut(a.cid, a, S).then(r => { if (r.ok) cloudLast = sig; }).catch(() => { }); };
+  if (now) { clearTimeout(cloudT); run(); } else if (!cloudT) cloudT = setTimeout(run, 12000);
 }
 let saveT = 0; function save() { clearTimeout(saveT); saveT = setTimeout(persist, 250); }
-addEventListener('pagehide', () => { persist(); try { pushScore(); } catch (e) { } }); document.addEventListener('visibilitychange', () => document.hidden && persist());
+addEventListener('pagehide', () => { persist(); cloudPush(true); try { pushScore(); } catch (e) { } }); document.addEventListener('visibilitychange', () => { if (document.hidden) { persist(); cloudPush(true); } });
 
 /* ================= Effekte erst nach dem Spin ================= */
 let HOLD = [];
@@ -2515,7 +2534,7 @@ function localAll() {
   return Object.entries(Accounts.all()).map(([k, a]) => { const v = a.save || {}, st = v.st || {}; return { k, disp: a.disp || a.name, name: a.name, photo: a.photo, color: v.color || 0, bal: v.bal || 0, lvl: v.level || 1, ts: a.ts || a.created, me: k === ACC, big: st.biggest ?? null, net: st.net ?? null, bxp: v.bx ? v.bx.pnl : null, wag: st.wagered ?? null, since: v.created || a.created, best: st.bestGame || '', ach: v.ach ? Object.keys(v.ach).length : null }; }).sort((a, b) => b.bal - a.bal);
 }
 const isOwner = n => String(n || '').trim().toLowerCase() === 'till';
-const ownerTag = n => isOwner(n) ? ' <span class="owner">👑 Besitzer</span>' : '';
+const ownerTag = n => isOwner(n) ? '<span class="owner">👑 Besitzer</span>' : '';
 const nameCls = n => isOwner(n) ? 'ownername' : '';
 const RANG_WIP = false; // Bestenliste ist in Arbeit
 async function renderRang(el) {
@@ -2538,14 +2557,15 @@ async function renderRang(el) {
   const meRow = { disp: S.disp, name: S.name, photo: S.photo, color: S.color, bal: S.bal };
   body.innerHTML = `<p class="hint" style="margin-top:-8px">Du bist auf Platz ${NF0.format(mine.rank)} 🏆</p>
     <div class="podium">${pod(rows[1], 1)}${pod(rows[0], 0)}${pod(rows[2], 2)}</div>
-    ${rows.length ? `<div class="card tight list rl">${rows.map((r, i) => `<div class="it ${r.me ? 'me' : ''}" data-i="${i}"><span class="rn">${i + 1}</span>${avaHTML(r)}<div class="who"><b class="${nameCls(r.name)}">${esc(r.disp)}${ownerTag(r.name)}</b><small>@${esc(r.name)} · ${ago(r.ts)}</small></div><span class="w num ${r.bal < 0 ? 'neg' : ''}">${fmt(r.bal)}</span></div>`).join('')}</div>` : '<div class="empty">Noch niemand in der Bestenliste.</div>'}
+    ${rows.length ? `<div class="card tight list rl">${rows.map((r, i) => `<div class="it ${r.me ? 'me' : ''}" data-i="${i}"><span class="rn">${i + 1}</span>${avaHTML(r)}<div class="who"><b><span class="${nameCls(r.name)}">${esc(r.disp)}</span>${ownerTag(r.name)}</b><small>@${esc(r.name)} · ${ago(r.ts)}</small></div><span class="w num ${r.bal < 0 ? 'neg' : ''}">${fmt(r.bal)}</span></div>`).join('')}</div>` : '<div class="empty">Noch niemand in der Bestenliste.</div>'}
     <div class="sec">Dein Platz</div>
     <div class="card myrank"><div class="mr-n num">#${NF0.format(mine.rank)}</div>${avaHTML(meRow)}<div class="who"><b class="${nameCls(S.name)}">${esc(S.disp)}</b><small>${isOwner(S.name) ? '<span class="owner">👑 Besitzer</span> · ' : ''}${mine.total ? `von ${NF0.format(mine.total)} Spieler${mine.total === 1 ? '' : 'n'}` : '@' + esc(S.name)}${mine.rank <= 10 ? ' · Top 10 🔥' : ''}</small></div><span class="w num ${S.bal < 0 ? 'neg' : ''}">${fmt(S.bal)}</span></div>
     ${info ? `<p class="hint">${info}</p>` : ''}`;
-  body.querySelector('.myrank').onclick = () => go('profil');
+  const myProf = rk => { persist(); const me = localAll().find(x => x.me) || meRow; playerProfile({ ...me, lvl: S.level, bal: S.bal, ts: Date.now() }, rk); };
+  body.querySelector('.myrank').onclick = () => myProf(mine.rank);
   const rl = body.querySelector('.rl'); if (rl) rl.onclick = e => {
     const it = e.target.closest('[data-i]'); if (!it) return; const r = rows[+it.dataset.i];
-    if (r.me) { go('profil'); return; }
+    if (r.me) { myProf(+it.dataset.i + 1); return; }
     playerProfile(r, +it.dataset.i + 1);
   };
 }
@@ -2970,7 +2990,7 @@ function openSettings() {
     <div id="cheatBox">${S.cheat ? cheatHTML() : `<div class="row"><input class="inp" id="cCode" placeholder="Code…" autocomplete="off"><button class="btn dark sm" id="cGo2">OK</button></div>`}</div>
     <div class="two" style="margin-top:22px"><button class="btn dark" id="out">${icon('out')} Abmelden</button><button class="btn red" id="del">Konto löschen</button></div>`);
   $$('[data-t]', o).forEach(b => b.onclick = () => { const k = b.dataset.t; S.set[k] = S.set[k] === false; b.classList.toggle('on', S.set[k] !== false); save(); SND.click(); });
-  $('#sPw', o).onclick = async () => { const p = $('#nPw', o).value; if (p.length < 4) { toast('Mindestens 4 Zeichen', 'bad'); return; } const all = Accounts.all(), a = all[ACC]; a.salt = Math.random().toString(36).slice(2); a.hash = await Accounts.hash(p, a.salt); Accounts.put(all); persist(); $('#nPw', o).value = ''; toast('Passwort geändert ✓', 'good'); };
+  $('#sPw', o).onclick = async () => { const p = $('#nPw', o).value; if (p.length < 4) { toast('Mindestens 4 Zeichen', 'bad'); return; } const all = Accounts.all(), a = all[ACC]; a.salt = Math.random().toString(36).slice(2); a.hash = await Accounts.hash(p, a.salt); const old = a.cid; a.cid = await cloudId(ACC, p); Accounts.put(all); persist(); if (onlineOn()) { cloudLast = ''; cloudPush(true); if (old && old !== a.cid) fetch(fsDoc('konten/' + old), { method: 'DELETE' }).catch(() => { }); } $('#nPw', o).value = ''; toast('Passwort geändert ✓', 'good'); };
   $('#exp', o).onclick = async () => { persist(); const code = 'GG1:' + btoa(unescape(encodeURIComponent(JSON.stringify({ ...S, photo: '' })))); try { await navigator.clipboard.writeText(code); toast('Spielstand-Code kopiert 📋', 'good'); } catch (e) { sheet(`<h2>Dein Code</h2><textarea class="inp" style="height:200px;font-size:12px" readonly>${code}</textarea>`, { center: true }); } };
   $('#imp', o).onclick = () => {
     const s2 = sheet(`<h2>Code laden</h2><p class="hint">Achtung: überschreibt den Spielstand von <b>${esc(S.disp)}</b>.</p><textarea class="inp" id="ic" style="height:160px;font-size:12px"></textarea><button class="btn white w" id="ig" style="margin-top:12px">Laden</button>`, { center: true });
@@ -3062,22 +3082,32 @@ function showLogin() {
     if (name.length < 2) return err('Name: mindestens 2 Zeichen');
     if (!/^[\p{L}\p{N} _.\-]+$/u.test(name)) return err('Name: nur Buchstaben, Zahlen, Leerzeichen, _ . -');
     if (pw.length < 4) return err('Passwort: mindestens 4 Zeichen');
+    const on = onlineOn(), cid = await cloudId(key, pw), mkSalt = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+    $('#lGo').disabled = true; const done = () => { $('#lGo').disabled = false; };
     if (reg) {
-      if (all[key]) return err('Den Namen gibt es schon – melde dich an.');
-      if (pw !== $('#lPw2').value) return err('Passwörter stimmen nicht überein');
-      const salt = Math.random().toString(36).slice(2) + Date.now().toString(36);
-      all[key] = { name, salt, hash: await Accounts.hash(pw, salt), created: Date.now(), save: newState(name) };
+      if (all[key]) { done(); return err('Den Namen gibt es schon – melde dich an.'); }
+      if (pw !== $('#lPw2').value) { done(); return err('Passwörter stimmen nicht überein'); }
+      if (on) { let t = false; try { t = await nameTaken(key); } catch (e) { } if (t) { done(); return err('Den Namen hat schon jemand – nimm einen anderen oder melde dich an.'); } }
+      const salt = mkSalt();
+      all[key] = { name, salt, hash: await Accounts.hash(pw, salt), created: Date.now(), ts: Date.now() + 2000, save: newState(name), cid };
       Accounts.put(all);
+      if (on) { claimName(key); cloudPut(cid, all[key], all[key].save).catch(() => { }); }
     } else {
-      const a = all[key]; if (!a) return err('Konto nicht gefunden. Konten sind nur auf dem Gerät/Browser gespeichert, wo du sie erstellt hast. Auf einem neuen Gerät: unten „Konto von anderem Gerät holen“.');
-      if (await Accounts.hash(pw, a.salt) !== a.hash) return err('Falsches Passwort');
+      let a = all[key], ok = a && await Accounts.hash(pw, a.salt) === a.hash, cl = null;
+      if (on) { try { cl = await cloudGet(cid); } catch (e) { if (!a) { done(); return err('Keine Verbindung – bitte Internet prüfen.'); } } }
+      if (!ok && !cl) { done(); return err(a ? 'Falsches Passwort' : 'Name oder Passwort falsch'); }
+      if (!a || !ok) { const salt = mkSalt(); a = all[key] = Object.assign(a || {}, { name: cl.d.name || name, salt, hash: await Accounts.hash(pw, salt), created: cl.d.created || Date.now() }); }
+      if (cl && (!a.save || cl.ts > (a.ts || 0))) { a.save = cl.d.save; a.ts = cl.ts; }
+      const first = !a.cid; a.cid = cid; Accounts.put(all);
+      if (on && first) { claimName(key); if (!cl) cloudPut(cid, a, a.save || newState(a.name)).catch(() => { }); }
     }
+    done();
     localStorage.setItem(SES_KEY, key);
     $('#login').style.transition = 'opacity .5s'; $('#login').style.opacity = 0;
     setTimeout(() => { $('#login').classList.add('hidden'); startApp(key); if (reg) setTimeout(() => toast(`Willkommen, ${esc(name)}! Du startest mit ${fmt(500)} Spielgeld 🎰`, 'good', 4500), 600); }, 500);
   };
   $('#lGo').onclick = go_;
-  $('#lImp').onclick = () => {
+  if ($('#lImp')) $('#lImp').onclick = () => {
     const o = sheet(`<h2>Konto holen</h2><p class="hint" style="font-size:16px">1. Auf dem <b>alten Gerät</b>: Profil → ⚙️ Einstellungen → <b>„Code kopieren“</b><br>2. Code hier einfügen und ein Passwort für dieses Gerät festlegen.</p>
       <textarea class="inp" id="iCode" style="height:120px;font-size:12px" placeholder="GG1:…"></textarea>
       <input class="inp" id="iPw" type="password" placeholder="Passwort für dieses Gerät" style="margin-top:10px">
@@ -3110,6 +3140,7 @@ function startApp(key) {
   $('#hChat').innerHTML = icon('chat'); $('#hChat').onclick = openChat;
   $('#hLock').innerHTML = icon('lock');
   hdr(); go('halle'); checkAch();
+  if (onlineOn() && all[key].cid) cloudGet(all[key].cid).then(cl => { const cur = Accounts.all(), x = cur[key]; if (!cl || !x || !x.ts || cl.ts <= x.ts + 5000) return; x.save = cl.d.save; x.ts = cl.ts; Accounts.put(cur); S = null; toast('Neuerer Spielstand von anderem Gerät geladen ☁️', 'good'); setTimeout(() => location.reload(), 900); }).catch(() => { });
   const pend = shopPending(); if (pend > 1 && away > 6e4) setTimeout(() => toast(`Deine Geschäfte haben ${fmt(pend)} verdient – im Imperium einsammeln 🏪`, 'good', 4500), 1600);
   if (bonusReady()) setTimeout(() => S && openBonus(), 900);
   setInterval(() => { if (!S) return; applyInterest(); regenEnergy(); hdr(); save(); pushScore(); }, 30000);

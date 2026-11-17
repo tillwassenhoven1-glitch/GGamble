@@ -54,6 +54,14 @@ Version 0.1.2 · Open Beta
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    match /konten/{id} {
+      allow get, create, update, delete: if request.resource == null || request.resource.data.keys().hasOnly(['data','ts']);
+      allow list: if false;
+    }
+    match /namen/{id} {
+      allow get, create: if true;
+      allow list, update, delete: if false;
+    }
     match /rang/{id} {
       allow read: if true;
       allow write: if request.resource.data.keys().hasOnly(['name','disp','bal','level','color','ts','big','net','bxp','wag','since','best','ach'])
