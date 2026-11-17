@@ -712,6 +712,19 @@ input,textarea{-webkit-user-select:text;user-select:text}
 #fx{z-index:970}
 #toasts{z-index:1000}
 #splash{z-index:1100}
+/* ---------- Leistung (weniger Ruckeln) ---------- */
+body.inmach #app,body.inmach #ver{visibility:hidden}
+body.inmach #app *{animation-play-state:paused!important}
+.strip{will-change:transform;transform:translateZ(0);backface-visibility:hidden}
+.reel.spin .strip{filter:blur(1.4px)}
+.mini:not(.cur) .cab{-webkit-box-reflect:none;filter:none}
+.mini:not(.cur) .bulbs i,.mini:not(.cur) .strip-l,.mini:not(.cur) .strip-r,.mini:not(.cur) .marq span{animation:none}
+.mini .cab .reels:before{display:none}
+.cab .reels:before{left:0;transform:translateX(-160%);will-change:transform;animation:sheen2 6s ease-in-out infinite}
+@keyframes sheen2{0%,70%{transform:translateX(-160%)}100%{transform:translateX(330%)}}
+.tzdim:after{box-shadow:inset 0 0 160px rgba(255,110,0,.5);animation:tzpulse2 .5s ease-in-out infinite alternate}
+@keyframes tzpulse2{from{opacity:.45}to{opacity:1}}
+.lines path{vector-effect:non-scaling-stroke}
 </style>
 </head>
 <body>
@@ -1287,6 +1300,7 @@ function openMachine(i) {
   const m = prep(MACH[i]); S.lastSlot = i; save();
   if (S.stakeI == null) S.stakeI = 5;
   while (S.stakeI > 0 && STAKES[S.stakeI] > maxStake()) S.stakeI--;
+  document.body.classList.add('inmach');
   const f = document.createElement('div'); f.className = 'full';
   f.innerHTML = `<div class="machine" style="--mc:${m.c}">
     <div class="mhead"><button class="pill circbtn" id="mBack">${icon('left')}</button><div class="pill mtitle"><b>${esc(m.n)}</b><small>${m.t === 'v' ? '10' : '5'} Linien</small></div><button class="pill circbtn" id="mInfo">${icon('info')}</button></div>
@@ -1327,7 +1341,7 @@ function openMachine(i) {
   $('#mAll', f).onclick = () => { if (MS.busy) return; MS.allIn = !MS.allIn; SND.click(); upd(); };
   $('#mLuck', f).onclick = () => openPotions(upd);
   $('#mInfo', f).onclick = () => machInfo(m);
-  $('#mBack', f).onclick = () => { if (MS.fs > 0) { toast('Erst die Freispiele zu Ende spielen!'); return; } f.classList.add('closing'); setTimeout(() => { f.remove(); MS = null; }, 300); hdr(); };
+  $('#mBack', f).onclick = () => { if (MS.fs > 0) { toast('Erst die Freispiele zu Ende spielen!'); return; } document.body.classList.remove('inmach'); f.classList.add('closing'); setTimeout(() => { f.remove(); MS = null; }, 300); hdr(); };
   $('#spinBtn', f).onclick = () => doSpin();
   $('#lever', f).onclick = () => doSpin(); $('#deckSpin', f).onclick = () => doSpin();
 }
@@ -1497,13 +1511,13 @@ function animateReels(g) {
 }
 function showWins(wins) {
   const reels = $$('.reel', MS.f), svg = $('#lines', MS.f), rb = $('#reels', MS.f);
-  const rbR = rb.getBoundingClientRect(); svg.setAttribute('viewBox', `0 0 ${rbR.width} ${rbR.height}`);
+  svg.setAttribute('viewBox', `0 0 ${rb.offsetWidth} ${rb.offsetHeight}`); svg.setAttribute('preserveAspectRatio', 'none');
   let paths = '';
   wins.forEach((w, k) => {
     w.cells.forEach(([x, y]) => { const c = $$('.cell', reels[x])[y]; c && c.classList.add('win'); });
     if (w.li >= 0) {
       const L = (MS.m.t === 'v' ? LINES5 : LINES3)[w.li];
-      const pts = L.map((y, x) => { const rr = reels[x].getBoundingClientRect(); return [rr.left - rbR.left + rr.width / 2, rr.top - rbR.top + (y + .5) * MS.h]; });
+      const pts = L.map((y, x) => { const r = reels[x], ch = r.offsetHeight / 3; return [r.offsetLeft + r.offsetWidth / 2, r.offsetTop + (y + .5) * ch]; });
       const col = LINE_COLS[w.li % LINE_COLS.length];
       paths += `<path d="M${pts.map(p => p.join(',')).join(' L')}" stroke="${col}" style="color:${col};animation-delay:${k * .12}s"/>`;
     }
@@ -1518,7 +1532,7 @@ function openPotions(cb) {
     <p class="hint">${S.potAct ? `Aktiv: <b>×${S.potAct.m}</b> – noch ${S.potAct.left} Runden.` : `Ein Trank würfelt Drehs und Lose mehrmals – du bekommst das beste Ergebnis. Wirkt nur bis ${fmt(potCap())} Einsatz, nicht bei All-In.`}</p>
     ${potionsHTML()}<button class="btn dark w" style="margin-top:16px" id="toLab">Zum Glückslabor</button>`);
   bindPotions(o, () => { o.close(); cb && cb(); });
-  $('#toLab', o).onclick = () => { o.close(); if (MS) { MS.f.remove(); MS = null; } go('spiele'); };
+  $('#toLab', o).onclick = () => { o.close(); if (MS) { MS.f.remove(); MS = null; } document.body.classList.remove('inmach'); go('spiele'); };
 }
 
 /* ================= Tagesbonus-Rad ================= */
