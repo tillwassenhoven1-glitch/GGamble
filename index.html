@@ -895,6 +895,11 @@ function persist() {
 let saveT = 0; function save() { clearTimeout(saveT); saveT = setTimeout(persist, 250); }
 addEventListener('pagehide', () => { persist(); try { pushScore(); } catch (e) { } }); document.addEventListener('visibilitychange', () => document.hidden && persist());
 
+/* ================= Effekte erst nach dem Spin ================= */
+let HOLD = [];
+function whenFree(fn) { if (typeof MS !== 'undefined' && MS && MS.busy) HOLD.push(fn); else fn(); }
+function flushHold() { const q = HOLD; HOLD = []; q.forEach((fn, i) => setTimeout(fn, 350 + i * 700)); }
+
 /* ================= Geld / Level ================= */
 const DISPO = 180;
 const isLocked = () => S.bal < -DISPO;
@@ -938,7 +943,7 @@ function afterMoney() { S.st.maxBal = Math.max(S.st.maxBal, S.bal); hdr(true); c
 function addXP(x) {
   S.xp += x; let up = false;
   while (S.xp >= xpNeed(S.level)) { S.xp -= xpNeed(S.level); S.level++; up = true; }
-  if (up) { setTimeout(() => { toast(`Level ${S.level} erreicht! Neue Spiele &amp; höhere Belohnungen 🎉`, 'good'); FX.burst(80); SND.win(); }, 300); checkAch(); }
+  if (up) { const lv = S.level; whenFree(() => setTimeout(() => { toast(`Level ${lv} erreicht! Neue Spiele &amp; höhere Belohnungen 🎉`, 'good'); FX.burst(80); SND.win(); }, 300)); checkAch(); }
 }
 function applyInterest() {
   const now = Date.now(), h = (now - S.lastInt) / 36e5;
@@ -1198,11 +1203,12 @@ function openMachine(i) {
     const lines = $('#lines', f), rb = $('#reels', f); lines.setAttribute('viewBox', `0 0 ${rb.offsetWidth} ${rb.offsetHeight}`);
   });
   const upd = () => {
-    $('#mBal', f).textContent = fmt(S.bal); $('#mBal', f).classList.toggle('neg', S.bal < 0);
-    $('#mHere', f).textContent = (Math.abs(MS.here) < .005 ? '±' + fmt(0) : fmt(MS.here, { sign: true })) + ' hier';
+    const bal = MS.frozen ? MS.shown.bal : S.bal, here = MS.frozen ? MS.shown.here : MS.here;
+    $('#mBal', f).textContent = fmt(bal); $('#mBal', f).classList.toggle('neg', bal < 0);
+    $('#mHere', f).textContent = (Math.abs(here) < .005 ? '±' + fmt(0) : fmt(here, { sign: true })) + ' hier';
     $('#mNote', f).textContent = S.note > 0 ? `Schuldschein ${fmt(S.note)}` : '';
     $('#mStake', f).textContent = MS.allIn ? 'ALL-IN' : fmt(STAKES[S.stakeI]);
-    $('#ledC', f).textContent = NF2.format(S.bal).replace(/\./g, ''); $('#ledB', f).textContent = NF2.format(MS.allIn ? Math.max(0, S.bal) : STAKES[S.stakeI]);
+    $('#ledC', f).textContent = NF2.format(bal).replace(/\./g, ''); $('#ledB', f).textContent = NF2.format(MS.allIn ? Math.max(0, S.bal) : STAKES[S.stakeI]);
     $('#mLuck', f).classList.toggle('on', !!S.potAct); $('#mLuck', f).innerHTML = icon('spark') + (S.potAct ? ` ×${S.potAct.m} · ${S.potAct.left}` : ' Glück');
     $('#mAll', f).classList.toggle('on', MS.allIn);
     const jv = $('#jpV', f); if (jv) jv.textContent = fmt(S.jp[m.jp]);
@@ -1234,8 +1240,10 @@ async function doSpin() {
   let stake = free ? MS.fsStake : STAKES[S.stakeI];
   const allIn = !free && MS.allIn;
   if (allIn) { stake = r2(S.bal); if (stake <= 0) { toast('All-In geht nur mit Guthaben im Plus.', 'bad'); SND.err(); return; } }
-  if (!free) { if (!bet(stake, m.n)) return; MS.here = r2(MS.here - stake); S.st.spins++; taskProg('spins', 1); }
-  MS.busy = true; const lv = $('#lever', MS.f); if (lv) { lv.classList.remove('pull'); void lv.offsetWidth; lv.classList.add('pull'); } const ds = $('#deckSpin', MS.f); ds && ds.classList.add('lit'); setTimeout(() => ds && ds.classList.remove('lit'), 900);
+  const shown = { bal: S.bal, here: MS.here };
+  MS.busy = true;
+  if (!free) { if (!bet(stake, m.n)) { MS.busy = false; HOLD = []; return; } MS.here = r2(MS.here - stake); S.st.spins++; taskProg('spins', 1); }
+  MS.shown = shown; MS.frozen = true; const lv = $('#lever', MS.f); if (lv) { lv.classList.remove('pull'); void lv.offsetWidth; lv.classList.add('pull'); } const ds = $('#deckSpin', MS.f); ds && ds.classList.add('lit'); setTimeout(() => ds && ds.classList.remove('lit'), 900);
   const btn = $('#spinBtn', MS.f); btn.classList.add('spinning'); btn.textContent = free ? `Freispiel ${MS.fsN - MS.fs + 1} / ${MS.fsN}` : 'Dreht…';
   $$('.cell.win', MS.f).forEach(c => c.classList.remove('win')); $('#lines', MS.f).innerHTML = ''; $('#ledW', MS.f).textContent = '0,00';
   // Jackpot-Pool wächst
@@ -1260,6 +1268,7 @@ async function doSpin() {
   if (usePot && S.potAct.left <= 0) { S.potAct = null; setTimeout(() => toast('Dein Glückstrank ist aufgebraucht.'), 1500); }
   MS.upd();
   await animateReels(best.g);
+  MS.frozen = false; MS.upd();
   MS.grid = best.g;
   let win = best.ev.tot * (free ? 2 : 1);
   if (best.ev.wins.length) { showWins(best.ev.wins); const cb = $('.cab', MS.f); cb.classList.add('winning'); setTimeout(() => cb && cb.classList.remove('winning'), 2600); }
@@ -1285,7 +1294,7 @@ async function doSpin() {
   else fb.classList.add('hidden');
   MS.upd(); hdr(true); checkAch(); save();
   btn.classList.remove('spinning'); btn.textContent = MS.fs > 0 ? 'Freispiel…' : 'Drehen';
-  MS.busy = false;
+  MS.busy = false; flushHold();
   if (MS.fs > 0) setTimeout(() => MS && doSpin(), 1300);
   else if (free) { fb.classList.add('hidden'); const t = MS.fsWin; setTimeout(() => celebrate(t, Math.max(10, t / MS.fsStake), 'FREISPIEL GEWINN'), 400); }
 }
@@ -1909,7 +1918,7 @@ function taskProg(k, v) {
   if (!S) return; ensureTasks();
   [...S.tasks.day, ...S.tasks.week].forEach(t => {
     if (t.k !== k || t.done) return; t.p = Math.min(t.g, t.p + v);
-    if (t.p >= t.g) { t.done = true; setTimeout(() => { earn(t.rew, 'Aufgabe'); addXP(t.xp); toast(`Aufgabe erledigt: ${t.n} → +${fmt(t.rew)} · ${t.xp} XP ✅`, 'good', 4000); SND.win(); FX.burst(50); hdr(true); save(); }, 600); }
+    if (t.p >= t.g) { t.done = true; whenFree(() => setTimeout(() => { earn(t.rew, 'Aufgabe'); addXP(t.xp); toast(`Aufgabe erledigt: ${t.n} → +${fmt(t.rew)} · ${t.xp} XP ✅`, 'good', 4000); SND.win(); FX.burst(50); hdr(true); save(); }, 600)); }
   });
 }
 function tasksHTML(list) {
@@ -2413,7 +2422,7 @@ function checkAch() {
       if (S.ach[id] || !f(S)) return;
       S.ach[id] = Date.now();
       S.bal = r2(S.bal + rw); touchToday(); S.today.v = r2(S.today.v + rw); S.st.maxBal = Math.max(S.st.maxBal, S.bal);
-      setTimeout(() => { toast(`🏆 Erfolg: <b>${n}</b> · +${fmt(rw)}`, 'good', 4000); SND.win(); FX.burst(40, { cols: ['#f5cf5a', '#fff'] }); hdr(true); }, 700 + k * 50);
+      whenFree(() => setTimeout(() => { toast(`🏆 Erfolg: <b>${n}</b> · +${fmt(rw)}`, 'good', 4000); SND.win(); FX.burst(40, { cols: ['#f5cf5a', '#fff'] }); hdr(true); }, 700 + k * 50));
     });
   } finally { achBusy = false; }
   save();
