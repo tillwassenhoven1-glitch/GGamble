@@ -598,6 +598,18 @@ select.inp{appearance:none;-webkit-appearance:none;background-image:linear-gradi
 .paychips .ps .seven{-webkit-text-stroke:1px #ffcf4a;margin:0 1px}
 .paychips .pc b{display:block;margin-top:6px;font-size:clamp(15px,4.4vw,19px);font-weight:800}
 .paychips .pc.pctop b{color:var(--gold2)}
+.reel.spin .strip{filter:blur(2.4px) brightness(1.08)}
+.reel.tease{box-shadow:0 0 0 3px #ffd447,0 0 26px #ffb31a,inset 0 0 18px rgba(255,200,40,.6);animation:teasePulse .35s ease-in-out infinite alternate;z-index:2}
+@keyframes teasePulse{from{filter:brightness(1)}to{filter:brightness(1.25)}}
+.reel.stopfx:before{content:"";position:absolute;inset:0;z-index:3;pointer-events:none;background:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,0) 60%);animation:stopflash .35s ease-out forwards}
+@keyframes stopflash{from{opacity:1}to{opacity:0}}
+.cab.spinning .bulbs i{animation-duration:.28s}
+.cab.spinning .strip-l,.cab.spinning .strip-r{animation-duration:.3s}
+.cab.winning .bulbs i{animation:winbulb .16s steps(2) infinite}
+.cab.winning .strip-l,.cab.winning .strip-r{animation-duration:.15s;filter:brightness(1.6)}
+.cab.winning .scr{animation:winscr .4s ease-in-out infinite alternate}
+@keyframes winbulb{50%{opacity:.15;background:#fff}}
+@keyframes winscr{to{box-shadow:inset 0 0 22px rgba(0,0,0,.7),0 0 0 2px #55555b,0 0 30px var(--c)}}
 </style>
 </head>
 <body>
@@ -1090,8 +1102,8 @@ function cabHTML(m, sm) {
       <div class="scr"><div class="marq"><span>${esc(m.s.toUpperCase())} · ${m.t === 'v' ? '10 LINIEN' : '5 LINIEN'} · ${esc(m.n.toUpperCase())}</span></div>
         <div class="ttl">${esc(m.n)}</div><div class="ttl-ic">${symHTML(m.ic)}${symHTML(m.ic)}${symHTML(m.ic)}</div></div>
       <div class="reelbox">${sm ? '' : '<div class="fsbadge hidden" id="fsB"></div>'}
-        <div class="rrow">${sm ? '' : mk(0)}<div class="rwrap"><div class="reels" ${sm ? '' : 'id="reels"'}>${Array.from({ length: R }, (_, x) => `<div class="reel"><div class="strip">${sm ? `<div class="cell" style="height:34px;--fs:22px">${symHTML(sample[x])}</div>` : ''}</div></div>`).join('')}</div>
-        ${sm ? '' : '<svg class="lines" id="lines"></svg>'}</div>${sm ? '' : mk(1)}</div>
+        <div class="rrow"><div class="rwrap"><div class="reels" ${sm ? '' : 'id="reels"'}>${Array.from({ length: R }, (_, x) => `<div class="reel"><div class="strip">${sm ? `<div class="cell" style="height:34px;--fs:22px">${symHTML(sample[x])}</div>` : ''}</div></div>`).join('')}</div>
+        ${sm ? '' : '<svg class="lines" id="lines"></svg>'}</div></div>
       </div>
       <div class="led num">${sm ? '<div>88.88</div><div>5.00</div>' : '<div><small>GUTHABEN</small><span id="ledC"></span></div><div><small>EINSATZ</small><span id="ledB"></span></div><div><small>GEWINN</small><span id="ledW">0,00</span></div>'}</div>
       <div class="deck"><i>BET</i><i>MAX</i><i>INFO</i><b ${sm ? '' : 'id="deckSpin"'}>SPIN</b></div>
@@ -1250,7 +1262,7 @@ async function doSpin() {
   await animateReels(best.g);
   MS.grid = best.g;
   let win = best.ev.tot * (free ? 2 : 1);
-  if (best.ev.wins.length) showWins(best.ev.wins);
+  if (best.ev.wins.length) { showWins(best.ev.wins); const cb = $('.cab', MS.f); cb.classList.add('winning'); setTimeout(() => cb && cb.classList.remove('winning'), 2600); }
   win = r2(win + jackpot);
   if (free) MS.fsWin = r2(MS.fsWin + win);
   if (win > 0) {
@@ -1277,25 +1289,47 @@ async function doSpin() {
   if (MS.fs > 0) setTimeout(() => MS && doSpin(), 1300);
   else if (free) { fb.classList.add('hidden'); const t = MS.fsWin; setTimeout(() => celebrate(t, Math.max(10, t / MS.fsStake), 'FREISPIEL GEWINN'), 400); }
 }
+/* Spannung: welche Walzen sollen länger drehen? */
+function teaseFrom(m, g) {
+  if (m.t === 'v') {
+    let sc = 0; for (let x = 0; x < 5; x++) { if (sc >= 2) return x; sc += g[x].filter(s => s === m.scat).length; }
+    return 99;
+  }
+  const L = LINES3, hi = m.cells.slice(3);
+  for (const l of L) { const a = g[0][l[0]], b = g[1][l[1]]; if (a === b && hi.includes(a)) return 2; }
+  return 99;
+}
 function animateReels(g) {
-  const reels = $$('.reel', MS.f), h = MS.h, N = 18;
+  const reels = $$('.reel', MS.f), h = MS.h, m = MS.m, cab = $('.cab', MS.f), tz = teaseFrom(m, g);
+  cab.classList.add('spinning');
   return new Promise(res => {
-    let left = reels.length;
+    let left = reels.length, t0 = performance.now();
+    let tick = setInterval(() => SND.tick(), 55);
     reels.forEach((r, x) => {
-      const strip = $('.strip', r), prev = MS.grid[x];
-      const fill = Array.from({ length: N + x * 4 }, () => wpick(MS.m, Math.random));
-      const all = [...g[x], ...fill, ...prev];
-      strip.style.transition = 'none'; strip.innerHTML = all.map(cellH).join('');
-      const startY = -(all.length - 3) * h; strip.style.transform = `translateY(${startY}px)`;
-      void strip.offsetHeight; r.classList.add('spin');
-      const dur = 900 + x * 260;
-      strip.style.transition = `transform ${dur}ms cubic-bezier(.3,.05,.2,1.03)`; strip.style.transform = 'translateY(0)';
-      let tk = setInterval(() => SND.tick(), 70);
-      setTimeout(() => {
-        clearInterval(tk); r.classList.remove('spin'); SND.stop(); vib(8);
-        strip.style.transition = 'none'; strip.innerHTML = g[x].map(cellH).join(''); strip.style.transform = 'none';
-        if (--left === 0) setTimeout(res, 120);
-      }, dur);
+      const strip = $('.strip', r), prev = MS.grid[x], tease = x >= tz;
+      const N = 26 + x * 7 + (tease ? 22 : 0);
+      const fill = Array.from({ length: N }, () => wpick(m, Math.random));
+      const all = [wpick(m, Math.random), ...g[x], ...fill, ...prev];
+      strip.innerHTML = all.map(cellH).join('');
+      const start = -(all.length - 3) * h, end = -h;
+      const T = 1150 + x * 320 + (tease ? 1500 : 0) + (x > tz ? (x - tz) * 600 : 0);
+      strip.style.transform = `translateY(${start}px)`;
+      const delay = x * 70;
+      const anim = strip.animate([
+        { transform: `translateY(${start}px)`, offset: 0, easing: 'cubic-bezier(.3,0,.6,1)' },
+        { transform: `translateY(${start - h * .32}px)`, offset: .09, easing: 'cubic-bezier(.55,0,.85,.65)' },
+        { transform: `translateY(${end + h * .22}px)`, offset: .93, easing: 'cubic-bezier(.25,1.8,.5,1)' },
+        { transform: `translateY(${end}px)`, offset: 1 }
+      ], { duration: T, delay, fill: 'forwards' });
+      setTimeout(() => r.classList.add('spin'), delay + T * .1);
+      setTimeout(() => r.classList.remove('spin'), delay + T * .86);
+      if (tease) setTimeout(() => { r.classList.add('tease'); SND.tone(300, 1.4, 'sawtooth', .05, 0, 900); vib(20); }, delay + (x === tz ? 900 + x * 320 : T - 1500));
+      anim.onfinish = () => {
+        r.classList.remove('tease', 'spin'); SND.stop(); vib(10);
+        r.classList.remove('stopfx'); void r.offsetWidth; r.classList.add('stopfx');
+        anim.cancel(); strip.innerHTML = g[x].map(cellH).join(''); strip.style.transform = 'none';
+        if (--left === 0) { clearInterval(tick); cab.classList.remove('spinning'); setTimeout(res, 140); }
+      };
     });
   });
 }
