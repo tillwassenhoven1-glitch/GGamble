@@ -2601,11 +2601,11 @@ let lbFull = true;
 let lbOwn = true;
 function pushScore(force) {
   if (!onlineOn() || !S) return;
-  const sig = [S.bal, S.level, S.disp, S.color, S.st.biggest, Object.keys(S.ach).length, S.owner ? 1 : 0, S.wk && S.wk.v, S.tit, S.frm, S.clan ? S.clan.tag : ''].join('|'); if (!force && sig === lbLast) return; lbLast = sig;
+  const sig = [S.bal, S.level, S.disp, S.color, S.st.biggest, Object.keys(S.ach).length, S.owner ? 1 : 0, S.wk && S.wk.v, S.dy && S.dy.v, S.tit, S.frm, S.clan ? S.clan.tag : ''].join('|'); if (!force && sig === lbLast) return; lbLast = sig;
   const f = { name: { stringValue: S.name }, disp: { stringValue: S.disp }, bal: { doubleValue: S.bal }, level: { integerValue: String(S.level) }, color: { integerValue: String(S.color || 0) }, ts: { integerValue: String(Date.now()) } };
   const full = Object.assign({}, f, { big: { doubleValue: S.st.biggest || 0 }, net: { doubleValue: S.st.net || 0 }, bxp: { doubleValue: S.bx.pnl || 0 }, wag: { doubleValue: S.st.wagered || 0 }, since: { integerValue: String(S.created || Date.now()) }, best: { stringValue: S.st.bestGame || '' }, ach: { integerValue: String(Object.keys(S.ach).length) } });
   const send = fields => fetch(`${FS()}/rang/${lbId()}?key=${ONLINE.apiKey}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) });
-  wkAdd(0); const withOwn = Object.assign({}, full, { wk: { doubleValue: S.wk.v }, wkk: { stringValue: S.wk.k }, own: { booleanValue: !!S.owner }, tit: { stringValue: S.tit || '' }, frm: { stringValue: S.frm || '' }, clan: { stringValue: S.clan ? S.clan.tag : '' } });
+  wkAdd(0); const withOwn = Object.assign({}, full, { wk: { doubleValue: S.wk.v }, wkk: { stringValue: S.wk.k }, dv: { doubleValue: S.dy.v }, dk: { stringValue: S.dy.k }, mv: { doubleValue: S.mo.v }, mk: { stringValue: S.mo.k }, own: { booleanValue: !!S.owner }, tit: { stringValue: S.tit || '' }, frm: { stringValue: S.frm || '' }, clan: { stringValue: S.clan ? S.clan.tag : '' } });
   (lbOwn ? send(withOwn) : Promise.resolve({ ok: false, status: 403 }))
     .then(r => { if (r.ok) return; if (r.status === 403 || r.status === 400) { lbOwn = false; return lbFull ? send(full) : { ok: false, status: 403 }; } return r; })
     .then(r => { if (!r || r.ok) return; if (r.status === 403 || r.status === 400) { lbFull = false; return send(f).then(r2 => { if (!r2.ok) lbLast = ''; }); } lbLast = ''; })
@@ -3116,7 +3116,7 @@ function openSettings() {
   bindCheat();
   $('#rst', o).onclick = async () => {
     if (!await confirmBox('Konto zurücksetzen?', `Der Spielstand von <b>${esc(S.disp)}</b> startet komplett neu mit ${fmt(500)} – Geld, Level, Erfolge, Geschäfte und Börse sind weg. Name, Passwort, Profilbild und Einstellungen bleiben. Das geht nicht rückgängig.`, 'Zurücksetzen', true)) return;
-    const keep = { name: S.name, disp: S.disp, photo: S.photo, color: S.color, lbId: S.lbId, owner: S.owner, cheat: S.cheat, set: S.set, titles: S.titles, frames: S.frames, tit: S.tit, frm: S.frm, clan: S.clan };
+    const keep = { name: S.name, disp: S.disp, photo: S.photo, color: S.color, lbId: S.lbId, owner: S.owner, cheat: S.cheat, set: S.set, titles: S.titles, frames: S.frames, tit: S.tit, frm: S.frm, clan: S.clan, friends: S.friends, dmRead: S.dmRead };
     S = Object.assign(newState(S.name), keep); persist();
     const a = Accounts.all()[ACC];
     try { if (onlineOn() && a && a.cid) { await cloudPut(a.cid, a, S); lbLast = ''; pushScore(true); } } catch (e) { }
@@ -3376,12 +3376,12 @@ function extInit() {
   S.titles = S.titles || []; S.frames = S.frames || [];
   S.cal = S.cal || { last: '', day: 0 };
   if (S.bx && S.bx.lev > 20) S.bx.lev = 20;
-  wkAdd(0);
+  wkAdd(0); if (!S.lbId && typeof lbId === 'function') lbId();
   if (S.tit && !titOk(S.tit)) S.tit = '';
   if (S.frm && !frOk(S.frm)) S.frm = '';
   save();
   if (!bonusReady()) setTimeout(calMaybe, 1500);
-  feedStart(); chatBg();
+  feedStart(); chatBg(); dmStart();
 }
 
 /* ================= Belohnungen (Battle Pass + Kalender) ================= */
@@ -3676,10 +3676,12 @@ openChat = function () {
   const inRoom = typeof T !== 'undefined' && T.room;
   const o = sheet(`<div class="row sb"><h2>💬 Lobby-Chat</h2><button class="x" data-close>${icon('x')}</button></div>
     <p class="hint" style="margin-top:-4px">Alle Spieler sehen diesen Chat. Sei nett! 🙂</p>
+    <button class="btn gold sm w" id="toFr" style="margin-bottom:8px">👥 Freunde &amp; private Nachrichten<span id="frBtnN"></span></button>
     ${inRoom ? '<button class="btn dark sm w" id="toRoom" style="margin-bottom:8px">📹 Zum Chat in deinem Treff-Raum</button>' : ''}
     <div class="chatlog lobby" id="lcLog">${chatHTML()}</div>
     <div class="row" style="margin-top:10px"><input class="inp" id="lcIn" maxlength="200" placeholder="Nachricht …" autocomplete="off"><button class="btn gold sm" id="lcGo">Senden</button></div>`);
-  $('#hChat').classList.remove('dot');
+  $('#hChat').classList.remove('dot'); frBadge();
+  $('#toFr', o).onclick = () => { o.close(); go('freunde'); };
   const log = $('#lcLog', o), draw = () => { log.innerHTML = chatHTML(); log.scrollTop = 1e6; };
   if (inRoom) $('#toRoom', o).onclick = () => { o.close(); roomUI(); };
   const pull = async first => {
@@ -3747,7 +3749,12 @@ function feedDraw() {
 }
 
 /* ================= Wochen-Bestenliste ================= */
-function wkAdd(v) { if (!S) return; const k = weekKey(); if (!S.wk || S.wk.k !== k) S.wk = { k, v: 0 }; S.wk.v = r2(S.wk.v + v); }
+const monKey = () => { const d = new Date(Date.now()); return d.getFullYear() + '-' + (d.getMonth() + 1); };
+function wkAdd(v) {
+  if (!S) return;
+  const ks = { dy: dayKey(), wk: weekKey(), mo: monKey() };
+  for (const [f, k] of Object.entries(ks)) { if (!S[f] || S[f].k !== k) S[f] = { k, v: 0 }; S[f].v = r2(S[f].v + v); }
+}
 async function renderWoche(el) {
   el.innerHTML = `<button class="btn dark sm" id="back">${icon('left')} Bestenliste</button><h1 class="t" style="margin-top:16px">Wochen-Bestenliste</h1>
     <p class="sub">Wer hat diese Woche am meisten gewonnen? Startet jeden Montag neu.</p><div id="wkB"><div class="empty">Lade …</div></div>`;
@@ -3766,8 +3773,174 @@ async function renderWoche(el) {
   } catch (e) { if (B.isConnected) B.innerHTML = '<div class="empty">Gerade nicht erreichbar. Sind die neuen Firebase-Regeln veröffentlicht?</div>'; }
 }
 
+/* ================= Bestenliste (neu): Vermögen + Gewinn heute/Woche/Monat ================= */
+let rgTab = 0, rgMore = false;
+const RG_TABS = [['Vermögen', 'bal'], ['Heute', 'dy'], ['Woche', 'wk'], ['Monat', 'mo']];
+async function rgFetch() {
+  const docs = await fsQuery({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'since' }, op: 'GREATER_THAN_OR_EQUAL', value: fint(RESET_TS) } }, limit: 1000 });
+  return docs.map(d => ({ k: d.id, name: d.name || '?', disp: d.disp || d.name || '?', bal: d.bal || 0, lvl: d.level || 1, color: d.color || 0, ts: d.ts || 0, me: d.id === S.lbId,
+    big: d.big ?? null, net: d.net ?? null, bxp: d.bxp ?? null, wag: d.wag ?? null, since: d.since ?? null, best: d.best || '', ach: d.ach ?? null, own: !!d.own, tit: d.tit || '', frm: d.frm || '', clan: d.clan || '',
+    dy: d.dk === dayKey() ? (d.dv || 0) : null, wk: d.wkk === weekKey() ? (d.wk || 0) : null, mo: d.mk === monKey() ? (d.mv || 0) : null }));
+}
+function rgMe() {
+  wkAdd(0);
+  return { k: S.lbId, me: true, name: S.name, disp: S.disp, photo: S.photo, color: S.color, frm: S.frm, tit: S.tit, clan: S.clan ? S.clan.tag : '', bal: S.bal, lvl: S.level, ts: Date.now(),
+    big: S.st.biggest, net: S.st.net, bxp: S.bx.pnl, wag: S.st.wagered, since: S.created, best: S.st.bestGame, ach: Object.keys(S.ach).length, dy: S.dy.v, wk: S.wk.v, mo: S.mo.v };
+}
+async function renderRang2(el) {
+  el.innerHTML = `<h1 class="t">Bestenliste</h1><p class="sub">${onlineOn() ? 'Alle echten Spieler online' : 'Konten auf diesem Gerät'}</p>
+    <button class="btn dark w" id="toClan" style="margin-bottom:14px">🏢 Clans &amp; Clan-Bestenliste</button>
+    <div class="tabs" id="rgT">${RG_TABS.map(([n], i) => `<button data-t="${i}" class="${i === rgTab ? 'on' : ''}">${n}</button>`).join('')}</div>
+    <div id="rgBody"><div class="empty">Lade …</div></div>`;
+  $('#toClan', el).onclick = () => go('clan');
+  $('#rgT', el).onclick = e => { const b = e.target.closest('[data-t]'); if (!b) return; rgTab = +b.dataset.t; rgMore = false; SND.click(); renderRang2(el); };
+  let all, info = '';
+  if (onlineOn()) {
+    pushScore(true);
+    try { await new Promise(r => setTimeout(r, 400)); all = await rgFetch(); }
+    catch (e) { info = '⚠️ Online-Bestenliste gerade nicht erreichbar – das hier sind nur die Konten auf diesem Gerät.'; }
+  } else info = 'ℹ️ Die Online-Bestenliste ist nicht eingerichtet – du siehst nur die Konten auf diesem Gerät.';
+  if (!all) { persist(); all = localAll().filter(r => !r.me && (r.since || 0) >= RESET_TS); }
+  // mich selbst immer mit den aktuellen Werten
+  all = all.filter(r => !r.me && r.k !== S.lbId); all.push(rgMe());
+  const body = $('#rgBody', el); if (!body) return;
+  const key = RG_TABS[rgTab][1], isBal = key === 'bal';
+  const val = r => isBal ? r.bal : r[key];
+  const rows = all.filter(r => val(r) !== null && val(r) !== undefined).sort((a, b) => val(b) - val(a));
+  const meI = rows.findIndex(r => r.me), N = rows.length, me = rgMe();
+  const money = v => isBal ? fmt(v) : fmt(v, { sign: true });
+  const cls = v => v < 0 ? 'neg' : isBal ? '' : v > 0 ? 'pos' : '';
+  const row = (r, i) => `<div class="it ${r.me ? 'me' : ''}" data-i="${i}"><span class="rn">${i + 1}</span>${avaHTML(r)}<div class="who"><b>${tagHTML(r.clan)}<span class="${nameCls(r)}">${esc(r.disp)}</span>${ownerTag(r)}</b><small>@${esc(r.name)}${titName(r.tit) ? ' · ' + esc(titName(r.tit)) : ''}${isBal ? '' : ' · ' + fmt(r.bal)}</small></div><span class="w num ${cls(val(r))}">${money(val(r))}</span></div>`;
+  const pod = (r, i) => r ? `<div class="p${i + 1}"><div class="pa">${avaHTML(r)}<span class="rk" style="background:${['#d8b85a', '#cfcfd4', '#c8875a'][i]}">${i + 1}</span></div><div class="nm ${nameCls(r)}">${esc(r.disp)}</div>${ownOn(r) ? '<div class="owner" style="margin-top:4px">👑 Besitzer</div>' : ''}<div class="vv num">${money(val(r))}</div><div class="blk" style="height:${[150, 110, 80][i]}px"></div></div>` : '<div></div>';
+  const sub = ['Wer hat am meisten Geld?', 'Gewinn heute (gewonnen minus eingesetzt, plus Belohnungen)', 'Gewinn diese Woche – startet jeden Montag neu', `Gewinn im ${MONATE[new Date(Date.now()).getMonth()]}`][rgTab];
+  body.innerHTML = `<p class="hint" style="margin-top:-6px">${sub}</p>
+    ${N >= 2 ? `<div class="podium">${pod(rows[1], 1)}${pod(rows[0], 0)}${pod(rows[2], 2)}</div>` : ''}
+    <div class="sec">Top 10</div>
+    <div class="card tight list rl">${rows.slice(0, 10).map(row).join('') || '<div class="empty">Noch niemand dabei.</div>'}</div>
+    <div class="sec">Dein Platz</div>
+    <div class="card myrank" id="rgMe"><div class="mr-n num">${meI >= 0 ? '#' + (meI + 1) : '–'}</div>${avaHTML(me)}<div class="who"><b class="${nameCls(ME_O())}">${esc(S.disp)}</b><small>${meI >= 0 ? `Platz ${meI + 1} von ${N} Spieler${N === 1 ? '' : 'n'}${meI < 10 ? ' · Top 10 🔥' : ''}` : 'Spiel eine Runde, um dabei zu sein'}</small></div><span class="w num ${cls(val(me))}">${money(val(me))}</span></div>
+    ${N > 10 ? `<button class="btn dark w" id="rgMoreB" style="margin-top:4px">${rgMore ? '▲ Weniger anzeigen' : `▼ Mehr anzeigen (alle ${N} Spieler)`}</button>
+      <div class="card tight list rl ${rgMore ? '' : 'hidden'}" id="rgAll" style="margin-top:12px">${rows.slice(10).map((r, i) => row(r, i + 10)).join('')}</div>` : ''}
+    ${info ? `<p class="hint">${info}</p>` : ''}`;
+  const mb = $('#rgMoreB', body); if (mb) mb.onclick = e => { e.stopPropagation(); rgMore = !rgMore; SND.click(); $('#rgAll', body).classList.toggle('hidden', !rgMore); mb.textContent = rgMore ? '▲ Weniger anzeigen' : `▼ Mehr anzeigen (alle ${N} Spieler)`; };
+  const open = (r, rk) => { if (r.me) { persist(); playerProfile({ ...rgMe(), lvl: S.level }, rk); } else playerProfile(r, rk); };
+  body.onclick = e => { const it = e.target.closest('[data-i]'); if (it) { const i = +it.dataset.i; open(rows[i], i + 1); } };
+  $('#rgMe', body).onclick = e => { e.stopPropagation(); open(me, meI >= 0 ? meI + 1 : N); };
+}
+
+/* ================= Freunde & private Nachrichten ================= */
+const DM = { inbox: [], iv: 0, open: null, sent: 0 };
+const meKey = () => S.name.trim().toLowerCase();
+const padTs = t => String(Math.round(t)).padStart(15, '0');
+const pairId = (a, b) => [a, b].sort().join('|');
+const rangeQ = (field, pre, from) => ({ compositeFilter: { op: 'AND', filters: [
+  { fieldFilter: { field: { fieldPath: field }, op: 'GREATER_THAN', value: fstr(pre + '|' + padTs(from || 0)) } },
+  { fieldFilter: { field: { fieldPath: field }, op: 'LESS_THAN', value: fstr(pre + '|~') } }] } });
+function frList() { S.friends = S.friends || []; S.dmRead = S.dmRead || {}; return S.friends; }
+const isFriend = k => frList().some(f => f.k === k);
+const unreadFrom = k => DM.inbox.filter(m => m.von === k && m.ts > (S.dmRead[k] || 0)).length;
+const unreadAll = () => { frList(); return DM.inbox.filter(m => m.ts > (S.dmRead[m.von] || 0)).length; };
+async function dmSend(to, txt) {
+  const me = meKey(), ts = Date.now(), c = pairId(me, to);
+  const r = await fsCreate('dm', null, { von: fstr(me), an: fstr(to), disp: fstr(S.disp), txt: fstr(txt.slice(0, 300)), ts: fint(ts), cts: fstr(c + '|' + padTs(ts)), ats: fstr(to + '|' + padTs(ts)) });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+}
+async function frAdd(name, disp) {
+  const k = String(name || '').trim().toLowerCase();
+  if (!k) return;
+  if (k === meKey()) return toast('Das bist du selbst 😄', 'bad');
+  if (isFriend(k)) return toast('Ist schon dein Freund ✓');
+  let ok = false; try { ok = await nameTaken(k); } catch (e) { return toast('Keine Verbindung', 'bad'); }
+  if (!ok) return toast(`Spieler „${esc(name)}“ gibt es nicht`, 'bad');
+  frList().push({ k, d: (disp || name).trim(), t: Date.now() }); save();
+  dmSend(k, '👋 hat dich als Freund hinzugefügt!').catch(() => { });
+  SND.win(); toast(`👥 ${esc((disp || name).trim())} ist jetzt dein Freund`, 'good');
+  return true;
+}
+async function dmPoll(first) {
+  if (!S || !onlineOn()) return;
+  try {
+    const last = DM.inbox.length ? Math.max(...DM.inbox.map(m => m.ts)) : Date.now() - 14 * 864e5;
+    const n = await fsQuery({ from: [{ collectionId: 'dm' }], where: rangeQ('ats', meKey(), last), orderBy: [{ field: { fieldPath: 'ats' }, direction: 'DESCENDING' }], limit: 100 });
+    const ids = new Set(DM.inbox.map(m => m.id)), fresh = n.filter(m => !ids.has(m.id));
+    DM.inbox.push(...fresh);
+    if (!first && fresh.length && (!DM.open || fresh.some(m => m.von !== DM.open))) {
+      const m = fresh.find(x => x.von !== DM.open);
+      if (m) { toast(`💬 <b>${esc(m.disp || m.von)}</b>: ${esc(m.txt).slice(0, 60)}`, 'good', 4500); SND.coin(); }
+    }
+    frBadge();
+  } catch (e) { }
+}
+function frBadge() { const n = unreadAll(); const h = $('#hChat'); if (h && n) h.classList.add('dot'); const b = $('#frBtnN'); if (b) b.textContent = n ? ` (${n})` : ''; }
+function dmStart() { if (DM.iv || !onlineOn()) return; dmPoll(true); DM.iv = setInterval(() => { if (!document.hidden) dmPoll(false); }, 30000); }
+function renderFreunde(el) {
+  frList();
+  const others = [...new Set(DM.inbox.map(m => m.von))].filter(k => !isFriend(k));
+  const item = (k, d, fr) => { const u = unreadFrom(k), last = DM.inbox.filter(m => m.von === k).sort((a, b) => b.ts - a.ts)[0];
+    return `<div class="it" data-k="${esc(k)}" data-d="${esc(d)}">${avaHTML({ disp: d, name: k })}<div class="who" style="flex:1"><b>${esc(d)}</b><small>${last ? esc(last.txt).slice(0, 40) : '@' + esc(k)}</small></div>${u ? `<span class="chip red">${u}</span>` : ''}${fr ? '' : `<button class="btn gold xs" data-add="${esc(k)}">➕</button>`}${icon('right', 'chev')}</div>`; };
+  el.innerHTML = `<h1 class="t">Freunde</h1><p class="sub">Füg Freunde hinzu und schreib ihnen private Nachrichten</p>
+    <div class="card"><div class="row"><input class="inp" id="frIn" maxlength="18" placeholder="Name des Spielers" autocomplete="off"><button class="btn gold sm" id="frGo">Hinzufügen</button></div>
+      <p class="hint" style="margin-bottom:0">Tipp: Du kannst Spieler auch direkt in der Bestenliste antippen und hinzufügen.</p></div>
+    ${others.length ? `<div class="sec">Neue Nachrichten</div><div class="card tight list">${others.map(k => { const m = DM.inbox.find(x => x.von === k); return item(k, m.disp || k, false); }).join('')}</div>` : ''}
+    <div class="sec">Deine Freunde · ${S.friends.length}</div>
+    ${S.friends.length ? `<div class="card tight list">${S.friends.map(f => item(f.k, f.d, true)).join('')}</div>` : '<div class="empty">Noch keine Freunde – füg oben jemanden hinzu! 👥</div>'}
+    ${onlineOn() ? '' : '<p class="hint">Freunde & Nachrichten brauchen die Online-Verbindung.</p>'}`;
+  const go_ = async () => { const v = $('#frIn', el).value; if (await frAdd(v)) renderFreunde(el); };
+  $('#frGo', el).onclick = go_; $('#frIn', el).onkeydown = e => { if (e.key === 'Enter') go_(); };
+  el.onclick = async e => {
+    const a = e.target.closest('[data-add]'); if (a) { e.stopPropagation(); const m = DM.inbox.find(x => x.von === a.dataset.add); if (await frAdd(a.dataset.add, m && m.disp)) renderFreunde(el); return; }
+    const it = e.target.closest('[data-k]'); if (it) openDM(it.dataset.k, it.dataset.d, () => curPage === 'freunde' && renderFreunde(el));
+  };
+}
+function openDM(k, d, onClose) {
+  if (!onlineOn()) return toast('Braucht die Online-Verbindung', 'bad');
+  frList(); DM.open = k;
+  const fr = isFriend(k);
+  const o = sheet(`<div class="row sb"><h2>💬 ${esc(d)}</h2><button class="x" data-close>${icon('x')}</button></div>
+    <div class="row" style="gap:8px;margin:-4px 0 10px">${fr ? `<button class="btn dark xs" id="dmDel">Freund entfernen</button>` : `<button class="btn gold xs" id="dmAdd">➕ Als Freund hinzufügen</button>`}</div>
+    <div class="chatlog lobby" id="dmLog"><p class="hint">Lade …</p></div>
+    <div class="row" style="margin-top:10px"><input class="inp" id="dmIn" maxlength="300" placeholder="Nachricht an ${esc(d)} …" autocomplete="off"><button class="btn gold sm" id="dmGo">Senden</button></div>
+    <p class="hint" style="font-size:12px">Hinweis: Nachrichten sind nicht verschlüsselt – schreib nichts Geheimes (keine Passwörter!).</p>`, { onClose: () => { DM.open = null; onClose && onClose(); } });
+  const log = $('#dmLog', o), c = pairId(meKey(), k); let msgs = [];
+  const draw = () => { msgs.sort((x, y) => x.ts - y.ts); log.innerHTML = msgs.map(m => `<p class="${m.von === meKey() ? 'mine' : ''}"><b>${m.von === meKey() ? 'Du' : esc(m.disp || m.von)}</b> ${esc(m.txt)} <small>${chatTime(m.ts)}</small></p>`).join('') || '<p class="hint">Noch keine Nachrichten – sag Hallo! 👋</p>'; log.scrollTop = 1e6; };
+  const read = () => { S.dmRead[k] = Date.now(); save(); frBadge(); };
+  const pull = async first => {
+    try {
+      const from = !first && msgs.length ? msgs[msgs.length - 1].ts : 0;
+      const n = (await fsQuery({ from: [{ collectionId: 'dm' }], where: rangeQ('cts', c, from), orderBy: [{ field: { fieldPath: 'cts' }, direction: 'DESCENDING' }], limit: 60 })).reverse();
+      const ids = new Set(msgs.map(m => m.id)); n.forEach(m => { if (!ids.has(m.id)) msgs.push(m); });
+      if (first || n.length) { draw(); read(); }
+    } catch (e) { if (first) log.innerHTML = '<p class="hint">Nachrichten gerade nicht erreichbar. Sind die neuen Firebase-Regeln veröffentlicht?</p>'; }
+  };
+  pull(true); read();
+  const iv = setInterval(() => { if (!o.isConnected) return clearInterval(iv); pull(false); }, 4000);
+  const send = async () => {
+    const inp = $('#dmIn', o), t = inp.value.trim(); if (!t) return;
+    if (Date.now() - DM.sent < 1500) return; DM.sent = Date.now(); inp.value = '';
+    try { await dmSend(k, t); SND.click(); pull(false); } catch (e) { toast('Nicht gesendet – Internet prüfen.', 'bad'); inp.value = t; }
+  };
+  $('#dmGo', o).onclick = send; $('#dmIn', o).onkeydown = e => { if (e.key === 'Enter') send(); };
+  const del = $('#dmDel', o); if (del) del.onclick = () => { S.friends = S.friends.filter(f => f.k !== k); save(); toast('Freund entfernt'); o.close(); };
+  const add = $('#dmAdd', o); if (add) add.onclick = async () => { if (await frAdd(k, d)) { add.remove(); } };
+}
+
+/* Spielerprofil: Freund hinzufügen / Nachricht schreiben */
+(() => {
+  const PP = playerProfile;
+  playerProfile = (r, rank) => {
+    PP(r, rank);
+    if (!r || r.me || !onlineOn() || !S) return;
+    const k = String(r.name || '').toLowerCase(); if (!k || k === meKey()) return;
+    const sh = [...document.querySelectorAll('.ov .sheet')].pop(); if (!sh) return;
+    const pi = sh.querySelector('.prof'); if (!pi) return;
+    pi.insertAdjacentHTML('afterend', `<div class="two" style="margin-bottom:14px">${isFriend(k) ? '<button class="btn dark sm" disabled>✓ Freund</button>' : '<button class="btn gold sm" id="ppAdd">➕ Freund</button>'}<button class="btn dark sm" id="ppMsg">💬 Nachricht</button></div>`);
+    const a = sh.querySelector('#ppAdd'); if (a) a.onclick = async () => { if (await frAdd(k, r.disp)) { a.textContent = '✓ Freund'; a.disabled = true; a.className = 'btn dark sm'; } };
+    sh.querySelector('#ppMsg').onclick = () => openDM(k, r.disp || r.name);
+  };
+})();
+
 /* ================= Seiten erweitern ================= */
-PAGES.crash = renderCrash; PAGES.pass = renderPass; PAGES.clan = renderClan; PAGES.woche = renderWoche;
+PAGES.crash = renderCrash; PAGES.pass = renderPass; PAGES.clan = renderClan; PAGES.freunde = renderFreunde;
 (() => {
   const H = PAGES.halle; PAGES.halle = el => { H(el); if (onlineOn()) { const t = $('.halle-top', el); if (t) { t.insertAdjacentHTML('afterend', '<div class="card feed" id="feedBox"></div>'); feedDraw(); } } };
   const Sp = PAGES.spiele; PAGES.spiele = el => {
@@ -3780,16 +3953,17 @@ PAGES.crash = renderCrash; PAGES.pass = renderPass; PAGES.clan = renderClan; PAG
     </div>`);
     $$('[data-x]', el).forEach(b => b.onclick = () => { SND.click(); const x = b.dataset.x; if (x === 'cal') openCal(); else go(x); });
   };
-  const Ra = PAGES.rang; PAGES.rang = el => { const p = Ra(el); const sub = $('.sub', el); if (sub) { sub.insertAdjacentHTML('afterend', '<div class="two" style="margin-bottom:16px"><button class="btn gold" id="toWk">📅 Diese Woche</button><button class="btn dark" id="toClan">🏢 Clans</button></div>'); $('#toClan', el).onclick = () => go('clan'); $('#toWk', el).onclick = () => go('woche'); } return p; };
+  PAGES.rang = renderRang2; PAGES.woche = el => { rgTab = 2; renderRang2(el); };
   const Pr = PAGES.profil; PAGES.profil = el => {
     Pr(el);
     const b = $('.prof .pinfo b', el); if (b) b.insertAdjacentHTML('afterend', titHTML(S.tit) + (S.clan ? `<small>${tagHTML(S.clan.tag)} ${esc(S.clan.name)}</small>` : ''));
     const sec = $('.sec', el); if (sec) sec.insertAdjacentHTML('beforebegin', `<div class="sec">Style &amp; Freunde</div><div class="card tight list">
       <div class="it" id="xSty"><div class="ibox">🏷️</div><span class="lbl">Titel &amp; Profilrahmen</span><span class="val">${esc(titName(S.tit) || frName(S.frm) || 'auswählen')}</span>${icon('right', 'chev')}</div>
       <div class="it" id="xPass"><div class="ibox">🎟️</div><span class="lbl">Battle Pass</span><span class="val">Stufe ${bpLv()}</span>${icon('right', 'chev')}</div>
+      <div class="it" id="xFr"><div class="ibox">👥</div><span class="lbl">Freunde &amp; Nachrichten</span><span class="val">${(S.friends || []).length}</span>${icon('right', 'chev')}</div>
       <div class="it" id="xClan"><div class="ibox">🏢</div><span class="lbl">Clan</span><span class="val">${S.clan ? '[' + esc(S.clan.tag) + ']' : 'keiner'}</span>${icon('right', 'chev')}</div></div>`);
     const q = (id, f) => { const x = $(id, el); if (x) x.onclick = f; };
-    q('#xSty', openStyle); q('#xPass', () => go('pass')); q('#xClan', () => go('clan'));
+    q('#xSty', openStyle); q('#xPass', () => go('pass')); q('#xClan', () => go('clan')); q('#xFr', () => go('freunde'));
   };
 })();
 </script>

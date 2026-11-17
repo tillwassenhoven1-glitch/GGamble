@@ -35,9 +35,10 @@ Version 0.1.6 · Open Beta
 - 🎟️ **Battle Pass** – jeden Monat eine neue Saison mit 30 Stufen: Geld, Tränke, Energie, Rahmen und Titel
 - 📆 **Login-Kalender** – 7 Tage am Stück einloggen, am 7. Tag gibt's den großen Preis
 - 🏢 **Clans** – gründe einen Clan oder tritt einem bei: gemeinsamer Kontostand und eigene Clan-Bestenliste
+- 👥 **Freunde** hinzufügen und private Nachrichten schreiben
 - 💬 **Lobby-Chat** für alle Spieler und 📣 **Live-Feed** mit den größten Gewinnen
 - 🧪 **Glückstränke** – ×2, ×4 oder ×6: Jeder Dreh und jedes Los wird mehrmals gewürfelt, du bekommst das beste Ergebnis
-- 🥇 **Rang** – Online-Bestenliste: Top 10 aller echten Spieler mit Podest, dazu eine **Wochen-Bestenliste** (startet jeden Montag neu)
+- 🥇 **Rang** – Online-Bestenliste: Top 10 aller echten Spieler mit Podest, dazu Gewinn-Ranglisten für **heute, diese Woche und diesen Monat** – Top 10, dein Platz und „Mehr anzeigen“ für alle
 - 📹 **Treff** – Video-Räume mit Chat und Kamera-Filtern, die weiterlaufen, während du spielst – plus 💣 **Minenfeld-Duell**: fordere andere mit Einsatz heraus, wer die Bombe findet, verliert und zahlt
 
 ## Features
@@ -72,7 +73,7 @@ service cloud.firestore {
     }
     match /rang/{id} {
       function ok() {
-        return request.resource.data.keys().hasOnly(['name','disp','bal','level','color','ts','big','net','bxp','wag','since','best','ach','own','tit','frm','clan','wk','wkk'])
+        return request.resource.data.keys().hasOnly(['name','disp','bal','level','color','ts','big','net','bxp','wag','since','best','ach','own','tit','frm','clan','wk','wkk','dv','dk','mv','mk'])
           && request.resource.data.bal is number
           && request.resource.data.bal < 1000000000000000;
       }
@@ -91,6 +92,12 @@ service cloud.firestore {
       allow read: if true;
       allow create: if request.resource.data.keys().hasOnly(['name','disp','txt','ts','clan'])
                     && request.resource.data.txt is string && request.resource.data.txt.size() <= 200;
+      allow update, delete: if false;
+    }
+    match /dm/{id} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['von','an','disp','txt','ts','cts','ats'])
+                    && request.resource.data.txt is string && request.resource.data.txt.size() <= 300;
       allow update, delete: if false;
     }
     match /feed/{id} {
