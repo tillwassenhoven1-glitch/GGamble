@@ -2180,7 +2180,7 @@ function roomUI() {
     <button class="btn red w" id="rLeave" style="margin-top:14px">Raum verlassen</button>`, { onClose: () => { T.ov = null; updMini(); } });
   T.ov = o; refreshRoom(); refreshChat(); updMini();
   const send = () => { const i = $('#cIn', o), t = i.value.trim(); if (!t) return; i.value = ''; addMsg(S.disp, t); broadcast({ t: 'chat', name: S.disp, txt: t }); };
-  $('#cGo', o).onclick = send; $('#cIn', o).onkeydown = e => e.key === 'Enter' && send();
+  $('#cGo', o).onclick = send; $('#cIn', o).addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
   $('#rLeave', o).onclick = () => { o.close(); leaveRoom(); };
 }
 function refreshRoom() {
@@ -2419,7 +2419,7 @@ function showLogin() {
     setTimeout(() => { $('#login').classList.add('hidden'); startApp(key); if (reg) setTimeout(() => toast(`Willkommen, ${esc(name)}! Du startest mit ${fmt(500)} Spielgeld 🎰`, 'good', 4500), 600); }, 500);
   };
   $('#lGo').onclick = go_;
-  $$('#login input').forEach(i => i.onkeydown = e => e.key === 'Enter' && go_());
+  $$('#login input').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') go_(); }));
 }
 function startApp(key) {
   const all = Accounts.all(); ACC = key;
