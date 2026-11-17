@@ -1651,14 +1651,17 @@ function drawTicket(L) {
   const b = $('[data-buy]', box); if (b) b.onclick = () => buyTicket(L);
   const a = $('[data-all]', box); if (a) a.onclick = () => cv && cv._revealAll && cv._revealAll();
 }
+let tkRs; addEventListener('resize', () => { clearTimeout(tkRs); tkRs = setTimeout(() => { if (typeof curPage !== 'undefined' && curPage === 'lose') LOSE.forEach(L => drawTicket(L)); }, 250); });
 /* Eine Rubbelschicht über das ganze Los – einfach komplett drüberwischen */
 function foilAll(wrap, cells, onReveal) {
   if (!cells.length) return null;
   const cv = document.createElement('canvas'); cv.className = 'foilc'; wrap.appendChild(cv);
   requestAnimationFrame(() => {
-    const W = wrap.offsetWidth, H = wrap.offsetHeight, d = devicePixelRatio || 1, wr = wrap.getBoundingClientRect();
+    const W = wrap.offsetWidth, H = wrap.offsetHeight, d = devicePixelRatio || 1;
     cv.width = W * d; cv.height = H * d; const c = cv.getContext('2d'); c.scale(d, d);
-    cells.forEach(o => { const r = o.sc.getBoundingClientRect(); o.x = r.left - wr.left; o.y = r.top - wr.top; o.w = r.width; o.h = r.height; });
+    // Positionen ohne Einfluss von Animationen/Transforms messen
+    const offs = el => { let x = 0, y = 0, e = el; while (e && e !== wrap) { x += e.offsetLeft; y += e.offsetTop; e = e.offsetParent; } return [x, y]; };
+    cells.forEach(o => { const [x, y] = offs(o.sc); o.x = x; o.y = y; o.w = o.sc.offsetWidth; o.h = o.sc.offsetHeight; });
     const rr = (x, y, w, h, rad) => { c.beginPath(); if (c.roundRect) c.roundRect(x, y, w, h, rad); else c.rect(x, y, w, h); };
     cells.forEach(o => {
       const g = c.createLinearGradient(o.x, o.y, o.x + o.w, o.y + o.h);
