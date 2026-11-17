@@ -3106,7 +3106,7 @@ function openSettings() {
   $('#exp', o).onclick = async () => { persist(); const code = codeMake({ ...S, photo: '' }); try { await navigator.clipboard.writeText(code); toast('Spielstand-Code kopiert 📋', 'good'); } catch (e) { sheet(`<h2>Dein Code</h2><textarea class="inp" style="height:200px;font-size:12px" readonly>${code}</textarea>`, { center: true }); } };
   $('#imp', o).onclick = () => {
     const s2 = sheet(`<h2>Code laden</h2><p class="hint">Achtung: überschreibt den Spielstand von <b>${esc(S.disp)}</b>.</p><textarea class="inp" id="ic" style="height:160px;font-size:12px"></textarea><button class="btn white w" id="ig" style="margin-top:12px">Laden</button>`, { center: true });
-    $('#ig', s2).onclick = () => { try { const d = codeRead($('#ic', s2).value); const nm = S.name; S = Object.assign(newState(nm), d, { name: nm }); persist(); location.reload(); } catch (e) { codeErr(e); } };
+    $('#ig', s2).onclick = () => { try { const d = codeRead($('#ic', s2).value); const nm = S.name; S = Object.assign(newState(nm), d, { name: nm, ep: d.ep || 'alt' }); persist(); location.reload(); } catch (e) { codeErr(e); } };
   };
   const bindCheat = () => {
     const box = $('#cheatBox', o), g = $('#cGo2', o);
@@ -3273,7 +3273,7 @@ function cloudLink(key) {
 function startApp(key) {
   const all = Accounts.all(); ACC = key;
   S = Object.assign(newState(all[key].name), all[key].save || {});
-  if (S.ep !== RESET_EP) {
+  if ((all[key].save || {}).ep !== RESET_EP) { // alte Spielstände haben noch kein ep → werden zurückgesetzt
     const keep = { name: S.name, disp: S.disp, photo: S.photo, color: S.color, lbId: S.lbId, owner: S.owner, cheat: S.cheat, set: S.set, clan: S.clan };
     S = Object.assign(newState(all[key].name), keep); all[key].save = S; all[key].ts = Date.now(); Accounts.put(all);
     setTimeout(() => sheet(`<h2>🔄 Neustart!</h2><p class="hint" style="font-size:18px">Alle Konten wurden zurückgesetzt – jeder startet wieder mit ${fmt(500)}. Die Spielhalle hat neue, fairere Regeln: All-In ist begrenzt, Level steigen langsamer und die Börse hat höchstens Hebel 1:20.<br><br>Name, Passwort, Profilbild und Clan bleiben. Viel Glück! 🍀</p><button class="btn white w" data-close>Los geht's</button>`, { center: true }), 600);
