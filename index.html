@@ -1026,7 +1026,8 @@ async function cloudGet(cid) {
   const f = (await r.json()).fields || {}; return { d: JSON.parse(f.data.stringValue), ts: +(f.ts?.integerValue || 0) };
 }
 async function nameTaken(key) { const r = await fetch(fsDoc('namen/' + encodeURIComponent(key)), { cache: 'no-store' }); if (r.status === 404) return false; if (!r.ok) throw new Error('HTTP ' + r.status); return true; }
-function claimName(key) { return fetch(`${FS()}/namen?documentId=${encodeURIComponent(key)}&key=${ONLINE.apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: { t: { integerValue: String(Date.now()) } } }) }).catch(() => { }); }
+const newRid = key => (key.replace(/[^a-z0-9]/g, '') || 'x').slice(0, 12) + '-' + Math.random().toString(36).slice(2, 10);
+function claimName(key, rid) { return fetch(`${FS()}/namen?documentId=${encodeURIComponent(key)}&key=${ONLINE.apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: { t: { integerValue: String(Date.now()) }, rid: { stringValue: rid || '' } } }) }).then(() => loadOwner()).catch(() => { }); }
 function cloudPut(cid, a, sv) {
   const data = JSON.stringify({ name: a.name, created: a.created, save: sv }), body = JSON.stringify({ fields: { data: { stringValue: data }, ts: { integerValue: String(Date.now()) } } });
   return fetch(fsDoc('konten/' + cid), { method: 'PATCH', keepalive: body.length < 60000, headers: { 'Content-Type': 'application/json' }, body });
@@ -2533,7 +2534,10 @@ function localTop() {
 function localAll() {
   return Object.entries(Accounts.all()).map(([k, a]) => { const v = a.save || {}, st = v.st || {}; return { k, disp: a.disp || a.name, name: a.name, photo: a.photo, color: v.color || 0, bal: v.bal || 0, lvl: v.level || 1, ts: a.ts || a.created, me: k === ACC, big: st.biggest ?? null, net: st.net ?? null, bxp: v.bx ? v.bx.pnl : null, wag: st.wagered ?? null, since: v.created || a.created, best: st.bestGame || '', ach: v.ach ? Object.keys(v.ach).length : null }; }).sort((a, b) => b.bal - a.bal);
 }
-const isOwner = n => String(n || '').trim().toLowerCase() === 'till';
+/* 👑 Besitzer = das Konto, das den Namen „till“ online reserviert hat (fest an dessen Bestenlisten-ID gebunden) */
+let OWNER_RID = localStorage.getItem('gg_owner') || '';
+const isOwner = id => !!OWNER_RID && id === OWNER_RID;
+function loadOwner() { if (!onlineOn()) return; fetch(fsDoc('namen/till'), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(j => { const rid = j?.fields?.rid?.stringValue || ''; if (rid === OWNER_RID) return; OWNER_RID = rid; try { localStorage.setItem('gg_owner', rid); } catch (e) { } if (S && typeof curPage !== 'undefined' && ['rang', 'profil'].includes(curPage)) go(curPage, true); }).catch(() => { }); }
 const ownerTag = n => isOwner(n) ? '<span class="owner">👑 Besitzer</span>' : '';
 const nameCls = n => isOwner(n) ? 'ownername' : '';
 const RANG_WIP = false; // Bestenliste ist in Arbeit
@@ -2552,16 +2556,16 @@ async function renderRang(el) {
   if (!mine) { const all = localAll(); mine = { rank: all.findIndex(r => r.me) + 1 || all.length + 1, total: all.length }; }
   const topI = rows.findIndex(r => r.me); if (topI >= 0) mine.rank = topI + 1;
   const body = $('#rgBody', el); if (!body) return;
-  const pod = (r, i) => r ? `<div class="p${i + 1}"><div class="pa">${avaHTML(r)}<span class="rk" style="background:${['#d8b85a', '#cfcfd4', '#c8875a'][i]}">${i + 1}</span></div><div class="nm ${nameCls(r.name)}">${esc(r.disp)}</div>${isOwner(r.name) ? '<div class="owner" style="margin-top:4px">👑 Besitzer</div>' : ''}<div class="vv num">${fmt(r.bal)}</div><div class="blk" style="height:${[150, 110, 80][i]}px"></div></div>` : '<div></div>';
+  const pod = (r, i) => r ? `<div class="p${i + 1}"><div class="pa">${avaHTML(r)}<span class="rk" style="background:${['#d8b85a', '#cfcfd4', '#c8875a'][i]}">${i + 1}</span></div><div class="nm ${nameCls(r.k)}">${esc(r.disp)}</div>${isOwner(r.k) ? '<div class="owner" style="margin-top:4px">👑 Besitzer</div>' : ''}<div class="vv num">${fmt(r.bal)}</div><div class="blk" style="height:${[150, 110, 80][i]}px"></div></div>` : '<div></div>';
   const meI = rows.findIndex(r => r.me);
   const meRow = { disp: S.disp, name: S.name, photo: S.photo, color: S.color, bal: S.bal };
   body.innerHTML = `<p class="hint" style="margin-top:-8px">Du bist auf Platz ${NF0.format(mine.rank)} 🏆</p>
     <div class="podium">${pod(rows[1], 1)}${pod(rows[0], 0)}${pod(rows[2], 2)}</div>
-    ${rows.length ? `<div class="card tight list rl">${rows.map((r, i) => `<div class="it ${r.me ? 'me' : ''}" data-i="${i}"><span class="rn">${i + 1}</span>${avaHTML(r)}<div class="who"><b><span class="${nameCls(r.name)}">${esc(r.disp)}</span>${ownerTag(r.name)}</b><small>@${esc(r.name)} · ${ago(r.ts)}</small></div><span class="w num ${r.bal < 0 ? 'neg' : ''}">${fmt(r.bal)}</span></div>`).join('')}</div>` : '<div class="empty">Noch niemand in der Bestenliste.</div>'}
+    ${rows.length ? `<div class="card tight list rl">${rows.map((r, i) => `<div class="it ${r.me ? 'me' : ''}" data-i="${i}"><span class="rn">${i + 1}</span>${avaHTML(r)}<div class="who"><b><span class="${nameCls(r.k)}">${esc(r.disp)}</span>${ownerTag(r.k)}</b><small>@${esc(r.name)} · ${ago(r.ts)}</small></div><span class="w num ${r.bal < 0 ? 'neg' : ''}">${fmt(r.bal)}</span></div>`).join('')}</div>` : '<div class="empty">Noch niemand in der Bestenliste.</div>'}
     <div class="sec">Dein Platz</div>
-    <div class="card myrank"><div class="mr-n num">#${NF0.format(mine.rank)}</div>${avaHTML(meRow)}<div class="who"><b class="${nameCls(S.name)}">${esc(S.disp)}</b><small>${isOwner(S.name) ? '<span class="owner">👑 Besitzer</span> · ' : ''}${mine.total ? `von ${NF0.format(mine.total)} Spieler${mine.total === 1 ? '' : 'n'}` : '@' + esc(S.name)}${mine.rank <= 10 ? ' · Top 10 🔥' : ''}</small></div><span class="w num ${S.bal < 0 ? 'neg' : ''}">${fmt(S.bal)}</span></div>
+    <div class="card myrank"><div class="mr-n num">#${NF0.format(mine.rank)}</div>${avaHTML(meRow)}<div class="who"><b class="${nameCls(S.lbId)}">${esc(S.disp)}</b><small>${isOwner(S.lbId) ? '<span class="owner">👑 Besitzer</span> · ' : ''}${mine.total ? `von ${NF0.format(mine.total)} Spieler${mine.total === 1 ? '' : 'n'}` : '@' + esc(S.name)}${mine.rank <= 10 ? ' · Top 10 🔥' : ''}</small></div><span class="w num ${S.bal < 0 ? 'neg' : ''}">${fmt(S.bal)}</span></div>
     ${info ? `<p class="hint">${info}</p>` : ''}`;
-  const myProf = rk => { persist(); const me = localAll().find(x => x.me) || meRow; playerProfile({ ...me, lvl: S.level, bal: S.bal, ts: Date.now() }, rk); };
+  const myProf = rk => { persist(); const me = localAll().find(x => x.me) || meRow; playerProfile({ ...me, k: S.lbId, lvl: S.level, bal: S.bal, ts: Date.now() }, rk); };
   body.querySelector('.myrank').onclick = () => myProf(mine.rank);
   const rl = body.querySelector('.rl'); if (rl) rl.onclick = e => {
     const it = e.target.closest('[data-i]'); if (!it) return; const r = rows[+it.dataset.i];
@@ -2575,7 +2579,7 @@ function playerProfile(r, rank) {
   const v = x => x === null || x === undefined ? '–' : null;
   sheet(`<div class="row sb" style="margin-bottom:10px"><span class="chip">🏆 Platz ${rank}</span><button class="x" data-close>${icon('x')}</button></div>
     <div class="card prof" style="margin:0 0 14px"><div class="ban"></div><div class="pa">${avaHTML(r)}</div>
-      <div class="pinfo"><b class="${nameCls(r.name)}">${esc(r.disp)}</b><small>@${esc(r.name)}${isOwner(r.name) ? ' · <span class="owner">👑 Besitzer</span>' : ''}</small><small style="font-size:14px">zuletzt aktiv ${ago(r.ts)}</small></div></div>
+      <div class="pinfo"><b class="${nameCls(r.k)}">${esc(r.disp)}</b><small>@${esc(r.name)}${isOwner(r.k) ? ' · <span class="owner">👑 Besitzer</span>' : ''}</small><small style="font-size:14px">zuletzt aktiv ${ago(r.ts)}</small></div></div>
     <div class="stats">
       <div class="stat"><small>Level</small><b>${r.lvl}</b></div>
       <div class="stat"><small>Kontostand</small><b class="num ${r.bal < 0 ? 'neg' : ''}">${fmt(r.bal)}</b></div>
@@ -2938,7 +2942,7 @@ function renderProfil(el) {
   const got = ACH.filter(a => S.ach[a[0]]).length;
   const ordered = [...ACH].sort((a, b) => (!!S.ach[b[0]]) - (!!S.ach[a[0]]));
   el.innerHTML = `<div class="card prof"><div class="ban"></div><div class="pa">${avaHTML(S)}</div>
-      <div class="pinfo"><b class="${nameCls(S.name)}">${esc(S.disp)}</b><small>@${esc(S.name)}${isOwner(S.name) ? ' · <span class="owner">👑 Besitzer</span>' : ''}</small><button class="btn dark sm" id="pEd" style="align-self:flex-start">${icon('edit')} Bearbeiten</button></div></div>
+      <div class="pinfo"><b class="${nameCls(S.lbId)}">${esc(S.disp)}</b><small>@${esc(S.name)}${isOwner(S.lbId) ? ' · <span class="owner">👑 Besitzer</span>' : ''}</small><button class="btn dark sm" id="pEd" style="align-self:flex-start">${icon('edit')} Bearbeiten</button></div></div>
     <div class="stats">
       <div class="stat"><small>Level</small><b>${S.level}</b></div>
       <div class="stat"><small>Kontostand</small><b class="num ${S.bal < 0 ? 'neg' : ''}">${fmt(S.bal)}</b></div>
@@ -3089,9 +3093,9 @@ function showLogin() {
       if (pw !== $('#lPw2').value) { done(); return err('Passwörter stimmen nicht überein'); }
       if (on) { let t = false; try { t = await nameTaken(key); } catch (e) { } if (t) { done(); return err('Den Namen hat schon jemand – nimm einen anderen oder melde dich an.'); } }
       const salt = mkSalt();
-      all[key] = { name, salt, hash: await Accounts.hash(pw, salt), created: Date.now(), ts: Date.now() + 2000, save: newState(name), cid };
+      all[key] = { name, salt, hash: await Accounts.hash(pw, salt), created: Date.now(), ts: Date.now() + 2000, save: Object.assign(newState(name), { lbId: newRid(key) }), cid };
       Accounts.put(all);
-      if (on) { claimName(key); cloudPut(cid, all[key], all[key].save).catch(() => { }); }
+      if (on) { claimName(key, all[key].save.lbId); cloudPut(cid, all[key], all[key].save).catch(() => { }); }
     } else {
       let a = all[key], ok = a && await Accounts.hash(pw, a.salt) === a.hash, cl = null;
       if (on) { try { cl = await cloudGet(cid); } catch (e) { if (!a) { done(); return err('Keine Verbindung – bitte Internet prüfen.'); } } }
@@ -3099,7 +3103,7 @@ function showLogin() {
       if (!a || !ok) { const salt = mkSalt(); a = all[key] = Object.assign(a || {}, { name: cl.d.name || name, salt, hash: await Accounts.hash(pw, salt), created: cl.d.created || Date.now() }); }
       if (cl && (!a.save || cl.ts > (a.ts || 0))) { a.save = cl.d.save; a.ts = cl.ts; }
       const first = !a.cid; a.cid = cid; Accounts.put(all);
-      if (on && first) { claimName(key); if (!cl) cloudPut(cid, a, a.save || newState(a.name)).catch(() => { }); }
+      if (on && first) { if (!a.save) a.save = newState(a.name); if (!a.save.lbId) a.save.lbId = newRid(key); Accounts.put(all); claimName(key, a.save.lbId); if (!cl) cloudPut(cid, a, a.save || newState(a.name)).catch(() => { }); }
     }
     done();
     localStorage.setItem(SES_KEY, key);
@@ -3139,7 +3143,7 @@ function startApp(key) {
   $('#hBalPill').onclick = () => go('konto'); $('#hLvl').onclick = () => go('profil');
   $('#hChat').innerHTML = icon('chat'); $('#hChat').onclick = openChat;
   $('#hLock').innerHTML = icon('lock');
-  hdr(); go('halle'); checkAch();
+  hdr(); go('halle'); checkAch(); loadOwner();
   if (onlineOn() && all[key].cid) cloudGet(all[key].cid).then(cl => { const cur = Accounts.all(), x = cur[key]; if (!cl || !x || !x.ts || cl.ts <= x.ts + 5000) return; x.save = cl.d.save; x.ts = cl.ts; Accounts.put(cur); S = null; toast('Neuerer Spielstand von anderem Gerät geladen ☁️', 'good'); setTimeout(() => location.reload(), 900); }).catch(() => { });
   const pend = shopPending(); if (pend > 1 && away > 6e4) setTimeout(() => toast(`Deine Geschäfte haben ${fmt(pend)} verdient – im Imperium einsammeln 🏪`, 'good', 4500), 1600);
   if (bonusReady()) setTimeout(() => S && openBonus(), 900);
