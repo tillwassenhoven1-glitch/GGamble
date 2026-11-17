@@ -2440,7 +2440,7 @@ function renderImperium(el) {
 'use strict';
 /* ================= Rangliste (online, nur echte Konten) ================= */
 /* 🔧 Online-Bestenliste: hier die Werte aus Firebase eintragen (siehe README) */
-const ONLINE = { apiKey: '', projectId: '' };
+const ONLINE = { apiKey: 'AIzaSyDIpbW5ZADQGdtRdA813J1TZIJOHgiXRaY', projectId: 'ggamble-fa902' };
 const onlineOn = () => !!(ONLINE.apiKey && ONLINE.projectId);
 const FS = () => `https://firestore.googleapis.com/v1/projects/${ONLINE.projectId}/databases/(default)/documents`;
 function lbId() { if (!S.lbId) { S.lbId = (ACC.replace(/[^a-z0-9]/g, '') || 'x').slice(0, 12) + '-' + Math.random().toString(36).slice(2, 10); save(); } return S.lbId; }
@@ -2462,7 +2462,7 @@ function localTop() {
   persist();
   return Object.entries(Accounts.all()).map(([k, a]) => ({ k, disp: a.disp || a.name, name: a.name, photo: a.photo, color: a.save?.color || 0, bal: a.save ? a.save.bal : 0, lvl: a.save?.level || 1, ts: a.ts || a.created, me: k === ACC })).sort((a, b) => b.bal - a.bal).slice(0, 10);
 }
-const RANG_WIP = true; // Bestenliste ist in Arbeit
+const RANG_WIP = false; // Bestenliste ist in Arbeit
 async function renderRang(el) {
   if (RANG_WIP) { el.innerHTML = `<h1 class="t">Bestenliste</h1><p class="sub">Top 10 online – nur echte Spieler</p>
     <div class="card" style="text-align:center;padding:44px 22px"><div style="font-size:64px;animation:pop .6s var(--spring)">🚧</div><h2 style="font-size:32px;font-weight:800;margin-top:12px">In Arbeit</h2><p class="hint" style="font-size:18px">Die Online-Bestenliste kommt bald. Bis dahin: weiterzocken und Geld sammeln! 💰</p></div>`; return; }

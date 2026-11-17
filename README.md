@@ -32,7 +32,7 @@ Version 0.1.0 · Open Beta
 - 📊 **Börse** – läuft auch offline weiter (Stop Loss, Take Profit, Orders) – 5 erfundene Märkte (XRZ-Coin, Döner AG, Kiosk-Kette, Gold, GG/EUR) mit Kerzen-Chart, Long/Short, Hebel bis 1:100, Stop Loss, Take Profit, Limit- und Stop-Orders
 - 🎲 **Spiele** – Hütchenspiel, Kassensturz, Pfandflaschen und Inventur (10 Energie, alle 5 Min. +1 – auch offline; nur wer alle Aufgaben schafft, bekommt extra Energie), Tages- und Wochenaufgaben, das **Glückslabor** und dein **Imperium** aus 8 Geschäften, die auch offline Geld bringen
 - 🧪 **Glückstränke** – ×2, ×4 oder ×6: Jeder Dreh und jedes Los wird mehrmals gewürfelt, du bekommst das beste Ergebnis
-- 🥇 **Rang** – Online-Bestenliste (Top 10 echter Spieler) – 🚧 in Arbeit
+- 🥇 **Rang** – Online-Bestenliste: Top 10 aller echten Spieler mit Podest
 - 📹 **Treff** – Video-Räume mit Chat und Kamera-Filtern, die weiterlaufen, während du spielst – plus 💣 **Minenfeld-Duell**: fordere andere mit Einsatz heraus, wer die Bombe findet, verliert und zahlt
 
 ## Features
