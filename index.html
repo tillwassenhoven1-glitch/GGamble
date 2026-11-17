@@ -517,6 +517,7 @@ select.inp{appearance:none;-webkit-appearance:none;background-image:linear-gradi
 .cab.sm .btns b{width:36px;height:12px}
 .legend{display:flex;flex-wrap:wrap;gap:6px 12px;justify-content:center;margin-top:10px;font-size:13px;font-weight:700;color:#2a3a2a}
 
+#ver{position:fixed;left:14px;bottom:calc(var(--sb) + 96px);z-index:60;font-size:11px;font-weight:600;color:rgba(255,255,255,.6);background:rgba(0,0,0,.7);padding:3px 9px;border-radius:999px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);pointer-events:none;letter-spacing:.3px}
 </style>
 </head>
 <body>
@@ -532,7 +533,7 @@ select.inp{appearance:none;-webkit-appearance:none;background-image:linear-gradi
     <input id="lPw2" class="fld" type="password" placeholder="Passwort wiederholen" autocomplete="new-password">
     <div class="err" id="lErr"></div>
     <button class="btn white w" id="lGo">Los geht's</button>
-    <p class="small">Dein Konto wird in diesem Browser gespeichert – du bleibst eingeloggt.<br>Kein echtes Geld, keine Käufe, keine Werbung.</p>
+    <p class="small">Dein Konto wird in diesem Browser gespeichert – du bleibst eingeloggt.<br>Kein echtes Geld, keine Käufe, keine Werbung.<br><span id="lVer" style="opacity:.6"></span></p>
   </div>
 </div>
 
@@ -553,12 +554,14 @@ select.inp{appearance:none;-webkit-appearance:none;background-image:linear-gradi
   <nav id="nav" class="pill"></nav>
 </div>
 
+<div id="ver"></div>
 <div id="toasts"></div>
 <canvas id="fx"></canvas>
 
 <script>
 /* ===== core.js ===== */
 'use strict';
+const VERSION = '0.0.1 Open Beta';
 /* ================= Helfer ================= */
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -2442,6 +2445,7 @@ function startApp(key) {
 }
 
 /* ================= Start ================= */
+$('#ver').textContent = 'Version ' + VERSION; $('#lVer').textContent = 'Version ' + VERSION;
 FX.init();
 setTimeout(() => {
   $('#splash').classList.add('out'); setTimeout(() => $('#splash').remove(), 800);
