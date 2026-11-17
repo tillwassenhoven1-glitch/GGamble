@@ -1053,7 +1053,7 @@ function applyInterest() {
   if (S.bal < 0 && h > 0) { const nb = r2(S.bal * Math.pow(1.005, h)); if (nb !== S.bal) S.bal = nb; }
   S.lastInt = now;
 }
-const EN_PER = 5 * 60e3, EN_MAX = 20; // alle 5 Minuten +1 (bis 10), mit Belohnungen bis 20
+const EN_PER = 5 * 60e3, EN_MAX = 12; // alle 5 Minuten +1 (bis 10), mit Belohnungen bis 20
 function energyIn() { const s = Math.max(0, Math.ceil((S.enTs + EN_PER - Date.now()) / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
 function addEnergy(n, why) { regenEnergy(); S.energy = Math.min(EN_MAX, S.energy + n); save(); }
 function regenEnergy() {
@@ -1377,7 +1377,7 @@ async function doSpin() {
   if (usePot && S.potAct.left <= 0) { S.potAct = null; setTimeout(() => toast('Dein Glückstrank ist aufgebraucht.'), 1500); }
   MS.upd();
   const teased = await animateReels(best.g);
-  if (!free && Math.random() < 1 / 750) whenFree(() => { addEnergy(1); toast('⚡ Seltener Fund im Automaten: +1 Energie!', 'good', 4000); SND.big(); FX.burst(60, { cols: ['#7cff6b', '#fff'] }); });
+  if (!free && Math.random() < 1 / 4000) whenFree(() => { addEnergy(1); toast('⚡ Seltener Fund im Automaten: +1 Energie!', 'good', 4000); SND.big(); FX.burst(60, { cols: ['#7cff6b', '#fff'] }); });
   MS.frozen = false; MS.upd();
   MS.grid = best.g;
   let win = best.ev.tot * (free ? 2 : 1);
@@ -1744,7 +1744,7 @@ function buyTicket(L) {
   }
   if (!bet(L.p, L.n)) return;
   S.st.scratches++; taskProg('scratch', 1);
-  if (Math.random() < 1 / 600) setTimeout(() => { addEnergy(1); toast('⚡ Seltener Fund auf dem Los: +1 Energie!', 'good', 4000); SND.big(); }, 1500);
+  if (Math.random() < 1 / 3000) setTimeout(() => { addEnergy(1); toast('⚡ Seltener Fund auf dem Los: +1 Energie!', 'good', 4000); SND.big(); }, 1500);
   let rolls = 1; if (S.potAct && L.p <= potCap()) { rolls = S.potAct.m; S.potAct.left--; }
   let res = null; for (let k = 0; k < rolls; k++) { const r = genTicket(L); if (!res || r.win > res.win) res = r; }
   if (S.potAct && S.potAct.left <= 0) { S.potAct = null; toast('Dein Glückstrank ist aufgebraucht.'); }
@@ -2122,7 +2122,7 @@ function drawChart(cv, sym, tf) {
 const TASKS_D = [['trades', 3, 'Schließ {g} Trades'], ['shifts', 2, 'Erledige {g} Schichten'], ['wager', 90, 'Setz insgesamt {g} €'], ['spins', 40, 'Dreh {g}-mal am Automaten'], ['scratch', 5, 'Rubbel {g} Lose'], ['bets', 2, 'Platziere {g} Wetten'], ['rounds', 80, 'Spiel {g} Runden']];
 function mkTasks(seed, mult, money, xp) {
   const r = mulberry(seed), pool = [...TASKS_D].sort(() => r() - .5).slice(0, 3);
-  return pool.map(([k, g, n]) => { const goal = k === 'wager' ? Math.round(g * S.level * mult) : g * mult; return { k, g: goal, n: n.replace('{g}', NF0.format(goal)), p: 0, en: mult === 1 ? 1 : 3, rew: r2(base() * money), xp: Math.round(xp), done: false }; });
+  return pool.map(([k, g, n]) => { const goal = k === 'wager' ? Math.round(g * S.level * mult) : g * mult; return { k, g: goal, n: n.replace('{g}', NF0.format(goal)), p: 0, en: 0, rew: r2(base() * money), xp: Math.round(xp), done: false }; });
 }
 function ensureTasks() {
   const d = dayKey(), w = weekKey();
@@ -2133,13 +2133,20 @@ function ensureTasks() {
 function hashStr(s) { let h = 7; for (const c of String(s)) h = Math.imul(h ^ c.charCodeAt(0), 2654435761); return h >>> 0; }
 function taskProg(k, v) {
   if (!S) return; ensureTasks();
+  setTimeout(taskBonus, 0);
   [...S.tasks.day, ...S.tasks.week].forEach(t => {
     if (t.k !== k || t.done) return; t.p = Math.min(t.g, t.p + v);
-    if (t.p >= t.g) { t.done = true; whenFree(() => setTimeout(() => { earn(t.rew, 'Aufgabe'); addXP(t.xp); addEnergy(t.en || 1); toast(`Aufgabe erledigt: ${t.n} → +${fmt(t.rew)} · ${t.xp} XP · +${t.en || 1} ⚡ ✅`, 'good', 4000); SND.win(); FX.burst(50); hdr(true); save(); }, 600)); }
+    if (t.p >= t.g) { t.done = true; whenFree(() => setTimeout(() => { earn(t.rew, 'Aufgabe'); addXP(t.xp); toast(`Aufgabe erledigt: ${t.n} → +${fmt(t.rew)} · ${t.xp} XP ✅`, 'good', 4000); SND.win(); FX.burst(50); hdr(true); save(); }, 600)); }
+  });
+}
+function taskBonus() {
+  [['day', 1, 'Alle Tagesaufgaben'], ['week', 2, 'Alle Wochenaufgaben']].forEach(([k, n, txt]) => {
+    const L = S.tasks[k]; if (!L || L.bonus || !L.every(t => t.done)) return;
+    L.bonus = true; whenFree(() => setTimeout(() => { addEnergy(n); toast(`⚡ ${txt} geschafft: +${n} Energie!`, 'good', 4500); SND.big(); FX.burst(70, { cols: ['#7cff6b', '#fff'] }); }, 1400));
   });
 }
 function tasksHTML(list) {
-  return list.map(t => `<div class="task ${t.done ? 'done' : ''}"><div class="row sb"><b>${t.n}</b><span class="num" style="color:var(--mut)">${NF0.format(t.p)} / ${NF0.format(t.g)}</span></div><div class="bar"><i style="width:${t.p / t.g * 100}%"></i></div><span class="chip gold">${t.done ? '✓ ' : '+'}${fmt(t.rew)} · ${t.xp} XP · +${t.en || 1} ⚡</span></div>`).join('');
+  return list.map(t => `<div class="task ${t.done ? 'done' : ''}"><div class="row sb"><b>${t.n}</b><span class="num" style="color:var(--mut)">${NF0.format(t.p)} / ${NF0.format(t.g)}</span></div><div class="bar"><i style="width:${t.p / t.g * 100}%"></i></div><span class="chip gold">${t.done ? '✓ ' : '+'}${fmt(t.rew)} · ${t.xp} XP</span></div>`).join('');
 }
 function untilMidnight() { const n = new Date(), m = new Date(n); m.setHours(24, 0, 0, 0); const s = (m - n) / 1000; return `${Math.floor(s / 3600)} Std. ${Math.floor(s % 3600 / 60)} Min.`; }
 
@@ -2166,11 +2173,11 @@ function renderSpiele(el) {
   const enHTML = () => `${icon('battery')} <span class="num">${S.energy} / 10</span>${S.energy < 10 ? `<small class="num" style="font-size:15px;color:var(--mut);font-weight:700">+1 in ${energyIn()}</small>` : ''}`;
   el.innerHTML = `<h1 class="t">Minispiele</h1><p class="sub">Aufgaben erledigen, Geld zurückholen, Glückstränke brauen</p>
    <div class="pill energy" id="enPill">${enHTML()}</div>
-   <p class="hint" style="margin-top:8px">⚡ Alle 5 Minuten +1 Energie (bis 10) – auch wenn GGamble zu ist. Aufgaben geben extra Energie.</p>
+   <p class="hint" style="margin-top:8px">⚡ Alle 5 Minuten +1 Energie (bis 10) – auch wenn GGamble zu ist. Nur wer alle Aufgaben schafft, bekommt extra Energie.</p>
    ${S.bal < 0 ? `<div class="card warn" style="margin-top:18px"><div class="row" style="align-items:flex-start">${icon('warn')}<div><h4>Du bist im Minus (${fmt(S.bal)})</h4><p class="hint" style="font-size:18px;margin:6px 0 0;color:#cfcfd4">Jedes Minispiel zahlt zuerst deine Schulden ab. ${isLocked() ? 'Dein Konto ist gesperrt, bis du wieder über dem Dispo bist.' : ''}</p></div></div></div>` : ''}
    <div class="sec">Aufgaben <small>neue Tagesaufgaben in ${untilMidnight()}</small></div>
-   <div class="card"><h3 style="font-size:24px">Heute</h3>${tasksHTML(S.tasks.day)}</div>
-   <div class="card"><h3 style="font-size:24px">Diese Woche</h3>${tasksHTML(S.tasks.week)}</div>
+   <div class="card"><div class="row sb"><h3 style="font-size:24px">Heute</h3><span class="chip ${S.tasks.day.bonus ? 'gold' : ''}">${S.tasks.day.bonus ? '✓' : 'Alle 3:'} +1 ⚡</span></div>${tasksHTML(S.tasks.day)}</div>
+   <div class="card"><div class="row sb"><h3 style="font-size:24px">Diese Woche</h3><span class="chip ${S.tasks.week.bonus ? 'gold' : ''}">${S.tasks.week.bonus ? '✓' : 'Alle 3:'} +2 ⚡</span></div>${tasksHTML(S.tasks.week)}</div>
    <div class="sec">Glückstränke ${S.potAct ? `<small class="goldc">×${S.potAct.m} aktiv · noch ${S.potAct.left} Runden</small>` : ''}</div>
    <div class="card" id="potCard">${potionsHTML()}
      <p style="font-size:19px;line-height:1.45;margin:20px 4px 10px">Ein Glückstrank lässt Drehs am Automaten und Rubbellose mehrmals würfeln – du bekommst das beste Ergebnis. ×2 wirkt 10 Runden, ×4 6 Runden, ×6 4 Runden – und nur bis ${fmt(potCap())} Einsatz. Bei All-In wirkt er nicht.</p>
