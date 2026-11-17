@@ -675,7 +675,7 @@ select.inp{appearance:none;-webkit-appearance:none;background-image:linear-gradi
 <script>
 /* ===== core.js ===== */
 'use strict';
-const VERSION = '0.0.6 Open Beta';
+const VERSION = '0.0.7 Open Beta';
 /* ================= Helfer ================= */
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1328,8 +1328,8 @@ function teaseFrom(m, g) {
     let sc = 0; for (let x = 0; x < 5; x++) { if (sc >= 2) return x; sc += g[x].filter(s => s === m.scat).length; }
     return 99;
   }
-  const L = LINES3, hi = m.cells.slice(3);
-  for (const l of L) { const a = g[0][l[0]], b = g[1][l[1]]; if (a === b && hi.includes(a)) return 2; }
+  // nur waagerecht: gleiche Reihe auf Walze 1 und 2 – egal welches Symbol
+  for (let r = 0; r < 3; r++) if (g[0][r] === g[1][r]) return 2;
   return 99;
 }
 /* ---------- Mega-Spannung ---------- */
