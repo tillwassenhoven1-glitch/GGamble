@@ -1047,7 +1047,7 @@ function prep(m) {
     const W = m.t === 'k' ? [50, 18, 13, 10, 6, 3] : [30, 24, 18, 13, 9, 6];
     const raw = m.t === 'k' ? [1.5, 10, 20, 40, 80] : [5, 8, 12, 20, 40];
     const tot = W.reduce((a, b) => a + b), p = W.map(w => w / tot);
-    const target = m.t === 'j' ? .9 : .95;
+    const target = m.t === 'j' ? .85 : .9;
     const topPart = p[5] ** 3 * m.top;
     const rest = raw.reduce((a, r, i) => a + p[i] ** 3 * r, 0);
     const k = (target - topPart) / rest;
@@ -1069,7 +1069,7 @@ function prep(m) {
       }
     }
     line /= N; scat /= N;
-    const k = Math.max(.2, (.95 - scat) / line);
+    const k = Math.max(.2, (.9 - scat) / line);
     m.pay = m.pay.map((r, i) => r.map((v, j) => (i === 8 && j === 2) ? v : Math.max(1, Math.round(v * k * 10) / 10)));
     m.pay[8][2] = Math.max(m.pay[8][2], Math.round(m.pay[7][2] * 1.6 / 10) * 10); m.mx = m.pay[8][2] / 10;
   }
@@ -1196,11 +1196,13 @@ function openSlotList() {
 }
 
 /* ================= Automat spielen ================= */
+const maxStake = () => 10 * Math.pow(1.45, S.level - 1);
 const STAKES = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1e6, 2.5e6, 1e7];
 let MS = null; // Maschinen-Session
 function openMachine(i) {
   const m = prep(MACH[i]); S.lastSlot = i; save();
   if (S.stakeI == null) S.stakeI = 5;
+  while (S.stakeI > 0 && STAKES[S.stakeI] > maxStake()) S.stakeI--;
   const f = document.createElement('div'); f.className = 'full';
   f.innerHTML = `<div class="machine">
     <div class="mhead"><button class="pill circbtn" id="mBack">${icon('left')}</button><div class="pill mtitle"><b>${esc(m.n)}</b><small>${m.t === 'v' ? '10' : '5'} Linien</small></div><button class="pill circbtn" id="mInfo">${icon('info')}</button></div>
@@ -1237,7 +1239,7 @@ function openMachine(i) {
   };
   MS.upd = upd; upd();
   $('#sMinus', f).onclick = () => { if (MS.busy) return; MS.allIn = false; S.stakeI = Math.max(0, S.stakeI - 1); SND.click(); upd(); };
-  $('#sPlus', f).onclick = () => { if (MS.busy) return; MS.allIn = false; S.stakeI = Math.min(STAKES.length - 1, S.stakeI + 1); SND.click(); upd(); };
+  $('#sPlus', f).onclick = () => { if (MS.busy) return; MS.allIn = false; const n = Math.min(STAKES.length - 1, S.stakeI + 1); if (STAKES[n] > maxStake()) { let l = S.level; while (10 * Math.pow(1.45, l - 1) < STAKES[n]) l++; toast(`${fmt(STAKES[n])} Einsatz gibt's ab Level ${l}`); SND.err(); return; } S.stakeI = n; SND.click(); upd(); };
   $('#mAll', f).onclick = () => { if (MS.busy) return; MS.allIn = !MS.allIn; SND.click(); upd(); };
   $('#mLuck', f).onclick = () => openPotions(upd);
   $('#mInfo', f).onclick = () => machInfo(m);
@@ -1271,7 +1273,8 @@ async function doSpin() {
   // Jackpot-Pool wächst
   if (m.t === 'j' && !free) S.jp[m.jp] = r2(S.jp[m.jp] + stake * .02);
   // Ergebnis (mit Glückstrank: bestes aus N)
-  let rolls = 1; const usePot = S.potAct && !allIn;
+  let rolls = 1; const usePot = S.potAct && !allIn && stake <= potCap();
+  if (S.potAct && !allIn && !usePot && !MS.capWarned) { MS.capWarned = true; toast(`Glückstrank wirkt nur bis ${fmt(potCap())} Einsatz`); }
   if (usePot) { rolls = S.potAct.m; S.potAct.left--; S.st.potUse = (S.st.potUse || 0) + 1; }
   let best = null;
   for (let k = 0; k < rolls; k++) {
@@ -1427,7 +1430,7 @@ function showWins(wins) {
 /* ================= Glückstränke wählen ================= */
 function openPotions(cb) {
   const o = sheet(`<div class="row sb"><h2>Glückstränke</h2><button class="x" data-close>${icon('x')}</button></div>
-    <p class="hint">${S.potAct ? `Aktiv: <b>×${S.potAct.m}</b> – noch ${S.potAct.left} Runden.` : 'Ein Trank würfelt jeden Dreh und jedes Los mehrmals – du bekommst das beste Ergebnis. Bei All-In wirkt er nicht.'}</p>
+    <p class="hint">${S.potAct ? `Aktiv: <b>×${S.potAct.m}</b> – noch ${S.potAct.left} Runden.` : `Ein Trank würfelt Drehs und Lose mehrmals – du bekommst das beste Ergebnis. Wirkt nur bis ${fmt(potCap())} Einsatz, nicht bei All-In.`}</p>
     ${potionsHTML()}<button class="btn dark w" style="margin-top:16px" id="toLab">Zum Glückslabor</button>`);
   bindPotions(o, () => { o.close(); cb && cb(); });
   $('#toLab', o).onclick = () => { o.close(); if (MS) { MS.f.remove(); MS = null; } go('spiele'); };
@@ -1492,7 +1495,7 @@ const LOSE = [
   { id: 'sl', n: 'Schwarzes Los', p: 250000, top: 2.5e9, ic: 'eye', ty: '3', a: '#2a2a2a', b: '#6a6a6a', lvl: 30, dark: 1 },
 ];
 const TIER_M = [1, 2, 5, 10, 20, 50, 100, 500];
-const TIER_P = [.17, .085, .032, .012, .005, .0015, .0006, .00008];
+const TIER_P = [.155, .077, .029, .011, .0045, .0013, .00055, .00007];
 const VB_SYM = ['🌻', '🐞', '🍄', '🌈', '🦋', '⭐', '💰', '👑', '🍀'];
 const TK = {}; // aktive Lose: id -> {res, cells, revealed}
 function loseMults(L) { return [...TIER_M, L.top / L.p]; }
@@ -1610,7 +1613,7 @@ function buyTicket(L) {
   }
   if (!bet(L.p, L.n)) return;
   S.st.scratches++; taskProg('scratch', 1);
-  let rolls = 1; if (S.potAct) { rolls = S.potAct.m; S.potAct.left--; }
+  let rolls = 1; if (S.potAct && L.p <= potCap()) { rolls = S.potAct.m; S.potAct.left--; }
   let res = null; for (let k = 0; k < rolls; k++) { const r = genTicket(L); if (!res || r.win > res.win) res = r; }
   if (S.potAct && S.potAct.left <= 0) { S.potAct = null; toast('Dein Glückstrank ist aufgebraucht.'); }
   TK[L.id] = { res, rev: {}, done: false, nr: `${rint(1000, 9999)}-${rint(10000, 99999)}-${rint(10, 99)}` };
@@ -1666,7 +1669,7 @@ function matchday(md) {
       if (i > j) pH += p; else if (i === j) pD += p; else pA += p;
       if (i + j > 2) pO += p; if (i > 0 && j > 0) pB += p;
     }
-    const od = p => Math.max(1.05, Math.floor(100 / (p * 1.07)) / 100);
+    const od = p => Math.max(1.03, Math.floor(100 / (p * 1.12)) / 100);
     const gh = poisson(lh, r), ga = poisson(la, r);
     const goals = [...Array(gh).fill(0), ...Array(ga).fill(1)].map(s => ({ s, m: rint.call(null, 1, 90) }));
     // deterministische Minuten
@@ -1752,6 +1755,7 @@ function slipUI(el, md) {
   $('.qch', el).onclick = e => { const b = e.target.closest('[data-v]'); if (b) { inp.value = b.dataset.v; upd(); } };
   $('#wGo', el).onclick = () => {
     const st = r2(slipStake); if (st < .1) { toast('Mindesteinsatz 0,10 €', 'bad'); return; }
+    const mxw = Math.floor(maxStake() * 5); if (st > mxw) { toast(`Höchsteinsatz auf deinem Level: ${fmt(mxw)}`, 'bad'); return; }
     if (Date.now() >= kickoff(md)) { toast('Anstoß ist schon – nächster Spieltag!', 'bad'); return; }
     if (!bet(st, 'Sportwetten')) return;
     S.bets.push({ id: Date.now(), md, sels, stake: st, odd, st: 'open' }); S.st.bets++; taskProg('bets', 1);
@@ -1992,7 +1996,8 @@ function tasksHTML(list) {
 function untilMidnight() { const n = new Date(), m = new Date(n); m.setHours(24, 0, 0, 0); const s = (m - n) / 1000; return `${Math.floor(s / 3600)} Std. ${Math.floor(s % 3600 / 60)} Min.`; }
 
 /* ================= Glückstränke ================= */
-const POT_R = { 2: 25, 4: 15, 6: 10 };
+const POT_R = { 2: 10, 4: 6, 6: 4 };
+const potCap = () => r2(base() * 1.5);
 function potionsHTML() {
   return `<div class="pots">${[2, 4, 6].map(m => `<div><div class="pot p${m}"><i>×${m}</i></div><b class="num">${S.pot[m]}×</b><button class="btn dark sm w" data-drink="${m}" ${S.pot[m] < 1 || S.potAct ? 'disabled' : ''}>Trinken</button></div>`).join('')}</div>`;
 }
@@ -2019,9 +2024,9 @@ function renderSpiele(el) {
    <div class="card"><h3 style="font-size:24px">Diese Woche</h3>${tasksHTML(S.tasks.week)}</div>
    <div class="sec">Glückstränke ${S.potAct ? `<small class="goldc">×${S.potAct.m} aktiv · noch ${S.potAct.left} Runden</small>` : ''}</div>
    <div class="card" id="potCard">${potionsHTML()}
-     <p style="font-size:19px;line-height:1.45;margin:20px 4px 10px">Ein Glückstrank lässt jeden Dreh am Automaten und jedes Rubbellos mehrmals würfeln – du bekommst immer das beste Ergebnis. ×2 wirkt 25 Runden, ×4 15 Runden, ×6 10 Runden. Bei All-In wirkt er nicht.</p>
-     <p class="hint" style="font-size:17px">Brauen ist schwer: 6 Treffer für ×2, 10 Treffer für ×4, 14 Treffer für ×6. Bester Lauf bisher: ${S.brewBest}.</p>
-     <button class="btn white w" id="lab" style="font-size:22px">${icon('spark')} Glückslabor · 2 Energie</button></div>
+     <p style="font-size:19px;line-height:1.45;margin:20px 4px 10px">Ein Glückstrank lässt Drehs am Automaten und Rubbellose mehrmals würfeln – du bekommst das beste Ergebnis. ×2 wirkt 10 Runden, ×4 6 Runden, ×6 4 Runden – und nur bis ${fmt(potCap())} Einsatz. Bei All-In wirkt er nicht.</p>
+     <p class="hint" style="font-size:17px">Brauen ist schwer: 10 Treffer für ×2, 16 Treffer für ×4, 22 Treffer für ×6. Bester Lauf bisher: ${S.brewBest}.</p>
+     <button class="btn white w" id="lab" style="font-size:22px">${icon('spark')} Glückslabor · 4 Energie</button></div>
    <div class="sec">Geld verdienen</div>
    ${[['hut', 'target', 'Hütchenspiel', 'Behalt die Kugel im Auge.', 1], ['kasse', 'hand', 'Kassensturz', 'Zähl die Kasse schneller als der Chef.'], ['pfand', 'beer', 'Pfandflaschen', 'Fang die Flaschen, meide die Scherben.'], ['inv', 'layers', 'Inventur', 'Merk dir das Regal – dann wird gezählt.']].map(([id, ic, n, d, neu]) => `<button class="card gm" data-g="${id}" style="position:relative">${neu ? '<span class="neu">NEU</span>' : ''}<div class="ibox">${icon(ic)}</div><h4>${n}</h4><p>${d}</p><span class="chip gold">bis ${fmt(base())} · 1 Energie</span></button>`).join('')}
    <p class="hint">Perfekte Spiele haben eine kleine Chance auf einen Glückstrank ×2.</p>
@@ -2036,7 +2041,7 @@ function renderSpiele(el) {
 /* ================= Spiel-Rahmen ================= */
 const GAMES = {
   hut: { n: 'Hütchenspiel', run: gameHut }, kasse: { n: 'Kassensturz', run: gameKasse }, pfand: { n: 'Pfandflaschen', run: gamePfand }, inv: { n: 'Inventur', run: gameInv },
-  lab: { n: 'Glückslabor', run: gameLab, cost: 2 },
+  lab: { n: 'Glückslabor', run: gameLab, cost: 4 },
 };
 function startGame(id) {
   const G = GAMES[id], cost = G.cost || 1; regenEnergy();
@@ -2054,15 +2059,15 @@ function startGame(id) {
     let html;
     if (id === 'lab') {
       S.st.brews++; S.brewBest = Math.max(S.brewBest, score);
-      const m = score >= 14 ? 6 : score >= 10 ? 4 : score >= 6 ? 2 : 0;
+      const m = score >= 22 ? 6 : score >= 16 ? 4 : score >= 10 ? 2 : 0;
       if (m) { S.pot[m]++; if (m === 6) S.st.pot6 = (S.st.pot6 || 0) + 1; }
-      html = `<h2>${m ? `Trank ×${m} gebraut!` : 'Misslungen…'}</h2><p>${score} Treffer${m ? '' : ' – du brauchst mindestens 6.'}</p>${m ? `<div class="pot p${m}" style="margin:0 auto 24px;animation:pop .6s var(--spring)"><i>×${m}</i></div>` : ''}`;
+      html = `<h2>${m ? `Trank ×${m} gebraut!` : 'Misslungen…'}</h2><p>${score} Treffer${m ? '' : ' – du brauchst mindestens 10.'}</p>${m ? `<div class="pot p${m}" style="margin:0 auto 24px;animation:pop .6s var(--spring)"><i>×${m}</i></div>` : ''}`;
       if (m) { SND.big(); FX.burst(100, { cols: ['#c487f0', '#5fa0f5', '#7ad07a', '#fff'] }); } else SND.lose();
     } else {
       const amt = r2(base() * clamp(score / max, 0, 1));
       S.st.shifts++; taskProg('shifts', 1);
       let potTxt = '';
-      if (score >= max) { S.st.perfect++; if (Math.random() < .15) { S.pot[2]++; potTxt = '<br>✨ Bonus: Glückstrank ×2!'; } }
+      if (score >= max) { S.st.perfect++; if (Math.random() < .05) { S.pot[2]++; potTxt = '<br>✨ Bonus: Glückstrank ×2!'; } }
       if (amt > 0) { earn(amt, G.n); FX.burst(score >= max ? 120 : 50, { coins: true }); score >= max ? SND.big() : SND.win(); } else SND.lose();
       html = `<h2>${score >= max ? 'Perfekt! 🔥' : score > 0 ? 'Gut gemacht!' : 'Schade…'}</h2><p>${score} / ${max} · +${fmt(amt)}${S.bal - amt < 0 && amt > 0 ? ' (geht zuerst an deine Schulden)' : ''}${potTxt}</p>`;
     }
@@ -2212,7 +2217,7 @@ function gameLab(body, done, cl, isEnded) {
           for (const b of s.b) if (!b.dead && Math.hypot((b.xx ?? b.x) - x, b.y - y) < b.r + 12) { b.dead = true; if (b.bad) { s.score = Math.max(0, s.score - 2); SND.err(); vib(50); } else { s.score++; SND.coin(s.score % 6); } s.fx.push({ x: b.xx ?? b.x, y: b.y, t: 0, c: b.c }); break; }
         });
       },
-      hud: s => `<span>⏱ ${Math.max(0, Math.ceil(T - s.t))}</span><span>✨ ${s.score}</span><span>${s.score >= 14 ? '×6' : s.score >= 10 ? '×4' : s.score >= 6 ? '×2' : '–'}</span>`,
+      hud: s => `<span>⏱ ${Math.max(0, Math.ceil(T - s.t))}</span><span>✨ ${s.score}</span><span>${s.score >= 22 ? '×6' : s.score >= 16 ? '×4' : s.score >= 10 ? '×2' : '–'}</span>`,
       step(s) {
         const c = s.c;
         c.fillStyle = '#1a1a1a'; c.beginPath(); c.ellipse(s.W / 2, s.H + 10, s.W * .42, 60, 0, 0, 7); c.fill();
@@ -2228,7 +2233,7 @@ function gameLab(body, done, cl, isEnded) {
         s.b = s.b.filter(b => !b.dead && b.y > -40);
         for (const f of s.fx) { f.t++; c.strokeStyle = f.c; c.globalAlpha = 1 - f.t / 20; c.lineWidth = 3; c.beginPath(); c.arc(f.x, f.y, 10 + f.t * 2.5, 0, 7); c.stroke(); c.globalAlpha = 1; }
         s.fx = s.fx.filter(f => f.t < 20);
-        if (s.t >= T) { done(s.score, 14); return false; }
+        if (s.t >= T) { done(s.score, 22); return false; }
       }
     });
   });
@@ -2678,6 +2683,7 @@ function startApp(key) {
   S = Object.assign(newState(all[key].name), all[key].save || {});
   S.st = Object.assign(newState('').st, S.st); S.bx = Object.assign(newState('').bx, S.bx); S.set = Object.assign({ snd: true, vib: true }, S.set);
   const away = Date.now() - (all[key].ts || Date.now());
+  if (S.potAct) S.potAct.left = Math.min(S.potAct.left, POT_R[S.potAct.m] || 4);
   applyInterest(); regenEnergy(); ensureTasks(); settleBets();
   $('#app').classList.remove('hidden');
   $('#nav').innerHTML = NAV.map(([p, ic, n]) => `<button data-p="${p}">${icon(ic)}<span>${n}</span></button>`).join('');
