@@ -2169,7 +2169,10 @@ function localTop() {
   persist();
   return Object.entries(Accounts.all()).map(([k, a]) => ({ k, disp: a.disp || a.name, name: a.name, photo: a.photo, color: a.save?.color || 0, bal: a.save ? a.save.bal : 0, lvl: a.save?.level || 1, ts: a.ts || a.created, me: k === ACC })).sort((a, b) => b.bal - a.bal).slice(0, 10);
 }
+const RANG_WIP = true; // Bestenliste ist in Arbeit
 async function renderRang(el) {
+  if (RANG_WIP) { el.innerHTML = `<h1 class="t">Bestenliste</h1><p class="sub">Top 10 online – nur echte Spieler</p>
+    <div class="card" style="text-align:center;padding:44px 22px"><div style="font-size:64px;animation:pop .6s var(--spring)">🚧</div><h2 style="font-size:32px;font-weight:800;margin-top:12px">In Arbeit</h2><p class="hint" style="font-size:18px">Die Online-Bestenliste kommt bald. Bis dahin: weiterzocken und Geld sammeln! 💰</p></div>`; return; }
   el.innerHTML = `<h1 class="t">Bestenliste</h1><p class="sub">${onlineOn() ? 'Top 10 online – nur echte Spieler' : 'Top 10'}</p><div id="rgBody"><div class="empty">Lade …</div></div>`;
   let rows, info = '';
   if (onlineOn()) {
@@ -2548,16 +2551,30 @@ function startApp(key) {
   document.addEventListener('pointerdown', () => SND.c(), { once: true });
 }
 
-/* ===== Auto-Update: neue Version erkennen und neu laden ===== */
+/* ===== Auto-Update: erkennt jede Änderung an der Seite (nicht nur die Version) und lädt neu ===== */
+function codeHash(doc) {
+  let t = ''; doc.querySelectorAll('script:not([src]),style').forEach(e => t += e.textContent.trim());
+  let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0).toString(36) + t.length.toString(36);
+}
+const MY_HASH = codeHash(document);
 function checkUpdate() {
   if (!/^https?:/.test(location.protocol)) return;
-  fetch(location.pathname + '?nc=' + Date.now(), { cache: 'no-store' }).then(r => r.text()).then(t => {
-    const m = t.match(/const VERSION = '([^']+)'/);
-    if (m && m[1] !== VERSION) { try { S && persist(); } catch (e) { } location.replace(location.pathname + '?v=' + encodeURIComponent(m[1])); }
+  fetch(location.pathname + '?nc=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.text() : null).then(t => {
+    if (!t) return;
+    const h = codeHash(new DOMParser().parseFromString(t, 'text/html'));
+    if (h === MY_HASH) return;
+    // Schutz gegen Endlosschleife: höchstens 3 Neuladungen pro Minute
+    let n = []; try { n = JSON.parse(sessionStorage.getItem('gg_upd') || '[]').filter(x => Date.now() - x < 60000); } catch (e) { }
+    if (n.length >= 3) return;
+    n.push(Date.now()); try { sessionStorage.setItem('gg_upd', JSON.stringify(n)); } catch (e) { }
+    try { S && persist(); } catch (e) { }
+    location.replace(location.pathname + '?u=' + h);
   }).catch(() => { });
 }
-checkUpdate(); setInterval(checkUpdate, 120000);
+setTimeout(checkUpdate, 800); setInterval(checkUpdate, 90000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdate(); });
+addEventListener('pageshow', e => { if (e.persisted) checkUpdate(); });
 /* ================= Start ================= */
 $('#ver').textContent = 'Version ' + VERSION; $('#lVer').textContent = 'Version ' + VERSION;
 FX.init();

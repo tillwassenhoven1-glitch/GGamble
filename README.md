@@ -32,7 +32,7 @@ Version 0.0.4 · Open Beta
 - 📊 **Börse** – 5 erfundene Märkte (XRZ-Coin, Döner AG, Kiosk-Kette, Gold, GG/EUR) mit Kerzen-Chart, Long/Short, Hebel bis 1:100, Stop Loss, Take Profit, Limit- und Stop-Orders
 - 🎲 **Spiele** – Hütchenspiel, Kassensturz, Pfandflaschen und Inventur (10 Energie, alle 10 Min. +1), Tages- und Wochenaufgaben, das **Glückslabor** und dein **Imperium** aus 8 Geschäften, die auch offline Geld bringen
 - 🧪 **Glückstränke** – ×2, ×4 oder ×6: Jeder Dreh und jedes Los wird mehrmals gewürfelt, du bekommst das beste Ergebnis
-- 🥇 **Rang** – Online-Bestenliste: Top 10 aller echten Spieler mit Podest
+- 🥇 **Rang** – Online-Bestenliste (Top 10 echter Spieler) – 🚧 in Arbeit
 - 📹 **Treff** – Video-Räume mit Chat und Kamera-Filtern, die weiterlaufen, während du spielst
 
 ## Features
