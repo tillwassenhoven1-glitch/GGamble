@@ -959,7 +959,16 @@ const vib = p => { try { if (S && S.set.vib !== false && navigator.vibrate) navi
 /* ================= FX: Konfetti, Münzen ================= */
 const FX = {
   cv: null, cx: null, ps: [], run: false,
-  init() { this.cv = $('#fx'); this.cx = this.cv.getContext('2d'); const rs = () => { this.cv.width = innerWidth * devicePixelRatio; this.cv.height = innerHeight * devicePixelRatio; }; rs(); addEventListener('resize', rs); },
+  dpr: () => Math.min(devicePixelRatio || 1, 1.5), MAX: 320, coinImg: null,
+  init() {
+    this.cv = $('#fx'); this.cx = this.cv.getContext('2d'); const rs = () => { const d = this.dpr(); this.cv.width = innerWidth * d; this.cv.height = innerHeight * d; }; rs(); addEventListener('resize', rs);
+    const ci = document.createElement('canvas'), R = 32; ci.width = ci.height = R * 2; const c = ci.getContext('2d');
+    const gr = c.createRadialGradient(R * .7, R * .7, 2, R, R, R - 1); gr.addColorStop(0, '#fff3c0'); gr.addColorStop(.5, '#f2c447'); gr.addColorStop(1, '#a3751a');
+    c.fillStyle = gr; c.beginPath(); c.arc(R, R, R - 2, 0, 6.29); c.fill(); c.strokeStyle = '#7a560f'; c.lineWidth = 3; c.stroke();
+    c.fillStyle = '#8a6514'; c.font = `900 ${R}px sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('€', R, R + 2);
+    this.coinImg = ci;
+  },
+  cap() { if (this.ps.length > this.MAX) this.ps.splice(0, this.ps.length - this.MAX); },
   burst(n = 120, opts = {}) {
     const W = innerWidth, H = innerHeight, cols = opts.cols || ['#f5cf5a', '#fff2b8', '#e8524a', '#4cc265', '#3b7be0', '#c487f0', '#ffffff'];
     for (let i = 0; i < n; i++) {
@@ -969,26 +978,26 @@ const FX = {
         g: .42, r: coin ? rnd(9, 15) : rnd(4, 8), rot: rnd(0, 6.28), vr: rnd(-.3, .3), c: pick(cols), coin, life: rnd(110, 190), shape: rint(0, 2)
       });
     }
-    if (!this.run) { this.run = true; requestAnimationFrame(() => this.loop()); }
+    this.cap(); if (!this.run) { this.run = true; requestAnimationFrame(() => this.loop()); }
   },
   rain(n = 80, dur = 2500) {
     const W = innerWidth; let made = 0; const iv = setInterval(() => {
+      if (document.hidden) { clearInterval(iv); return; }
       for (let i = 0; i < 6; i++) { this.ps.push({ x: rnd(0, W), y: -20, vx: rnd(-1, 1), vy: rnd(2, 6), g: .18, r: rnd(10, 16), rot: rnd(0, 6), vr: rnd(-.2, .2), c: '#f5cf5a', coin: true, life: 260 }); made++; }
-      if (made > n) clearInterval(iv);
+      this.cap(); if (made > n) clearInterval(iv);
     }, dur / (n / 6));
     if (!this.run) { this.run = true; requestAnimationFrame(() => this.loop()); }
   },
   loop() {
-    const c = this.cx, d = devicePixelRatio; c.setTransform(d, 0, 0, d, 0, 0); c.clearRect(0, 0, innerWidth, innerHeight);
+    if (document.hidden) { this.ps = []; this.run = false; this.cx.clearRect(0, 0, this.cv.width, this.cv.height); return; }
+    const c = this.cx, d = this.dpr(); c.setTransform(d, 0, 0, d, 0, 0); c.clearRect(0, 0, innerWidth, innerHeight);
     this.ps = this.ps.filter(p => p.life > 0 && p.y < innerHeight + 40);
     for (const p of this.ps) {
       p.vy += p.g; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life--;
       c.save(); c.translate(p.x, p.y); c.rotate(p.rot); c.globalAlpha = Math.min(1, p.life / 30);
       if (p.coin) {
         const sx = Math.abs(Math.cos(p.rot * 2)); c.scale(Math.max(.15, sx), 1);
-        const gr = c.createRadialGradient(-p.r * .3, -p.r * .3, 1, 0, 0, p.r); gr.addColorStop(0, '#fff3c0'); gr.addColorStop(.5, '#f2c447'); gr.addColorStop(1, '#a3751a');
-        c.fillStyle = gr; c.beginPath(); c.arc(0, 0, p.r, 0, 6.29); c.fill(); c.strokeStyle = '#7a560f'; c.lineWidth = 1.5; c.stroke();
-        c.fillStyle = '#8a6514'; c.font = `900 ${p.r}px sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('€', 0, 1);
+        c.drawImage(this.coinImg, -p.r, -p.r, p.r * 2, p.r * 2);
       } else {
         c.fillStyle = p.c;
         if (p.shape === 0) c.fillRect(-p.r, -p.r / 2, p.r * 2, p.r);
@@ -1399,6 +1408,16 @@ function openSlotList() {
 const maxStake = () => 10 * Math.pow(1.45, S.level - 1);
 const STAKES = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1e6, 2.5e6, 1e7];
 let MS = null; // Maschinen-Session
+/* Freispiele nach Absturz / Neuladen fortsetzen */
+function resumeFreeSpins() {
+  const r = S && S.fsRun; if (!r || MS) return;
+  openMachine(r.mi); if (!MS) return;
+  MS.fs = r.fs; MS.fsN = r.n; MS.fsStake = r.st; MS.fsWin = r.w || 0;
+  const fb = $('#fsB', MS.f); if (fb) { fb.classList.remove('hidden'); fb.textContent = `FREISPIELE ${MS.fs} · Gewinn ${fmt(MS.fsWin)}`; }
+  const b = $('#spinBtn', MS.f); if (b) b.textContent = 'Freispiel…';
+  toast(`🎰 Deine ${r.fs} Freispiele gehen weiter!`, 'good', 3500);
+  setTimeout(() => MS && !MS.busy && MS.fs > 0 && doSpin(), 1800);
+}
 function openMachine(i) {
   const m = prep(MACH[i]); S.lastSlot = i; save();
   if (S.stakeI == null) S.stakeI = 5;
@@ -1518,6 +1537,7 @@ async function doSpin() {
   }
   if (allIn) MS.allIn = false;
   if (free) MS.fs--;
+  S.fsRun = MS.fs > 0 ? { mi: m.i, fs: MS.fs, n: MS.fsN, st: MS.fsStake, w: MS.fsWin } : null; persist();
   const fb = $('#fsB', MS.f);
   if (MS.fs > 0) { fb.classList.remove('hidden'); fb.textContent = `FREISPIELE ${MS.fs} · Gewinn ${fmt(MS.fsWin)}`; }
   else fb.classList.add('hidden');
@@ -3262,7 +3282,8 @@ function startApp(key) {
   setTimeout(() => cloudLink(key), 1500); extInit();
   if (onlineOn() && all[key].cid) cloudGet(all[key].cid).then(cl => { const cur = Accounts.all(), x = cur[key]; if (!cl || !x || !x.ts || cl.ts <= x.ts + 5000) return; x.save = cl.d.save; x.ts = cl.ts; Accounts.put(cur); S = null; toast('Neuerer Spielstand von anderem Gerät geladen ☁️', 'good'); setTimeout(() => location.reload(), 900); }).catch(() => { });
   const pend = shopPending(); if (pend > 1 && away > 6e4) setTimeout(() => toast(`Deine Geschäfte haben ${fmt(pend)} verdient – im Imperium einsammeln 🏪`, 'good', 4500), 1600);
-  if (bonusReady()) setTimeout(() => S && openBonus(), 900);
+  if (S.fsRun && MACH[S.fsRun.mi] && S.fsRun.fs > 0) setTimeout(resumeFreeSpins, 1200);
+  else if (bonusReady()) setTimeout(() => S && openBonus(), 900);
   setInterval(() => { if (!S) return; applyInterest(); regenEnergy(); hdr(); save(); pushScore(); }, 30000);
   setTimeout(() => pushScore(true), 3000);
   setInterval(() => { if (!S) return; if (S.bx.pos.length || S.bx.ord.length) bxTick(); else S.bx.lastTick = Date.now(); settleBets(); }, 2000);
@@ -3275,9 +3296,13 @@ function codeHash(doc) {
   let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
   return (h >>> 0).toString(36) + t.length.toString(36);
 }
-const MY_HASH = codeHash(document);
+// erst berechnen, wenn die ganze Seite geladen ist – sonst fehlen spätere <script>-Blöcke und die Seite lädt ständig neu
+let MY_HASH = null;
 function checkUpdate() {
-  if (!/^https?:/.test(location.protocol)) return;
+  if (!/^https?:/.test(location.protocol) || document.readyState === 'loading') return;
+  if (!MY_HASH) MY_HASH = codeHash(document);
+  // nicht mitten in Freispielen oder einer Crash-Runde neu laden
+  if ((typeof MS !== 'undefined' && MS) || (typeof CR !== 'undefined' && CR.run && !CR.run.done)) return;
   fetch(location.pathname + '?nc=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.text() : null).then(t => {
     if (!t) return;
     const h = codeHash(new DOMParser().parseFromString(t, 'text/html'));
