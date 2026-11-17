@@ -40,6 +40,7 @@ Version 0.0.5 · Open Beta
 - 💥 Krasse Gewinn-Animationen: BIG WIN, MEGA WIN, EPIC WIN mit Münzregen, Konfetti, Blitz und Wackeln
 - 🏆 30 Erfolge mit Belohnungen
 - 👤 Profil mit Statistiken, eigener Farbe oder eigenem Profilbild
+- 😎 Cheat-Menü mit Code (Profil → Einstellungen → Code eingeben)
 - 🔊 Sounds und Vibration (abschaltbar)
 - 📲 Für Handy gemacht, läuft auch am PC
 

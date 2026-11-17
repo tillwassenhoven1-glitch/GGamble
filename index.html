@@ -2486,6 +2486,8 @@ function openSettings() {
     <div class="lbl2">Passwort ändern</div><div class="row"><input class="inp" type="password" id="nPw" placeholder="Neues Passwort"><button class="btn dark sm" id="sPw">OK</button></div>
     <div class="lbl2">Spielstand-Code (zum Übertragen auf ein anderes Gerät)</div>
     <div class="two"><button class="btn dark sm" id="exp">Code kopieren</button><button class="btn dark sm" id="imp">Code laden</button></div>
+    <div class="lbl2">🔑 Code eingeben</div>
+    <div id="cheatBox">${S.cheat ? cheatHTML() : `<div class="row"><input class="inp" id="cCode" placeholder="Code…" autocomplete="off"><button class="btn dark sm" id="cGo2">OK</button></div>`}</div>
     <div class="two" style="margin-top:22px"><button class="btn dark" id="out">${icon('out')} Abmelden</button><button class="btn red" id="del">Konto löschen</button></div>`);
   $$('[data-t]', o).forEach(b => b.onclick = () => { const k = b.dataset.t; S.set[k] = S.set[k] === false; b.classList.toggle('on', S.set[k] !== false); save(); SND.click(); });
   $('#sPw', o).onclick = async () => { const p = $('#nPw', o).value; if (p.length < 4) { toast('Mindestens 4 Zeichen', 'bad'); return; } const all = Accounts.all(), a = all[ACC]; a.salt = Math.random().toString(36).slice(2); a.hash = await Accounts.hash(p, a.salt); Accounts.put(all); persist(); $('#nPw', o).value = ''; toast('Passwort geändert ✓', 'good'); };
@@ -2494,8 +2496,29 @@ function openSettings() {
     const s2 = sheet(`<h2>Code laden</h2><p class="hint">Achtung: überschreibt den Spielstand von <b>${esc(S.disp)}</b>.</p><textarea class="inp" id="ic" style="height:160px;font-size:12px"></textarea><button class="btn white w" id="ig" style="margin-top:12px">Laden</button>`, { center: true });
     $('#ig', s2).onclick = () => { try { const t = $('#ic', s2).value.trim(); if (!t.startsWith('GG1:')) throw 0; const d = JSON.parse(decodeURIComponent(escape(atob(t.slice(4))))); if (typeof d.bal !== 'number') throw 0; const nm = S.name; S = Object.assign(newState(nm), d, { name: nm }); persist(); location.reload(); } catch (e) { toast('Ungültiger Code', 'bad'); } };
   };
+  const bindCheat = () => {
+    const box = $('#cheatBox', o), g = $('#cGo2', o);
+    if (g) g.onclick = () => { if ($('#cCode', o).value.trim() === '4uT2-U6G3') { S.cheat = true; save(); toast('😎 Cheat-Menü freigeschaltet!', 'good'); SND.win(); box.innerHTML = cheatHTML(); bindCheat(); } else { toast('❌ Falscher Code', 'bad'); SND.err(); } };
+    box.onclick = e => { const b = e.target.closest('[data-ch]'); if (!b) return; doCheat(b.dataset.ch); if (!S.cheat) box.innerHTML = `<div class="row"><input class="inp" id="cCode" placeholder="Code…" autocomplete="off"><button class="btn dark sm" id="cGo2">OK</button></div>`; bindCheat(); };
+  };
+  bindCheat();
   $('#out', o).onclick = () => { persist(); localStorage.removeItem(SES_KEY); location.reload(); };
   $('#del', o).onclick = async () => { if (await confirmBox('Konto löschen?', `<b>${esc(S.disp)}</b> und der komplette Spielstand werden gelöscht. Das geht nicht rückgängig.`, 'Löschen', true)) { const all = Accounts.all(); delete all[ACC]; Accounts.put(all); localStorage.removeItem(SES_KEY); S = null; location.reload(); } };
+}
+
+/* ================= Cheat-Menü (Code 4uT2-U6G3) ================= */
+const CHEATS = [['m1', '💰 +1.000 €'], ['m2', '💰 +1 Mio. €'], ['m3', '💰 +1 Mrd. €'], ['lv', '⭐ +5 Level'], ['lvmax', '🔓 Alles freischalten (Level 50)'], ['en', '⚡ Energie voll'], ['pot', '🧪 +3 von jedem Trank'], ['debt', '🧾 Schulden weg'], ['bonus', '🎁 Tagesbonus nochmal'], ['off', '🔒 Cheats ausblenden']];
+function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px">${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
+function doCheat(k) {
+  const add = v => { S.bal = r2(S.bal + v); S.st.maxBal = Math.max(S.st.maxBal, S.bal); };
+  if (k === 'm1') add(1000); else if (k === 'm2') add(1e6); else if (k === 'm3') add(1e9);
+  else if (k === 'lv') { S.level += 5; S.xp = 0; } else if (k === 'lvmax') { S.level = Math.max(S.level, 50); S.xp = 0; }
+  else if (k === 'en') { S.energy = 10; S.enTs = Date.now(); }
+  else if (k === 'pot') { [2, 4, 6].forEach(m => S.pot[m] += 3); }
+  else if (k === 'debt') { if (S.bal < 0) S.bal = 0; S.note = 0; }
+  else if (k === 'bonus') { S.bonus.last = ''; }
+  else if (k === 'off') { S.cheat = false; toast('Cheats ausgeblendet'); save(); return; }
+  SND.coin(); FX.burst(30, { coins: true }); hdr(true); checkAch(); save(); toast('😎 ' + CHEATS.find(c => c[0] === k)[1], 'good', 1600);
 }
 
 /* ================= Konto & Schulden ================= */
