@@ -751,6 +751,7 @@ body.inmach #app *{animation-play-state:paused!important}
     <input id="lPw2" class="fld" type="password" placeholder="Passwort wiederholen" autocomplete="new-password">
     <div class="err" id="lErr"></div>
     <button class="btn white w" id="lGo">Los geht's</button>
+    <button class="btn dark w" id="lImp" style="margin-top:10px;font-size:15px">📋 Konto von anderem Gerät holen (Spielstand-Code)</button>
     <p class="small">Dein Konto wird in diesem Browser gespeichert – du bleibst eingeloggt.<br>Kein echtes Geld, keine Käufe, keine Werbung.<br><span id="lVer" style="opacity:.6"></span></p>
   </div>
 </div>
@@ -3106,7 +3107,7 @@ function showLogin() {
     } else {
       let a = all[key], ok = a && await Accounts.hash(pw, a.salt) === a.hash, cl = null;
       if (on) { try { cl = await cloudGet(cid); } catch (e) { if (!a) { done(); return err('Keine Verbindung – bitte Internet prüfen.'); } } }
-      if (!ok && !cl) { done(); return err(a ? 'Falsches Passwort' : 'Name oder Passwort falsch'); }
+      if (!ok && !cl) { done(); return err(a ? 'Falsches Passwort' : 'Name oder Passwort falsch – oder das Konto ist noch nicht online gesichert. Öffne GGamble einmal auf dem alten Gerät (dort wirst du nach dem Passwort gefragt) oder nimm unten den Spielstand-Code.'); }
       if (!a || !ok) { const salt = mkSalt(); a = all[key] = Object.assign(a || {}, { name: cl.d.name || name, salt, hash: await Accounts.hash(pw, salt), created: cl.d.created || Date.now() }); }
       if (cl && (!a.save || cl.ts > (a.ts || 0))) { a.save = cl.d.save; a.ts = cl.ts; }
       const first = !a.cid; a.cid = cid; Accounts.put(all);
@@ -3136,6 +3137,31 @@ function showLogin() {
   };
   $$('#login input').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') go_(); }));
 }
+/* ☁️ Alte Konten (ohne Online-Kopie) einmal mit dem Passwort online sichern – sonst klappt der Login auf anderen Geräten nicht */
+function cloudLink(key) {
+  const all = Accounts.all(), a = all[key];
+  if (!onlineOn() || !a || a.cid || !a.hash || !S || ACC !== key) return;
+  const o = sheet(`<h2>☁️ Konto online sichern</h2><p class="hint" style="font-size:16px">Dein Konto <b>${esc(a.name)}</b> ist bisher nur auf diesem Gerät gespeichert. Gib einmal dein Passwort ein – danach kannst du dich auf jedem Gerät mit Name + Passwort anmelden.</p>
+    <input class="inp" id="clPw" type="password" placeholder="Dein Passwort" autocomplete="current-password">
+    <div class="err" id="clErr" style="color:#ff6b6b;margin-top:8px"></div>
+    <button class="btn white w" id="clGo" style="margin-top:12px">Online sichern</button>
+    <button class="btn dark w" data-close style="margin-top:8px">Später</button>`, { center: true });
+  $('#clGo', o).onclick = async () => {
+    const pw = $('#clPw', o).value, b = $('#clGo', o), e = t => { $('#clErr', o).textContent = t; SND.err(); };
+    if (await Accounts.hash(pw, a.salt) !== a.hash) return e('Falsches Passwort');
+    b.disabled = true; b.textContent = 'Sichere …';
+    try {
+      const cid = await cloudId(key, pw), cur = Accounts.all(), x = cur[key];
+      persist(); if (!S.lbId) lbId();
+      const r = await cloudPut(cid, x, S); if (!r.ok) throw new Error('HTTP ' + r.status);
+      x.cid = cid; x.save = S; Accounts.put(cur);
+      let taken = false; try { taken = await nameTaken(key); } catch (er) { }
+      if (!taken) claimName(key, S.lbId);
+      toast('☁️ Konto online gesichert – jetzt klappt der Login überall', 'good', 4000); SND.win();
+      o.querySelector('[data-close]').click();
+    } catch (er) { b.disabled = false; b.textContent = 'Online sichern'; e('Hat nicht geklappt (' + (er.message || 'Fehler') + ') – Internet und Firebase-Regeln prüfen.'); }
+  };
+}
 function startApp(key) {
   const all = Accounts.all(); ACC = key;
   S = Object.assign(newState(all[key].name), all[key].save || {});
@@ -3151,6 +3177,7 @@ function startApp(key) {
   $('#hChat').innerHTML = icon('chat'); $('#hChat').onclick = openChat;
   $('#hLock').innerHTML = icon('lock');
   hdr(); go('halle'); checkAch(); loadOwner();
+  setTimeout(() => cloudLink(key), 1500);
   if (onlineOn() && all[key].cid) cloudGet(all[key].cid).then(cl => { const cur = Accounts.all(), x = cur[key]; if (!cl || !x || !x.ts || cl.ts <= x.ts + 5000) return; x.save = cl.d.save; x.ts = cl.ts; Accounts.put(cur); S = null; toast('Neuerer Spielstand von anderem Gerät geladen ☁️', 'good'); setTimeout(() => location.reload(), 900); }).catch(() => { });
   const pend = shopPending(); if (pend > 1 && away > 6e4) setTimeout(() => toast(`Deine Geschäfte haben ${fmt(pend)} verdient – im Imperium einsammeln 🏪`, 'good', 4500), 1600);
   if (bonusReady()) setTimeout(() => S && openBonus(), 900);
