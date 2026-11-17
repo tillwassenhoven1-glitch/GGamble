@@ -56,7 +56,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     match /rang/{id} {
       allow read: if true;
-      allow write: if request.resource.data.keys().hasOnly(['name','disp','bal','level','color','ts'])
+      allow write: if request.resource.data.keys().hasOnly(['name','disp','bal','level','color','ts','big','net','bxp','wag','since','best','ach'])
                    && request.resource.data.bal is number;
     }
   }

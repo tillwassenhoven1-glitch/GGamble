@@ -725,6 +725,16 @@ body.inmach #app *{animation-play-state:paused!important}
 .tzdim:after{box-shadow:inset 0 0 160px rgba(255,110,0,.5);animation:tzpulse2 .5s ease-in-out infinite alternate}
 @keyframes tzpulse2{from{opacity:.45}to{opacity:1}}
 .lines path{vector-effect:non-scaling-stroke}
+.ownername{color:#ff4b3e!important;text-shadow:0 0 12px rgba(255,60,40,.45)}
+.owner{display:inline-block;padding:2px 9px;border-radius:999px;background:linear-gradient(180deg,#ff5a4a,#b3180c);color:#fff;font-size:12px;font-weight:900;letter-spacing:.3px;vertical-align:middle;box-shadow:0 0 12px rgba(255,60,40,.45);white-space:nowrap}
+.podium .owner{font-size:11px}
+.myrank{display:flex;align-items:center;gap:12px;padding:14px 16px;border-color:rgba(232,196,90,.45);background:linear-gradient(90deg,rgba(232,196,90,.12),#0d0d0f 60%);cursor:pointer}
+.myrank .mr-n{font-size:26px;font-weight:900;color:var(--gold2);min-width:58px}
+.myrank .avatar{width:48px;height:48px;font-size:15px}
+.myrank .who{flex:1;min-width:0}
+.myrank .who b{display:block;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.myrank .who small{color:var(--mut);font-size:13px}
+.myrank .w{font-size:16px;font-weight:800;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -2466,23 +2476,47 @@ const onlineOn = () => !!(ONLINE.apiKey && ONLINE.projectId);
 const FS = () => `https://firestore.googleapis.com/v1/projects/${ONLINE.projectId}/databases/(default)/documents`;
 function lbId() { if (!S.lbId) { S.lbId = (ACC.replace(/[^a-z0-9]/g, '') || 'x').slice(0, 12) + '-' + Math.random().toString(36).slice(2, 10); save(); } return S.lbId; }
 let lbLast = '';
+let lbFull = true;
 function pushScore(force) {
   if (!onlineOn() || !S) return;
-  const sig = [S.bal, S.level, S.disp, S.color].join('|'); if (!force && sig === lbLast) return; lbLast = sig;
-  const body = { fields: { name: { stringValue: S.name }, disp: { stringValue: S.disp }, bal: { doubleValue: S.bal }, level: { integerValue: String(S.level) }, color: { integerValue: String(S.color || 0) }, ts: { integerValue: String(Date.now()) } } };
-  fetch(`${FS()}/rang/${lbId()}?key=${ONLINE.apiKey}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => { lbLast = ''; });
+  const sig = [S.bal, S.level, S.disp, S.color, S.st.biggest, Object.keys(S.ach).length].join('|'); if (!force && sig === lbLast) return; lbLast = sig;
+  const f = { name: { stringValue: S.name }, disp: { stringValue: S.disp }, bal: { doubleValue: S.bal }, level: { integerValue: String(S.level) }, color: { integerValue: String(S.color || 0) }, ts: { integerValue: String(Date.now()) } };
+  const full = Object.assign({}, f, { big: { doubleValue: S.st.biggest || 0 }, net: { doubleValue: S.st.net || 0 }, bxp: { doubleValue: S.bx.pnl || 0 }, wag: { doubleValue: S.st.wagered || 0 }, since: { integerValue: String(S.created || Date.now()) }, best: { stringValue: S.st.bestGame || '' }, ach: { integerValue: String(Object.keys(S.ach).length) } });
+  const send = fields => fetch(`${FS()}/rang/${lbId()}?key=${ONLINE.apiKey}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) });
+  (lbFull ? send(full) : Promise.resolve({ ok: false, status: 403 }))
+    .then(r => { if (r.ok) return; if (r.status === 403 || r.status === 400) { lbFull = false; return send(f).then(r2 => { if (!r2.ok) lbLast = ''; }); } lbLast = ''; })
+    .catch(() => { lbLast = ''; });
 }
 async function fetchTop() {
   const r = await fetch(`${FS()}:runQuery?key=${ONLINE.apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ structuredQuery: { from: [{ collectionId: 'rang' }], orderBy: [{ field: { fieldPath: 'bal' }, direction: 'DESCENDING' }], limit: 10 } }) });
   if (!r.ok) throw new Error('HTTP ' + r.status);
   const j = await r.json();
-  return j.filter(x => x.document).map(x => { const f = x.document.fields, id = x.document.name.split('/').pop(); const n = v => v ? +(v.doubleValue ?? v.integerValue ?? 0) : 0; return { k: id, name: f.name?.stringValue || '?', disp: f.disp?.stringValue || f.name?.stringValue || '?', bal: n(f.bal), lvl: n(f.level) || 1, color: n(f.color), ts: n(f.ts), me: S.lbId === id }; });
+  return j.filter(x => x.document).map(x => { const f = x.document.fields, id = x.document.name.split('/').pop(); const n = v => v ? +(v.doubleValue ?? v.integerValue ?? 0) : 0; return { k: id, name: f.name?.stringValue || '?', disp: f.disp?.stringValue || f.name?.stringValue || '?', bal: n(f.bal), lvl: n(f.level) || 1, color: n(f.color), ts: n(f.ts), me: S.lbId === id,
+      big: f.big ? n(f.big) : null, net: f.net ? n(f.net) : null, bxp: f.bxp ? n(f.bxp) : null, wag: f.wag ? n(f.wag) : null, since: f.since ? n(f.since) : null, best: f.best?.stringValue || '', ach: f.ach ? n(f.ach) : null }; });
 }
 function ago(ts) { const s = (Date.now() - ts) / 1000; return s < 3600 ? `vor ${Math.max(1, Math.floor(s / 60))} Min.` : s < 86400 ? `vor ${Math.floor(s / 3600)} Std.` : `vor ${Math.floor(s / 86400)} T.`; }
+async function fsCount(where) {
+  const q = { structuredAggregationQuery: { structuredQuery: Object.assign({ from: [{ collectionId: 'rang' }] }, where ? { where } : {}), aggregations: [{ alias: 'n', count: {} }] } };
+  const r = await fetch(`${FS()}:runAggregationQuery?key=${ONLINE.apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(q) });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const j = await r.json(); const f = j[0] && j[0].result && j[0].result.aggregateFields && j[0].result.aggregateFields.n;
+  return f ? +(f.integerValue ?? f.doubleValue ?? 0) : 0;
+}
+async function myRank() {
+  const higher = await fsCount({ fieldFilter: { field: { fieldPath: 'bal' }, op: 'GREATER_THAN', value: { doubleValue: S.bal } } });
+  let total = null; try { total = await fsCount(null); } catch (e) { }
+  return { rank: higher + 1, total };
+}
 function localTop() {
   persist();
-  return Object.entries(Accounts.all()).map(([k, a]) => ({ k, disp: a.disp || a.name, name: a.name, photo: a.photo, color: a.save?.color || 0, bal: a.save ? a.save.bal : 0, lvl: a.save?.level || 1, ts: a.ts || a.created, me: k === ACC })).sort((a, b) => b.bal - a.bal).slice(0, 10);
+  return localAll().slice(0, 10);
 }
+function localAll() {
+  return Object.entries(Accounts.all()).map(([k, a]) => { const v = a.save || {}, st = v.st || {}; return { k, disp: a.disp || a.name, name: a.name, photo: a.photo, color: v.color || 0, bal: v.bal || 0, lvl: v.level || 1, ts: a.ts || a.created, me: k === ACC, big: st.biggest ?? null, net: st.net ?? null, bxp: v.bx ? v.bx.pnl : null, wag: st.wagered ?? null, since: v.created || a.created, best: st.bestGame || '', ach: v.ach ? Object.keys(v.ach).length : null }; }).sort((a, b) => b.bal - a.bal);
+}
+const isOwner = n => String(n || '').trim().toLowerCase() === 'till';
+const ownerTag = n => isOwner(n) ? ' <span class="owner">👑 Besitzer</span>' : '';
+const nameCls = n => isOwner(n) ? 'ownername' : '';
 const RANG_WIP = false; // Bestenliste ist in Arbeit
 async function renderRang(el) {
   if (RANG_WIP) { el.innerHTML = `<h1 class="t">Bestenliste</h1><p class="sub">Top 10 online – nur echte Spieler</p>
@@ -2494,19 +2528,44 @@ async function renderRang(el) {
     try { await new Promise(r => setTimeout(r, 400)); rows = await fetchTop(); }
     catch (e) { rows = localTop(); info = '⚠️ Online-Bestenliste gerade nicht erreichbar – das hier sind nur die Konten auf diesem Gerät.'; }
   } else { rows = localTop(); info = 'ℹ️ Die Online-Bestenliste ist noch nicht eingerichtet. Bis dahin siehst du nur die Konten auf diesem Gerät.'; }
+  let mine = null;
+  if (onlineOn() && !info) { try { mine = await myRank(); } catch (e) { } }
+  if (!mine) { const all = localAll(); mine = { rank: all.findIndex(r => r.me) + 1 || all.length + 1, total: all.length }; }
+  const topI = rows.findIndex(r => r.me); if (topI >= 0) mine.rank = topI + 1;
   const body = $('#rgBody', el); if (!body) return;
-  const pod = (r, i) => r ? `<div class="p${i + 1}"><div class="pa">${avaHTML(r)}<span class="rk" style="background:${['#d8b85a', '#cfcfd4', '#c8875a'][i]}">${i + 1}</span></div><div class="nm">${esc(r.disp)}</div><div class="vv num">${fmt(r.bal)}</div><div class="blk" style="height:${[150, 110, 80][i]}px"></div></div>` : '<div></div>';
+  const pod = (r, i) => r ? `<div class="p${i + 1}"><div class="pa">${avaHTML(r)}<span class="rk" style="background:${['#d8b85a', '#cfcfd4', '#c8875a'][i]}">${i + 1}</span></div><div class="nm ${nameCls(r.name)}">${esc(r.disp)}</div>${isOwner(r.name) ? '<div class="owner" style="margin-top:4px">👑 Besitzer</div>' : ''}<div class="vv num">${fmt(r.bal)}</div><div class="blk" style="height:${[150, 110, 80][i]}px"></div></div>` : '<div></div>';
   const meI = rows.findIndex(r => r.me);
-  body.innerHTML = `${meI >= 0 ? `<p class="hint" style="margin-top:-8px">Du bist auf Platz ${meI + 1} 🏆</p>` : ''}
+  const meRow = { disp: S.disp, name: S.name, photo: S.photo, color: S.color, bal: S.bal };
+  body.innerHTML = `<p class="hint" style="margin-top:-8px">Du bist auf Platz ${NF0.format(mine.rank)} 🏆</p>
     <div class="podium">${pod(rows[1], 1)}${pod(rows[0], 0)}${pod(rows[2], 2)}</div>
-    ${rows.length ? `<div class="card tight list rl">${rows.map((r, i) => `<div class="it ${r.me ? 'me' : ''}" data-i="${i}"><span class="rn">${i + 1}</span>${avaHTML(r)}<div class="who"><b>${esc(r.disp)}</b><small>@${esc(r.name)} · ${ago(r.ts)}</small></div><span class="w num ${r.bal < 0 ? 'neg' : ''}">${fmt(r.bal)}</span></div>`).join('')}</div>` : '<div class="empty">Noch niemand in der Bestenliste.</div>'}
+    ${rows.length ? `<div class="card tight list rl">${rows.map((r, i) => `<div class="it ${r.me ? 'me' : ''}" data-i="${i}"><span class="rn">${i + 1}</span>${avaHTML(r)}<div class="who"><b class="${nameCls(r.name)}">${esc(r.disp)}${ownerTag(r.name)}</b><small>@${esc(r.name)} · ${ago(r.ts)}</small></div><span class="w num ${r.bal < 0 ? 'neg' : ''}">${fmt(r.bal)}</span></div>`).join('')}</div>` : '<div class="empty">Noch niemand in der Bestenliste.</div>'}
+    <div class="sec">Dein Platz</div>
+    <div class="card myrank"><div class="mr-n num">#${NF0.format(mine.rank)}</div>${avaHTML(meRow)}<div class="who"><b class="${nameCls(S.name)}">${esc(S.disp)}</b><small>${isOwner(S.name) ? '<span class="owner">👑 Besitzer</span> · ' : ''}${mine.total ? `von ${NF0.format(mine.total)} Spieler${mine.total === 1 ? '' : 'n'}` : '@' + esc(S.name)}${mine.rank <= 10 ? ' · Top 10 🔥' : ''}</small></div><span class="w num ${S.bal < 0 ? 'neg' : ''}">${fmt(S.bal)}</span></div>
     ${info ? `<p class="hint">${info}</p>` : ''}`;
+  body.querySelector('.myrank').onclick = () => go('profil');
   const rl = body.querySelector('.rl'); if (rl) rl.onclick = e => {
     const it = e.target.closest('[data-i]'); if (!it) return; const r = rows[+it.dataset.i];
     if (r.me) { go('profil'); return; }
-    sheet(`<div class="row sb"><div class="row">${avaHTML(r)}<div><h2 style="font-size:26px">${esc(r.disp)}</h2><small style="color:var(--mut)">@${esc(r.name)}</small></div></div><button class="x" data-close>${icon('x')}</button></div>
-      <div class="stats" style="margin-top:18px"><div class="stat"><small>Level</small><b>${r.lvl}</b></div><div class="stat"><small>Kontostand</small><b class="num ${r.bal < 0 ? 'neg' : ''}">${fmt(r.bal)}</b></div></div>`);
+    playerProfile(r, +it.dataset.i + 1);
   };
+}
+
+/* Profil eines anderen Spielers – wie das eigene Profil */
+function playerProfile(r, rank) {
+  const v = x => x === null || x === undefined ? '–' : null;
+  sheet(`<div class="row sb" style="margin-bottom:10px"><span class="chip">🏆 Platz ${rank}</span><button class="x" data-close>${icon('x')}</button></div>
+    <div class="card prof" style="margin:0 0 14px"><div class="ban"></div><div class="pa">${avaHTML(r)}</div>
+      <div class="pinfo"><b class="${nameCls(r.name)}">${esc(r.disp)}</b><small>@${esc(r.name)}${isOwner(r.name) ? ' · <span class="owner">👑 Besitzer</span>' : ''}</small><small style="font-size:14px">zuletzt aktiv ${ago(r.ts)}</small></div></div>
+    <div class="stats">
+      <div class="stat"><small>Level</small><b>${r.lvl}</b></div>
+      <div class="stat"><small>Kontostand</small><b class="num ${r.bal < 0 ? 'neg' : ''}">${fmt(r.bal)}</b></div>
+      <div class="stat"><small>Größter Gewinn</small><b class="num">${v(r.big) || fmtInt(r.big)}</b></div>
+      <div class="stat"><small>Plus / Minus</small><b class="num ${r.net > 0 ? 'pos' : ''}">${v(r.net) || fmt(r.net, { sign: true })}</b></div>
+      <div class="stat"><small>Börse</small><b class="num">${v(r.bxp) || ((r.bxp >= 0 ? '+' : '') + fmtInt(r.bxp))}</b></div>
+      <div class="stat"><small>Umsatz</small><b class="num">${v(r.wag) || fmt(r.wag)}</b></div>
+    </div>
+    <p class="hint">${r.since ? 'Dabei seit ' + new Date(r.since).toLocaleDateString('de-DE') : ''}${r.best ? ` · bester Treffer an ${esc(r.best)}` : ''}${r.ach !== null && r.ach !== undefined ? ` · 🏆 Erfolge ${r.ach} / ${ACH.length}` : ''}</p>
+    ${r.big === null || r.big === undefined ? '<p class="hint">ℹ️ Mehr Statistiken erscheinen, sobald dieser Spieler GGamble wieder öffnet.</p>' : ''}`);
 }
 
 /* ================= Treff: Video-Räume (PeerJS) ================= */
@@ -2859,7 +2918,7 @@ function renderProfil(el) {
   const got = ACH.filter(a => S.ach[a[0]]).length;
   const ordered = [...ACH].sort((a, b) => (!!S.ach[b[0]]) - (!!S.ach[a[0]]));
   el.innerHTML = `<div class="card prof"><div class="ban"></div><div class="pa">${avaHTML(S)}</div>
-      <div class="pinfo"><b>${esc(S.disp)}</b><small>@${esc(S.name)}</small><button class="btn dark sm" id="pEd" style="align-self:flex-start">${icon('edit')} Bearbeiten</button></div></div>
+      <div class="pinfo"><b class="${nameCls(S.name)}">${esc(S.disp)}</b><small>@${esc(S.name)}${isOwner(S.name) ? ' · <span class="owner">👑 Besitzer</span>' : ''}</small><button class="btn dark sm" id="pEd" style="align-self:flex-start">${icon('edit')} Bearbeiten</button></div></div>
     <div class="stats">
       <div class="stat"><small>Level</small><b>${S.level}</b></div>
       <div class="stat"><small>Kontostand</small><b class="num ${S.bal < 0 ? 'neg' : ''}">${fmt(S.bal)}</b></div>
