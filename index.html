@@ -632,6 +632,19 @@ select.inp{appearance:none;-webkit-appearance:none;background-image:linear-gradi
 .mpop.miss{animation-duration:1.3s}
 .shock{position:fixed;z-index:715;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;border:6px solid #ffd447;box-shadow:0 0 40px #ffb31a,inset 0 0 30px #ffb31a;pointer-events:none;animation:shock .8s ease-out forwards}
 @keyframes shock{to{transform:scale(18);opacity:0;border-width:1px}}
+.lab{width:100%;max-width:460px;display:flex;flex-direction:column;align-items:center;gap:22px}
+.lpips{display:flex;gap:6px;width:100%}
+.lpips i{flex:1;height:12px;border-radius:6px;background:#26262a;position:relative;transition:background .3s,box-shadow .3s}
+.lpips i.on{background:linear-gradient(90deg,#7ad07a,#4fb54f);box-shadow:0 0 10px #4fb54f}
+.lpips i.mk:after{content:attr(data-x);position:absolute;top:18px;left:50%;transform:translateX(-50%);font-size:13px;font-weight:900;color:#c487f0}
+.lpips i.mk:nth-child(6):after{color:#7ad07a}.lpips i.mk:nth-child(8):after{color:#5fa0f5}
+.lbar{position:relative;width:100%;height:74px;border-radius:22px;margin-top:14px;background:linear-gradient(180deg,#2a1a3a,#140c1e);border:2px solid #4a2a6a;box-shadow:inset 0 4px 14px rgba(0,0,0,.7),0 0 30px rgba(160,90,255,.2);overflow:hidden;cursor:pointer}
+.lzone{position:absolute;top:0;bottom:0;background:linear-gradient(180deg,#9ff09f,#3fae4f);box-shadow:0 0 22px #4fb54f,inset 0 0 12px rgba(255,255,255,.5);border-radius:10px;transition:left .25s cubic-bezier(.22,1,.36,1),width .25s}
+.lneedle{position:absolute;top:-4px;bottom:-4px;width:8px;margin-left:-4px;border-radius:4px;background:#fff;box-shadow:0 0 14px #fff,0 0 4px #000}
+.lbar.ok{animation:lok .35s}.lbar.no{animation:lno .5s}
+@keyframes lok{30%{box-shadow:inset 0 4px 14px rgba(0,0,0,.7),0 0 50px #4fb54f;border-color:#7ad07a}}
+@keyframes lno{20%,60%{transform:translateX(-8px);border-color:#e8524a}40%,80%{transform:translateX(8px)}}
+.lhelp{color:var(--mut);text-align:center;font-size:17px;line-height:1.45}
 </style>
 </head>
 <body>
@@ -2025,8 +2038,8 @@ function renderSpiele(el) {
    <div class="sec">Glückstränke ${S.potAct ? `<small class="goldc">×${S.potAct.m} aktiv · noch ${S.potAct.left} Runden</small>` : ''}</div>
    <div class="card" id="potCard">${potionsHTML()}
      <p style="font-size:19px;line-height:1.45;margin:20px 4px 10px">Ein Glückstrank lässt Drehs am Automaten und Rubbellose mehrmals würfeln – du bekommst das beste Ergebnis. ×2 wirkt 10 Runden, ×4 6 Runden, ×6 4 Runden – und nur bis ${fmt(potCap())} Einsatz. Bei All-In wirkt er nicht.</p>
-     <p class="hint" style="font-size:17px">Brauen ist schwer: 10 Treffer für ×2, 16 Treffer für ×4, 22 Treffer für ×6. Bester Lauf bisher: ${S.brewBest}.</p>
-     <button class="btn white w" id="lab" style="font-size:22px">${icon('spark')} Glückslabor · 4 Energie</button></div>
+     <p class="hint" style="font-size:17px">Brauen ist schwer: Stopp den Regler im grünen Bereich – 6 Treffer für ×2, 8 für ×4, 10 für ×6. Bester Lauf bisher: ${S.brewBest}.</p>
+     <button class="btn white w" id="lab" style="font-size:22px">${icon('spark')} Glückslabor · 2 Energie</button></div>
    <div class="sec">Geld verdienen</div>
    ${[['hut', 'target', 'Hütchenspiel', 'Behalt die Kugel im Auge.', 1], ['kasse', 'hand', 'Kassensturz', 'Zähl die Kasse schneller als der Chef.'], ['pfand', 'beer', 'Pfandflaschen', 'Fang die Flaschen, meide die Scherben.'], ['inv', 'layers', 'Inventur', 'Merk dir das Regal – dann wird gezählt.']].map(([id, ic, n, d, neu]) => `<button class="card gm" data-g="${id}" style="position:relative">${neu ? '<span class="neu">NEU</span>' : ''}<div class="ibox">${icon(ic)}</div><h4>${n}</h4><p>${d}</p><span class="chip gold">bis ${fmt(base())} · 1 Energie</span></button>`).join('')}
    <p class="hint">Perfekte Spiele haben eine kleine Chance auf einen Glückstrank ×2.</p>
@@ -2041,7 +2054,7 @@ function renderSpiele(el) {
 /* ================= Spiel-Rahmen ================= */
 const GAMES = {
   hut: { n: 'Hütchenspiel', run: gameHut }, kasse: { n: 'Kassensturz', run: gameKasse }, pfand: { n: 'Pfandflaschen', run: gamePfand }, inv: { n: 'Inventur', run: gameInv },
-  lab: { n: 'Glückslabor', run: gameLab, cost: 4 },
+  lab: { n: 'Glückslabor', run: gameLab, cost: 2 },
 };
 function startGame(id) {
   const G = GAMES[id], cost = G.cost || 1; regenEnergy();
@@ -2059,9 +2072,9 @@ function startGame(id) {
     let html;
     if (id === 'lab') {
       S.st.brews++; S.brewBest = Math.max(S.brewBest, score);
-      const m = score >= 22 ? 6 : score >= 16 ? 4 : score >= 10 ? 2 : 0;
+      const m = score >= 10 ? 6 : score >= 8 ? 4 : score >= 6 ? 2 : 0;
       if (m) { S.pot[m]++; if (m === 6) S.st.pot6 = (S.st.pot6 || 0) + 1; }
-      html = `<h2>${m ? `Trank ×${m} gebraut!` : 'Misslungen…'}</h2><p>${score} Treffer${m ? '' : ' – du brauchst mindestens 10.'}</p>${m ? `<div class="pot p${m}" style="margin:0 auto 24px;animation:pop .6s var(--spring)"><i>×${m}</i></div>` : ''}`;
+      html = `<h2>${m ? `Trank ×${m} gebraut!` : 'Misslungen…'}</h2><p>${score} Treffer${m ? '' : ' – du brauchst mindestens 6.'}</p>${m ? `<div class="pot p${m}" style="margin:0 auto 24px;animation:pop .6s var(--spring)"><i>×${m}</i></div>` : ''}`;
       if (m) { SND.big(); FX.burst(100, { cols: ['#c487f0', '#5fa0f5', '#7ad07a', '#fff'] }); } else SND.lose();
     } else {
       const amt = r2(base() * clamp(score / max, 0, 1));
@@ -2205,38 +2218,49 @@ function gamePfand(body, done, cl, isEnded) {
     });
   });
 }
-function gameLab(body, done, cl, isEnded) {
-  countdown(body, () => {
-    const T = 20;
-    canvasGame(body, cl, isEnded, {
-      bg: 'radial-gradient(circle at 50% 100%,#3a1a5a,#0a0612 70%)', help: 'Tipp die bunten Blasen – nicht die schwarzen!',
-      init(s) {
-        s.b = []; s.next = 0; s.fx = [];
-        s.cv.addEventListener('pointerdown', e => {
-          const r = s.cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
-          for (const b of s.b) if (!b.dead && Math.hypot((b.xx ?? b.x) - x, b.y - y) < b.r + 12) { b.dead = true; if (b.bad) { s.score = Math.max(0, s.score - 2); SND.err(); vib(50); } else { s.score++; SND.coin(s.score % 6); } s.fx.push({ x: b.xx ?? b.x, y: b.y, t: 0, c: b.c }); break; }
-        });
-      },
-      hud: s => `<span>⏱ ${Math.max(0, Math.ceil(T - s.t))}</span><span>✨ ${s.score}</span><span>${s.score >= 22 ? '×6' : s.score >= 16 ? '×4' : s.score >= 10 ? '×2' : '–'}</span>`,
-      step(s) {
-        const c = s.c;
-        c.fillStyle = '#1a1a1a'; c.beginPath(); c.ellipse(s.W / 2, s.H + 10, s.W * .42, 60, 0, 0, 7); c.fill();
-        c.fillStyle = 'rgba(160,90,255,.35)'; c.beginPath(); c.ellipse(s.W / 2, s.H - 34, s.W * .36, 16, 0, 0, 7); c.fill();
-        if (s.t > s.next) { s.next = s.t + Math.max(.28, .75 - s.t * .02); const bad = Math.random() < .3; s.b.push({ x: s.W / 2 + rnd(-s.W * .3, s.W * .3), y: s.H - 40, r: rnd(16, 28), v: rnd(1.6, 2.8) + s.t * .08, w: rnd(0, 6), bad, c: bad ? '#111' : pick(['#7ad07a', '#5fa0f5', '#c487f0', '#f5cf5a', '#ff7ac8']) }); }
-        for (const b of s.b) {
-          b.y -= b.v; b.w += .06; const x = b.x + Math.sin(b.w) * 14;
-          b.xx = x;
-          const g = c.createRadialGradient(x - b.r * .3, b.y - b.r * .3, 2, x, b.y, b.r); g.addColorStop(0, b.bad ? '#555' : '#fff'); g.addColorStop(.3, b.c); g.addColorStop(1, b.bad ? '#000' : b.c + '88');
-          c.fillStyle = g; c.beginPath(); c.arc(x, b.y, b.r, 0, 7); c.fill();
-          if (b.bad) { c.strokeStyle = '#e8524a'; c.lineWidth = 2; c.stroke(); }
-        }
-        s.b = s.b.filter(b => !b.dead && b.y > -40);
-        for (const f of s.fx) { f.t++; c.strokeStyle = f.c; c.globalAlpha = 1 - f.t / 20; c.lineWidth = 3; c.beginPath(); c.arc(f.x, f.y, 10 + f.t * 2.5, 0, 7); c.stroke(); c.globalAlpha = 1; }
-        s.fx = s.fx.filter(f => f.t < 20);
-        if (s.t >= T) { done(s.score, 22); return false; }
-      }
-    });
-  });
+function gameLab(body, done, cl, isEnded) { countdown(body, () => labRun(body, done, cl, isEnded)); }
+function labRun(body, done, cl, isEnded) {
+  const GOAL = 10, TH = { 6: 2, 8: 4, 10: 6 };
+  body.innerHTML = `<div class="lab">
+    <div class="hud"><span id="lbS">✨ 0 / ${GOAL}</span><span id="lbP">–</span></div>
+    <div class="lpips">${Array.from({ length: GOAL }, (_, i) => `<i class="${TH[i + 1] ? 'mk' : ''}" data-x="${TH[i + 1] ? '×' + TH[i + 1] : ''}"></i>`).join('')}</div>
+    <div class="lbar" id="lbar"><div class="lzone" id="lz"></div><div class="lneedle" id="ln"></div></div>
+    <p class="lhelp">Stopp den Regler im <b style="color:#7ad07a">grünen</b> Bereich!<br>Jeder Treffer macht ihn schneller und das Grün kleiner.</p>
+    <button class="btn white w" id="lbGo" style="font-size:24px;padding:22px;max-width:440px">STOPP</button></div>`;
+  const bar = $('#lbar', body), z = $('#lz', body), n = $('#ln', body);
+  let pos = 0, dir = 1, speed = .62, zw = .26, zx = 0, score = 0, alive = true, last = performance.now(), lock = false;
+  const place = () => { zx = .06 + Math.random() * (.88 - zw); z.style.left = zx * 100 + '%'; z.style.width = zw * 100 + '%'; };
+  place();
+  const pot = () => score >= 10 ? '×6' : score >= 8 ? '×4' : score >= 6 ? '×2' : '–';
+  const loop = t => {
+    if (!alive || isEnded()) return;
+    const dt = Math.min(.05, (t - last) / 1000); last = t;
+    if (!lock) { pos += dir * speed * dt; if (pos > 1) { pos = 1; dir = -1; } if (pos < 0) { pos = 0; dir = 1; } }
+    n.style.left = pos * 100 + '%';
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop); cl.push(() => alive = false);
+  const finish = () => { alive = false; setTimeout(() => done(score, GOAL), 650); };
+  const press = () => {
+    if (!alive || lock) return;
+    const hit = pos >= zx && pos <= zx + zw;
+    lock = true;
+    if (hit) {
+      score++; SND.coin(score); vib(15);
+      bar.classList.remove('ok', 'no'); void bar.offsetWidth; bar.classList.add('ok');
+      $$('.lpips i', body)[score - 1].classList.add('on');
+      $('#lbS', body).textContent = `✨ ${score} / ${GOAL}`; $('#lbP', body).textContent = pot();
+      if (TH[score]) { FX.burst(30, { cols: score >= 10 ? ['#c487f0', '#fff'] : score >= 8 ? ['#5fa0f5', '#fff'] : ['#7ad07a', '#fff'] }); SND.win(); }
+      if (score >= GOAL) { finish(); return; }
+      speed *= 1.14; zw = Math.max(.075, zw * .86);
+      setTimeout(() => { place(); lock = false; }, 280);
+    } else {
+      SND.err(); vib([40, 30, 60]); bar.classList.remove('ok', 'no'); void bar.offsetWidth; bar.classList.add('no'); finish();
+    }
+  };
+  $('#lbGo', body).onclick = press; bar.onclick = press;
+  const key = e => { if (e.code === 'Space' || e.key === 'Enter') { e.preventDefault(); press(); } };
+  addEventListener('keydown', key); cl.push(() => removeEventListener('keydown', key));
 }
 
 /* ================= Imperium ================= */
