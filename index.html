@@ -589,6 +589,15 @@ select.inp{appearance:none;-webkit-appearance:none;background-image:linear-gradi
 .lvlpill{padding:4px;gap:3px}
 .lvlring,.lvlpill .avatar{width:38px;height:38px;font-size:14px}
 #main{padding-top:calc(var(--st) + 76px)}
+.paychips{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;overflow:visible;margin:18px 0}
+.paychips.v{grid-template-columns:repeat(2,minmax(0,1fr))}
+.paychips .pc{background:linear-gradient(180deg,#1f1f23,#17171a);border:1px solid var(--line);border-radius:18px;padding:12px 6px 10px;text-align:center;min-width:0}
+.paychips .pc.pctop{border-color:rgba(232,196,90,.5);background:linear-gradient(180deg,#2a2412,#17171a);box-shadow:0 0 16px rgba(232,196,90,.12)}
+.paychips .ps{font-size:clamp(17px,5.2vw,24px);white-space:nowrap;line-height:1.2;letter-spacing:-1px}
+.paychips .ps span{display:inline;padding:0;background:none;border-radius:0;font-size:inherit;gap:0}
+.paychips .ps .seven{-webkit-text-stroke:1px #ffcf4a;margin:0 1px}
+.paychips .pc b{display:block;margin-top:6px;font-size:clamp(15px,4.4vw,19px);font-weight:800}
+.paychips .pc.pctop b{color:var(--gold2)}
 </style>
 </head>
 <body>
@@ -985,7 +994,7 @@ const MACH = [
   { n: 'Royal Crown', s: 'Mit Grand-Jackpot', c: '#ffd65a', c2: '#2a1450', ic: '👑', lvl: 24, t: 'j', jp: 'grand', top: 200, syms: ['🍒', '🔔', '💍', '💰', '👑', '7'] },
   { n: 'Black Diamond', s: '5 Walzen · High Roller', c: '#d0d0d0', c2: '#101010', ic: '🖤', lvl: 28, t: 'v', mx: 1000, hi: ['🎩', '🥂', '🏎️', '🖤'], wild: '💎', scat: '🎰' },
 ];
-const MLVL = [1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 19, 21, 24, 28];
+const MLVL = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 50];
 MACH.forEach((m, i) => { m.i = i; m.t = m.t || 'c'; m.lvl = MLVL[i]; });
 const JP = { mini: { n: 'Mini', seed: 500, ch: 1 / 1500, ref: 2 }, major: { n: 'Major', seed: 5000, ch: 1 / 6000, ref: 10 }, grand: { n: 'Grand', seed: 50000, ch: 1 / 25000, ref: 50 } };
 const LINES3 = [[1, 1, 1], [0, 0, 0], [2, 2, 2], [0, 1, 2], [2, 1, 0]];
@@ -1023,6 +1032,7 @@ function prep(m) {
     line /= N; scat /= N;
     const k = Math.max(.2, (.95 - scat) / line);
     m.pay = m.pay.map((r, i) => r.map((v, j) => (i === 8 && j === 2) ? v : Math.max(1, Math.round(v * k * 10) / 10)));
+    m.pay[8][2] = Math.max(m.pay[8][2], Math.round(m.pay[7][2] * 1.6 / 10) * 10); m.mx = m.pay[8][2] / 10;
   }
   m.ready = true; return m;
 }
@@ -1090,10 +1100,12 @@ function cabHTML(m, sm) {
 const isLockedM = m => S.level < m.lvl;
 function payChips(m) {
   prep(m);
-  if (m.t === 'v') return [[m.wild, m.pay[8][2]], [m.hi[3], m.pay[7][2]], [m.hi[2], m.pay[6][2]], [m.scat, 'Freispiele']].map(([s, v]) => `<span><em>${symHTML(s)}${symHTML(s)}${symHTML(s)}</em>${typeof v === 'number' ? (v / 10) + '×' : v}</span>`).join('');
-  return [5, 4, 3, 2, 1, 0].map(i => `<span><em>${symHTML(m.cells[i])}${symHTML(m.cells[i])}${symHTML(m.cells[i])}</em>${m.pay[i] / 5 >= 1 ? r2(m.pay[i] / 5) : r2(m.pay[i] / 5)}×</span>`).join('');
+  const xf = v => (v >= 10 ? Math.round(v) : Math.round(v * 10) / 10).toLocaleString('de-DE') + '×';
+  const card = (sym, val, top) => `<div class="pc ${top ? 'pctop' : ''}"><div class="ps">${symHTML(sym)}${symHTML(sym)}${symHTML(sym)}</div><b>${val}</b></div>`;
+  if (m.t === 'v') return card(m.wild, xf(m.pay[8][2] / 10), 1) + card(m.hi[3], xf(m.pay[7][2] / 10)) + card(m.hi[2], xf(m.pay[6][2] / 10)) + card(m.scat, 'Freispiele');
+  return [5, 4, 3, 2, 1, 0].map((i, k) => card(m.cells[i], xf(m.pay[i] / 5), k === 0)).join('');
 }
-const maxLabel = m => m.t === 'j' ? 'Jackpot' : m.t === 'v' ? `bis ${m.mx}× + Freispiele` : `bis ${m.top}×`;
+const maxLabel = m => { prep(m); return m.t === 'j' ? 'Jackpot' : m.t === 'v' ? `bis ${m.mx}× + Freispiele` : `bis ${m.top}×`; };
 function renderHalle(el) {
   el.innerHTML = `<div class="halle-top"><h1 class="t">Spielhalle</h1><div class="icons">
      <button class="pill" id="bGift">${icon('gift')}</button><button class="pill" id="bAll">${icon('layers')}</button><button class="pill" id="bGames">${icon('dice')}</button></div></div>
@@ -1116,7 +1128,7 @@ function renderHalle(el) {
        <button class="btn dark sm" id="sAll">${icon('layers')} Alle</button></div>
        <div class="row sb" style="align-items:flex-start"><h3>${esc(m.n)}</h3><span class="chip gold" style="margin-top:24px;white-space:nowrap">${m.t === 'j' ? 'Jackpot' : m.t === 'v' ? 'bis ' + m.mx + '×' : 'bis ' + m.top + '×'}</span></div>
        <p class="sub" style="margin:6px 0 0;font-size:20px">${esc(m.s)}</p>
-       <div class="paychips">${payChips(m)}</div>
+       <div class="paychips ${m.t === 'v' ? 'v' : ''}">${payChips(m)}</div>
        ${lk ? `<button class="btn dark w" disabled>${icon('lock')} Ab Level ${m.lvl}</button>` : `<button class="btn white w" id="sPlay" style="font-size:22px;padding:20px">Spielen</button>`}`;
     $('#sFav', el).onclick = () => { const k = S.favs.indexOf(i); k < 0 ? S.favs.push(i) : S.favs.splice(k, 1); save(); SND.click(); cur = -1; setCur(i); };
     $('#sAll', el).onclick = openSlotList;
