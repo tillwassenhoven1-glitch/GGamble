@@ -2228,7 +2228,7 @@ function labRun(body, done, cl, isEnded) {
     <p class="lhelp">Stopp den Regler im <b style="color:#7ad07a">grünen</b> Bereich!<br>Jeder Treffer macht ihn schneller und das Grün kleiner.</p>
     <button class="btn white w" id="lbGo" style="font-size:24px;padding:22px;max-width:440px">STOPP</button></div>`;
   const bar = $('#lbar', body), z = $('#lz', body), n = $('#ln', body);
-  let pos = 0, dir = 1, speed = .62, zw = .26, zx = 0, score = 0, alive = true, last = performance.now(), lock = false;
+  let pos = 0, dir = 1, speed = .54, zw = .3, zx = 0, score = 0, alive = true, last = performance.now(), lock = false;
   const place = () => { zx = .06 + Math.random() * (.88 - zw); z.style.left = zx * 100 + '%'; z.style.width = zw * 100 + '%'; };
   place();
   const pot = () => score >= 10 ? '×6' : score >= 8 ? '×4' : score >= 6 ? '×2' : '–';
@@ -2252,7 +2252,7 @@ function labRun(body, done, cl, isEnded) {
       $('#lbS', body).textContent = `✨ ${score} / ${GOAL}`; $('#lbP', body).textContent = pot();
       if (TH[score]) { FX.burst(30, { cols: score >= 10 ? ['#c487f0', '#fff'] : score >= 8 ? ['#5fa0f5', '#fff'] : ['#7ad07a', '#fff'] }); SND.win(); }
       if (score >= GOAL) { finish(); return; }
-      speed *= 1.14; zw = Math.max(.075, zw * .86);
+      speed *= 1.1; zw = Math.max(.1, zw * .9);
       setTimeout(() => { place(); lock = false; }, 280);
     } else {
       SND.err(); vib([40, 30, 60]); bar.classList.remove('ok', 'no'); void bar.offsetWidth; bar.classList.add('no'); finish();
