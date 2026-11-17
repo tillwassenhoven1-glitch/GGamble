@@ -610,6 +610,28 @@ select.inp{appearance:none;-webkit-appearance:none;background-image:linear-gradi
 .cab.winning .scr{animation:winscr .4s ease-in-out infinite alternate}
 @keyframes winbulb{50%{opacity:.15;background:#fff}}
 @keyframes winscr{to{box-shadow:inset 0 0 22px rgba(0,0,0,.7),0 0 0 2px #55555b,0 0 30px var(--c)}}
+/* ---------- Mega-Spannung & Multiplikator (0.0.5+) ---------- */
+.machine .cab{transition:transform .7s cubic-bezier(.22,1,.36,1),filter .7s}
+.machine.tz .cab{transform:scale(1.28);z-index:5;position:relative}
+.cab.beat .reelbox{animation:beat .22s ease-out}
+@keyframes beat{40%{transform:scale(1.025)}}
+.tzdim{position:fixed;inset:0;z-index:4;pointer-events:none;background:radial-gradient(ellipse at 50% 42%,transparent 18%,rgba(0,0,0,.82) 62%);animation:fadeIn .5s}
+.tzdim:after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 120px rgba(255,170,0,.35);animation:tzpulse .5s ease-in-out infinite alternate}
+.tzdim.out{animation:fadeOut .45s forwards}
+@keyframes tzpulse{to{box-shadow:inset 0 0 180px rgba(255,90,0,.55)}}
+.machine.tz .mhead,.machine.tz .jpbar{opacity:.15;transition:opacity .5s}
+.mpop{position:fixed;z-index:720;transform:translate(-50%,-50%);pointer-events:none;text-align:center;animation:mpop 1.5s cubic-bezier(.22,1,.36,1) forwards}
+.mpop b{display:block;font-size:64px;font-weight:900;line-height:1;color:transparent;background:linear-gradient(180deg,#fff8d8,#f5cf5a 50%,#b07c12);-webkit-background-clip:text;background-clip:text;filter:drop-shadow(0 4px 0 #4a3405) drop-shadow(0 0 18px rgba(255,200,60,.8))}
+.mpop span{display:block;margin-top:4px;font-size:22px;font-weight:900;color:#fff;text-shadow:0 2px 0 #000,0 0 14px rgba(255,220,120,.9)}
+@keyframes mpop{0%{transform:translate(-50%,-30%) scale(.3);opacity:0}18%{transform:translate(-50%,-50%) scale(1.15);opacity:1}30%{transform:translate(-50%,-55%) scale(1)}80%{opacity:1}100%{transform:translate(-50%,-160%) scale(.9);opacity:0}}
+.mpop.mega{animation:mpopMega 2.1s cubic-bezier(.22,1,.36,1) forwards}
+.mpop.mega b{font-size:min(30vw,150px);background:linear-gradient(180deg,#fff 0%,#ffe9a0 30%,#f5b82a 60%,#c0560a 100%);-webkit-background-clip:text;background-clip:text;filter:drop-shadow(0 6px 0 #5a2a02) drop-shadow(0 0 40px rgba(255,150,30,.95))}
+.mpop.mega span{font-size:30px}
+@keyframes mpopMega{0%{transform:translate(-50%,-50%) scale(3.2) rotate(-12deg);opacity:0}14%{transform:translate(-50%,-50%) scale(.9) rotate(3deg);opacity:1}22%{transform:translate(-50%,-50%) scale(1.08) rotate(-2deg)}30%{transform:translate(-50%,-50%) scale(1) rotate(0)}82%{transform:translate(-50%,-62%) scale(1);opacity:1}100%{transform:translate(-50%,-150%) scale(.85);opacity:0}}
+.mpop.miss b{font-size:46px;background:linear-gradient(180deg,#e8e8ea,#8a8a90);-webkit-background-clip:text;background-clip:text;filter:drop-shadow(0 3px 0 #222)}
+.mpop.miss{animation-duration:1.3s}
+.shock{position:fixed;z-index:715;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;border:6px solid #ffd447;box-shadow:0 0 40px #ffb31a,inset 0 0 30px #ffb31a;pointer-events:none;animation:shock .8s ease-out forwards}
+@keyframes shock{to{transform:scale(18);opacity:0;border-width:1px}}
 </style>
 </head>
 <body>
@@ -898,7 +920,7 @@ addEventListener('pagehide', () => { persist(); try { pushScore(); } catch (e) {
 /* ================= Effekte erst nach dem Spin ================= */
 let HOLD = [];
 function whenFree(fn) { if (typeof MS !== 'undefined' && MS && MS.busy) HOLD.push(fn); else fn(); }
-function flushHold() { const q = HOLD; HOLD = []; q.forEach((fn, i) => setTimeout(fn, 350 + i * 700)); }
+function flushHold() { const q = HOLD; HOLD = []; q.forEach((fn, i) => setTimeout(() => whenFree(fn), 350 + i * 700)); }
 
 /* ================= Geld / Level ================= */
 const DISPO = 180;
@@ -1267,16 +1289,18 @@ async function doSpin() {
   }
   if (usePot && S.potAct.left <= 0) { S.potAct = null; setTimeout(() => toast('Dein Glückstrank ist aufgebraucht.'), 1500); }
   MS.upd();
-  await animateReels(best.g);
+  const teased = await animateReels(best.g);
   MS.frozen = false; MS.upd();
   MS.grid = best.g;
   let win = best.ev.tot * (free ? 2 : 1);
   if (best.ev.wins.length) { showWins(best.ev.wins); const cb = $('.cab', MS.f); cb.classList.add('winning'); setTimeout(() => cb && cb.classList.remove('winning'), 2600); }
   win = r2(win + jackpot);
   if (free) MS.fsWin = r2(MS.fsWin + win);
+  if (teased && TENS) { if (win <= 0) { nearMiss(); vib(40); } setTimeout(tensionOff, win > 0 ? 1700 : 900); }
   if (win > 0) {
     const got = payout(win, m.n, stake); MS.here = r2(MS.here + got);
     countUp($('#ledW', MS.f), 0, win, 700, v => NF2.format(v));
+    await multPop(win / stake, win, teased);
     if (jackpot) { S.st.jackpots++; await celebrate(jackpot, 999, JP[m.jp].n.toUpperCase() + ' JACKPOT'); }
     else if (!free) await celebrate(win, win / stake);
     else { SND.win(); FX.burst(30, { coins: true }); }
@@ -1308,6 +1332,47 @@ function teaseFrom(m, g) {
   for (const l of L) { const a = g[0][l[0]], b = g[1][l[1]]; if (a === b && hi.includes(a)) return 2; }
   return 99;
 }
+/* ---------- Mega-Spannung ---------- */
+let TENS = null;
+function tensionOn() {
+  if (!MS || TENS) return;
+  const mach = $('.machine', MS.f), cab = $('.cab', MS.f), rb = $('#reels', MS.f);
+  const cr = cab.getBoundingClientRect(), rr = rb.getBoundingClientRect();
+  cab.style.transformOrigin = `${rr.left - cr.left + rr.width / 2}px ${rr.top - cr.top + rr.height / 2}px`;
+  mach.classList.add('tz');
+  const dim = document.createElement('div'); dim.className = 'tzdim'; MS.f.appendChild(dim);
+  let beat = 520; const hb = () => { if (!TENS) return; SND.tone(70, .14, 'sine', .35); setTimeout(() => SND.tone(60, .12, 'sine', .25), 140); vib(25); cab.classList.remove('beat'); void cab.offsetWidth; cab.classList.add('beat'); beat = Math.max(240, beat * .9); TENS.t = setTimeout(hb, beat); };
+  TENS = { dim, t: 0 }; hb();
+}
+function tensionOff() {
+  if (!TENS || !MS) { TENS = null; return; }
+  clearTimeout(TENS.t); const d = TENS.dim; d.classList.add('out'); setTimeout(() => d.remove(), 500);
+  $('.machine', MS.f).classList.remove('tz'); $('.cab', MS.f).classList.remove('beat'); TENS = null;
+}
+/* ---------- Multiplikator steigt aus den Walzen auf ---------- */
+function multPop(mult, amount, mega) {
+  if (!MS) return Promise.resolve();
+  const rb = $('#reels', MS.f).getBoundingClientRect();
+  const el = document.createElement('div'); el.className = 'mpop' + (mega ? ' mega' : '');
+  const mx = mult >= 10 ? NF0.format(Math.round(mult)) : (Math.round(mult * 10) / 10).toLocaleString('de-DE');
+  el.innerHTML = `<b>×${mx}</b><span class="num">+${fmt(amount)}</span>`;
+  el.style.left = rb.left + rb.width / 2 + 'px'; el.style.top = rb.top + rb.height / 2 + 'px';
+  document.body.appendChild(el);
+  if (mega) {
+    flash(); shake($('.cab', MS.f)); SND.big(); vib([90, 40, 160]);
+    const cx = rb.left + rb.width / 2, cy = rb.top + rb.height / 2;
+    FX.burst(170, { x: cx, y: cy, power: 1.3, spread: 15, coins: true });
+    setTimeout(() => FX.burst(110, { x: cx, y: cy, power: 1.1, spread: 13 }), 260);
+    const ring = document.createElement('div'); ring.className = 'shock'; ring.style.left = cx + 'px'; ring.style.top = cy + 'px'; document.body.appendChild(ring); setTimeout(() => ring.remove(), 900);
+  } else { SND.coin(3); FX.burst(Math.min(60, 12 + mult * 4), { x: rb.left + rb.width / 2, y: rb.top + rb.height / 2, power: .7, coins: true }); }
+  return new Promise(r => setTimeout(() => { el.remove(); r(); }, mega ? 2100 : 1500));
+}
+function nearMiss() {
+  if (!MS) return; const rb = $('#reels', MS.f).getBoundingClientRect();
+  const el = document.createElement('div'); el.className = 'mpop miss'; el.innerHTML = '<b>Knapp!</b>';
+  el.style.left = rb.left + rb.width / 2 + 'px'; el.style.top = rb.top + rb.height / 2 + 'px'; document.body.appendChild(el);
+  SND.tone(420, .5, 'triangle', .1, 0, 140); setTimeout(() => el.remove(), 1300);
+}
 function animateReels(g) {
   const reels = $$('.reel', MS.f), h = MS.h, m = MS.m, cab = $('.cab', MS.f), tz = teaseFrom(m, g);
   cab.classList.add('spinning');
@@ -1332,12 +1397,12 @@ function animateReels(g) {
       ], { duration: T, delay, fill: 'forwards' });
       setTimeout(() => r.classList.add('spin'), delay + T * .1);
       setTimeout(() => r.classList.remove('spin'), delay + T * .86);
-      if (tease) setTimeout(() => { r.classList.add('tease'); SND.tone(300, 1.4, 'sawtooth', .05, 0, 900); vib(20); }, delay + (x === tz ? 900 + x * 320 : T - 1500));
+      if (tease) setTimeout(() => { r.classList.add('tease'); SND.tone(300, 1.4, 'sawtooth', .05, 0, 900); vib(20); if (x === tz) tensionOn(); }, delay + (x === tz ? 900 + x * 320 : T - 1500));
       anim.onfinish = () => {
         r.classList.remove('tease', 'spin'); SND.stop(); vib(10);
         r.classList.remove('stopfx'); void r.offsetWidth; r.classList.add('stopfx');
         anim.cancel(); strip.innerHTML = g[x].map(cellH).join(''); strip.style.transform = 'none';
-        if (--left === 0) { clearInterval(tick); cab.classList.remove('spinning'); setTimeout(res, 140); }
+        if (--left === 0) { clearInterval(tick); cab.classList.remove('spinning'); setTimeout(() => res(tz < reels.length), 140); }
       };
     });
   });
