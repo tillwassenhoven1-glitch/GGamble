@@ -65,9 +65,14 @@ service cloud.firestore {
       allow list, update, delete: if false;
     }
     match /rang/{id} {
+      function ok() {
+        return request.resource.data.keys().hasOnly(['name','disp','bal','level','color','ts','big','net','bxp','wag','since','best','ach','own'])
+          && request.resource.data.bal is number
+          && request.resource.data.bal < 1000000000000000;
+      }
       allow read: if true;
-      allow write: if request.resource.data.keys().hasOnly(['name','disp','bal','level','color','ts','big','net','bxp','wag','since','best','ach','own'])
-                   && request.resource.data.bal is number;
+      allow create: if ok();
+      allow update: if ok() && request.resource.data.name == resource.data.name;
     }
   }
 }

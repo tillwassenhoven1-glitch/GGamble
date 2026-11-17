@@ -778,6 +778,25 @@ body.inmach #app *{animation-play-state:paused!important}
 <canvas id="fx"></canvas>
 
 <script>
+/* ⏰ Echte Uhrzeit vom Server – Handy-Uhr verstellen bringt nichts mehr (Wetten, Börse, Bonus, Geschäfte) */
+const TIME = (() => {
+  const dn = Date.now.bind(Date), pn = () => performance.now();
+  let base = dn(), pb = pn(), ok = false, busy = null;
+  Date.now = () => Math.round(base + (pn() - pb));
+  const sync = () => busy || (busy = (async () => {
+    try {
+      const t0 = pn(), r = await fetch(location.href.split('#')[0].split('?')[0] + '?zeit=' + Math.random(), { method: 'HEAD', cache: 'no-store' });
+      const d = Date.parse(r.headers.get('date') || ''); if (!d) return false;
+      const t1 = pn(); base = d + 500 + (t1 - t0) / 2; pb = t1; ok = true; return true;
+    } catch (e) { return false; } finally { busy = null; }
+  })());
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(); });
+  addEventListener('online', () => sync());
+  setInterval(sync, 3 * 60e3);
+  return { sync, get ok() { return ok; } };
+})();
+const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafür brauchst du Internet (echte Uhrzeit wird geprüft) – gleich nochmal versuchen.', 'bad'); SND.err(); return false; };
+
 /* ===== core.js ===== */
 'use strict';
 const VERSION = '0.1.2 Open Beta';
@@ -803,9 +822,23 @@ function fmt(v, opt = {}) {
   return (neg ? MINUS : (opt.sign && v > 0 ? '+' : '')) + s + ' €';
 }
 const fmtInt = v => (v < 0 ? MINUS : '') + (Math.abs(v) >= 1e6 ? fmt(Math.abs(v)).replace(' €', '') : NF0.format(Math.abs(v))) + ' €';
-const dayKey = (d = new Date()) => d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
-function weekKey(d = new Date()) { const t = new Date(d); t.setHours(0, 0, 0, 0); t.setDate(t.getDate() - ((t.getDay() + 6) % 7)); return dayKey(t); }
+const dayKey = (d = new Date(Date.now())) => d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+function weekKey(d = new Date(Date.now())) { const t = new Date(d); t.setHours(0, 0, 0, 0); t.setDate(t.getDate() - ((t.getDay() + 6) % 7)); return dayKey(t); }
 function mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function fnv(str) { let h = 2166136261; for (const c of str) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); }
+/* Spielstand-Code mit Prüfsumme – selbst gebastelte Codes werden abgelehnt */
+const SAVE_SALT = 'gG#77-kR4uS3|';
+function codeMake(obj) { const b = btoa(unescape(encodeURIComponent(JSON.stringify(obj)))); return 'GG2:' + b + '.' + fnv(SAVE_SALT + b) + fnv(b + SAVE_SALT); }
+function codeRead(t) {
+  t = String(t || '').replace(/\s+/g, '');
+  if (t.startsWith('GG1:')) throw new Error('alt');
+  const m = /^GG2:([A-Za-z0-9+/=]+)\.([a-z0-9]+)$/.exec(t); if (!m) throw new Error('kaputt');
+  if (m[2] !== fnv(SAVE_SALT + m[1]) + fnv(m[1] + SAVE_SALT)) throw new Error('falsch');
+  const d = JSON.parse(decodeURIComponent(escape(atob(m[1]))));
+  if (typeof d.bal !== 'number' || !isFinite(d.bal)) throw new Error('kaputt');
+  return d;
+}
+const codeErr = e => toast(e && e.message === 'alt' ? 'Alter Code – bitte auf dem anderen Gerät neu kopieren (Profil → Einstellungen → Code kopieren).' : 'Ungültiger Code', 'bad');
 function hash32(n) { n = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b); n ^= n >>> 13; n = Math.imul(n, 0xc2b2ae35); n ^= n >>> 16; return (n >>> 0) / 4294967296; }
 
 /* ================= Icons ================= */
@@ -1570,7 +1603,7 @@ function openPotions(cb) {
 const WHEEL = [5, 1, 1.5, 1, 2, 1, 1.5, 1, 3, 1, 1.5, 1];
 function bonusReady() { return S.bonus.last !== dayKey(); }
 function openBonus() {
-  const y = new Date(); y.setDate(y.getDate() - 1);
+  const y = new Date(Date.now()); y.setDate(y.getDate() - 1);
   const streak = bonusReady() ? (S.bonus.last === dayKey(y) ? S.bonus.streak + 1 : 1) : S.bonus.streak;
   const basis = r2(base() * (1 + .1 * (Math.min(streak, 7) - 1)));
   const o = sheet(`<div class="row sb"><div><h2>Tagesbonus</h2><p class="hint" style="margin:6px 0 0;font-size:17px">Serie ${streak} Tag${streak > 1 ? 'e' : ''} · Basis ${fmt(basis)}</p></div><button class="x" data-close>${icon('x')}</button></div>
@@ -1936,6 +1969,7 @@ function slipUI(el, md) {
   $('#wGo', el).onclick = () => {
     const st = r2(slipStake); if (st < .1) { toast('Mindesteinsatz 0,10 €', 'bad'); return; }
     const mxw = Math.floor(maxStake() * 5); if (st > mxw) { toast(`Höchsteinsatz auf deinem Level: ${fmt(mxw)}`, 'bad'); return; }
+    if (!needTime()) return;
     if (Date.now() >= kickoff(md)) { toast('Anstoß ist schon – nächster Spieltag!', 'bad'); return; }
     if (!bet(st, 'Sportwetten')) return;
     S.bets.push({ id: Date.now(), md, sels, stake: st, odd, st: 'open' }); S.st.bets++; taskProg('bets', 1);
@@ -2117,6 +2151,7 @@ function renderBoerse(el) {
   $('#opx', el).oninput = e => bxUI.px = e.target.value;
   $('#lev', el).onchange = e => { B.lev = +e.target.value; save(); draw(); };
   const trade = dir => {
+    if (!needTime()) return;
     const lot = getLot(), sl = num('#sl'), tp = num('#tp'), q = quote(B.sym), ref = dir > 0 ? q.ask : q.bid;
     if (sl && (dir > 0 ? sl >= ref : sl <= ref)) { toast(`Stop Loss muss ${dir > 0 ? 'unter' : 'über'} dem Kurs liegen.`, 'bad'); return; }
     if (tp && (dir > 0 ? tp <= ref : tp >= ref)) { toast(`Take Profit muss ${dir > 0 ? 'über' : 'unter'} dem Kurs liegen.`, 'bad'); return; }
@@ -2200,7 +2235,7 @@ function taskBonus() {
 function tasksHTML(list) {
   return list.map(t => `<div class="task ${t.done ? 'done' : ''}"><div class="row sb"><b>${t.n}</b><span class="num" style="color:var(--mut)">${NF0.format(t.p)} / ${NF0.format(t.g)}</span></div><div class="bar"><i style="width:${t.p / t.g * 100}%"></i></div><span class="chip gold">${t.done ? '✓ ' : '+'}${fmt(t.rew)} · ${t.xp} XP</span></div>`).join('');
 }
-function untilMidnight() { const n = new Date(), m = new Date(n); m.setHours(24, 0, 0, 0); const s = (m - n) / 1000; return `${Math.floor(s / 3600)} Std. ${Math.floor(s % 3600 / 60)} Min.`; }
+function untilMidnight() { const n = new Date(Date.now()), m = new Date(n); m.setHours(24, 0, 0, 0); const s = (m - n) / 1000; return `${Math.floor(s / 3600)} Std. ${Math.floor(s % 3600 / 60)} Min.`; }
 
 /* ================= Glückstränke ================= */
 const POT_R = { 2: 10, 4: 6, 6: 4 };
@@ -3003,14 +3038,14 @@ function openSettings() {
     <div class="two" style="margin-top:10px"><button class="btn dark" id="out">${icon('out')} Abmelden</button><button class="btn red" id="del">Konto löschen</button></div>`);
   $$('[data-t]', o).forEach(b => b.onclick = () => { const k = b.dataset.t; S.set[k] = S.set[k] === false; b.classList.toggle('on', S.set[k] !== false); save(); SND.click(); });
   $('#sPw', o).onclick = async () => { const p = $('#nPw', o).value; if (p.length < 4) { toast('Mindestens 4 Zeichen', 'bad'); return; } const all = Accounts.all(), a = all[ACC]; a.salt = Math.random().toString(36).slice(2); a.hash = await Accounts.hash(p, a.salt); const old = a.cid; a.cid = await cloudId(ACC, p); Accounts.put(all); persist(); if (onlineOn()) { cloudLast = ''; cloudPush(true); if (old && old !== a.cid) fetch(fsDoc('konten/' + old), { method: 'DELETE' }).catch(() => { }); } $('#nPw', o).value = ''; toast('Passwort geändert ✓', 'good'); };
-  $('#exp', o).onclick = async () => { persist(); const code = 'GG1:' + btoa(unescape(encodeURIComponent(JSON.stringify({ ...S, photo: '' })))); try { await navigator.clipboard.writeText(code); toast('Spielstand-Code kopiert 📋', 'good'); } catch (e) { sheet(`<h2>Dein Code</h2><textarea class="inp" style="height:200px;font-size:12px" readonly>${code}</textarea>`, { center: true }); } };
+  $('#exp', o).onclick = async () => { persist(); const code = codeMake({ ...S, photo: '' }); try { await navigator.clipboard.writeText(code); toast('Spielstand-Code kopiert 📋', 'good'); } catch (e) { sheet(`<h2>Dein Code</h2><textarea class="inp" style="height:200px;font-size:12px" readonly>${code}</textarea>`, { center: true }); } };
   $('#imp', o).onclick = () => {
     const s2 = sheet(`<h2>Code laden</h2><p class="hint">Achtung: überschreibt den Spielstand von <b>${esc(S.disp)}</b>.</p><textarea class="inp" id="ic" style="height:160px;font-size:12px"></textarea><button class="btn white w" id="ig" style="margin-top:12px">Laden</button>`, { center: true });
-    $('#ig', s2).onclick = () => { try { const t = $('#ic', s2).value.trim(); if (!t.startsWith('GG1:')) throw 0; const d = JSON.parse(decodeURIComponent(escape(atob(t.slice(4))))); if (typeof d.bal !== 'number') throw 0; const nm = S.name; S = Object.assign(newState(nm), d, { name: nm }); persist(); location.reload(); } catch (e) { toast('Ungültiger Code', 'bad'); } };
+    $('#ig', s2).onclick = () => { try { const d = codeRead($('#ic', s2).value); const nm = S.name; S = Object.assign(newState(nm), d, { name: nm }); persist(); location.reload(); } catch (e) { codeErr(e); } };
   };
   const bindCheat = () => {
     const box = $('#cheatBox', o), g = $('#cGo2', o);
-    if (g) g.onclick = () => { if ($('#cCode', o).value.trim() === '4uT2-U6G3') { S.cheat = true; save(); toast('😎 Cheat-Menü freigeschaltet!', 'good'); SND.win(); box.innerHTML = cheatHTML(); bindCheat(); } else { toast('❌ Falscher Code', 'bad'); SND.err(); } };
+    if (g) g.onclick = () => { if (fnv('gg-cheat|' + $('#cCode', o).value.trim()) === '1c78nwo') { S.cheat = true; save(); toast('😎 Cheat-Menü freigeschaltet!', 'good'); SND.win(); box.innerHTML = cheatHTML(); bindCheat(); } else { toast('❌ Falscher Code', 'bad'); SND.err(); } };
     box.onclick = e => { const b = e.target.closest('[data-ch]'); if (!b) return; doCheat(b.dataset.ch); box.innerHTML = S.cheat ? cheatHTML() : `<div class="row"><input class="inp" id="cCode" placeholder="Code…" autocomplete="off"><button class="btn dark sm" id="cGo2">OK</button></div>`; bindCheat(); };
   };
   bindCheat();
@@ -3026,7 +3061,7 @@ function openSettings() {
   $('#del', o).onclick = async () => { if (await confirmBox('Konto löschen?', `<b>${esc(S.disp)}</b> und der komplette Spielstand werden gelöscht. Das geht nicht rückgängig.`, 'Löschen', true)) { const all = Accounts.all(); delete all[ACC]; Accounts.put(all); localStorage.removeItem(SES_KEY); S = null; location.reload(); } };
 }
 
-/* ================= Cheat-Menü (Code 4uT2-U6G3) ================= */
+/* ================= Cheat-Menü ================= */
 const CHEATS = [['m1', '💰 +1.000 €'], ['m2', '💰 +1 Mio. €'], ['m3', '💰 +1 Mrd. €'], ['lv', '⭐ +5 Level'], ['lvmax', '🔓 Alles freischalten (Level 50)'], ['en', '⚡ Energie voll'], ['pot', '🧪 +3 von jedem Trank'], ['debt', '🧾 Schulden weg'], ['bonus', '🎁 Tagesbonus nochmal'], ['off', '🔒 Cheats ausblenden']];
 function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px">${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
 function doCheat(k) {
@@ -3130,18 +3165,17 @@ function showLogin() {
   $('#lGo').onclick = go_;
   if ($('#lImp')) $('#lImp').onclick = () => {
     const o = sheet(`<h2>Konto holen</h2><p class="hint" style="font-size:16px">1. Auf dem <b>alten Gerät</b>: Profil → ⚙️ Einstellungen → <b>„Code kopieren“</b><br>2. Code hier einfügen und ein Passwort für dieses Gerät festlegen.</p>
-      <textarea class="inp" id="iCode" style="height:120px;font-size:12px" placeholder="GG1:…"></textarea>
+      <textarea class="inp" id="iCode" style="height:120px;font-size:12px" placeholder="GG2:…"></textarea>
       <input class="inp" id="iPw" type="password" placeholder="Passwort für dieses Gerät" style="margin-top:10px">
       <button class="btn white w" id="iGo" style="margin-top:12px">Konto übernehmen</button>`, { center: true });
     $('#iGo', o).onclick = async () => {
       try {
-        const t = $('#iCode', o).value.trim(); if (!t.startsWith('GG1:')) throw 0;
-        const d = JSON.parse(decodeURIComponent(escape(atob(t.slice(4))))); if (typeof d.bal !== 'number' || !d.name) throw 0;
+        const d = codeRead($('#iCode', o).value); if (!d.name) throw new Error('kaputt');
         const pw = $('#iPw', o).value; if (pw.length < 4) { toast('Passwort: mindestens 4 Zeichen', 'bad'); return; }
         const key = d.name.toLowerCase(), all = Accounts.all(), salt = Math.random().toString(36).slice(2) + Date.now().toString(36);
         all[key] = { name: d.name, salt, hash: await Accounts.hash(pw, salt), created: d.created || Date.now(), save: d };
         Accounts.put(all); localStorage.setItem(SES_KEY, key); toast(`Konto „${esc(d.name)}“ übernommen ✓`, 'good'); setTimeout(() => location.reload(), 600);
-      } catch (e) { toast('Ungültiger Code', 'bad'); SND.err(); }
+      } catch (e) { codeErr(e); SND.err(); }
     };
   };
   $$('#login input').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') go_(); }));
@@ -3228,11 +3262,11 @@ document.addEventListener('touchend', e => { const n = Date.now(); if (n - lastT
 /* ================= Start ================= */
 $('#ver').textContent = 'Version ' + VERSION; $('#lVer').textContent = 'Version ' + VERSION;
 FX.init();
-setTimeout(() => {
+Promise.all([Promise.race([TIME.sync(), new Promise(r => setTimeout(r, 4000))]), new Promise(r => setTimeout(r, 1500))]).then(() => {
   $('#splash').classList.add('out'); setTimeout(() => $('#splash').remove(), 800);
   const k = localStorage.getItem(SES_KEY), all = Accounts.all();
   if (k && all[k]) startApp(k); else showLogin();
-}, 1500);
+});
 
 </script>
 </body>
