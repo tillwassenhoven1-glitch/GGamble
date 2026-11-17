@@ -2999,7 +2999,8 @@ function openSettings() {
     <div class="two"><button class="btn dark sm" id="exp">Code kopieren</button><button class="btn dark sm" id="imp">Code laden</button></div>
     <div class="lbl2">🔑 Code eingeben</div>
     <div id="cheatBox">${S.cheat ? cheatHTML() : `<div class="row"><input class="inp" id="cCode" placeholder="Code…" autocomplete="off"><button class="btn dark sm" id="cGo2">OK</button></div>`}</div>
-    <div class="two" style="margin-top:22px"><button class="btn dark" id="out">${icon('out')} Abmelden</button><button class="btn red" id="del">Konto löschen</button></div>`);
+    <button class="btn dark w" id="rst" style="margin-top:22px">🔄 Konto zurücksetzen</button>
+    <div class="two" style="margin-top:10px"><button class="btn dark" id="out">${icon('out')} Abmelden</button><button class="btn red" id="del">Konto löschen</button></div>`);
   $$('[data-t]', o).forEach(b => b.onclick = () => { const k = b.dataset.t; S.set[k] = S.set[k] === false; b.classList.toggle('on', S.set[k] !== false); save(); SND.click(); });
   $('#sPw', o).onclick = async () => { const p = $('#nPw', o).value; if (p.length < 4) { toast('Mindestens 4 Zeichen', 'bad'); return; } const all = Accounts.all(), a = all[ACC]; a.salt = Math.random().toString(36).slice(2); a.hash = await Accounts.hash(p, a.salt); const old = a.cid; a.cid = await cloudId(ACC, p); Accounts.put(all); persist(); if (onlineOn()) { cloudLast = ''; cloudPush(true); if (old && old !== a.cid) fetch(fsDoc('konten/' + old), { method: 'DELETE' }).catch(() => { }); } $('#nPw', o).value = ''; toast('Passwort geändert ✓', 'good'); };
   $('#exp', o).onclick = async () => { persist(); const code = 'GG1:' + btoa(unescape(encodeURIComponent(JSON.stringify({ ...S, photo: '' })))); try { await navigator.clipboard.writeText(code); toast('Spielstand-Code kopiert 📋', 'good'); } catch (e) { sheet(`<h2>Dein Code</h2><textarea class="inp" style="height:200px;font-size:12px" readonly>${code}</textarea>`, { center: true }); } };
@@ -3013,6 +3014,14 @@ function openSettings() {
     box.onclick = e => { const b = e.target.closest('[data-ch]'); if (!b) return; doCheat(b.dataset.ch); box.innerHTML = S.cheat ? cheatHTML() : `<div class="row"><input class="inp" id="cCode" placeholder="Code…" autocomplete="off"><button class="btn dark sm" id="cGo2">OK</button></div>`; bindCheat(); };
   };
   bindCheat();
+  $('#rst', o).onclick = async () => {
+    if (!await confirmBox('Konto zurücksetzen?', `Der Spielstand von <b>${esc(S.disp)}</b> startet komplett neu mit ${fmt(500)} – Geld, Level, Erfolge, Geschäfte und Börse sind weg. Name, Passwort, Profilbild und Einstellungen bleiben. Das geht nicht rückgängig.`, 'Zurücksetzen', true)) return;
+    const keep = { name: S.name, disp: S.disp, photo: S.photo, color: S.color, lbId: S.lbId, owner: S.owner, cheat: S.cheat, set: S.set };
+    S = Object.assign(newState(S.name), keep); persist();
+    const a = Accounts.all()[ACC];
+    try { if (onlineOn() && a && a.cid) { await cloudPut(a.cid, a, S); lbLast = ''; pushScore(true); } } catch (e) { }
+    toast('🔄 Konto zurückgesetzt', 'good'); setTimeout(() => location.reload(), 900);
+  };
   $('#out', o).onclick = () => { persist(); localStorage.removeItem(SES_KEY); location.reload(); };
   $('#del', o).onclick = async () => { if (await confirmBox('Konto löschen?', `<b>${esc(S.disp)}</b> und der komplette Spielstand werden gelöscht. Das geht nicht rückgängig.`, 'Löschen', true)) { const all = Accounts.all(); delete all[ACC]; Accounts.put(all); localStorage.removeItem(SES_KEY); S = null; location.reload(); } };
 }
