@@ -907,8 +907,8 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 /* ===== core.js ===== */
 'use strict';
 const VERSION = '0.2.1 Open Beta';
-const FORCE_V = 2; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
-const WARTUNG = true; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
+const FORCE_V = 3; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
+const WARTUNG = false; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
 /* ================= Helfer ================= */
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
