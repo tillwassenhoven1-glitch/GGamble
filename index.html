@@ -2454,8 +2454,8 @@ function mkTasks(seed, mult, money, xp) {
 function ensureTasks() {
   const d = dayKey(), w = weekKey();
   if (!S.tasks) S.tasks = {};
-  if (S.tasks.d !== d) { S.tasks.d = d; S.tasks.day = mkTasks(hashStr(d + ACC), 1, 2.67, 14 + S.level * 14); }
-  if (S.tasks.w !== w) { S.tasks.w = w; S.tasks.week = mkTasks(hashStr(w + ACC + 'w'), 6, 8.7, 240); }
+  if (S.tasks.d !== d) { S.tasks.d = d; S.tasks.day = mkTasks(hashStr(d + ACC), 1, 2, 14 + S.level * 14); }
+  if (S.tasks.w !== w) { S.tasks.w = w; S.tasks.week = mkTasks(hashStr(w + ACC + 'w'), 6, 6.5, 240); }
 }
 function hashStr(s) { let h = 7; for (const c of String(s)) h = Math.imul(h ^ c.charCodeAt(0), 2654435761); return h >>> 0; }
 function taskProg(k, v) {
@@ -2478,7 +2478,7 @@ function tasksHTML(list) {
 function untilMidnight() { const n = new Date(Date.now()), m = new Date(n); m.setHours(24, 0, 0, 0); const s = (m - n) / 1000; return `${Math.floor(s / 3600)} Std. ${Math.floor(s % 3600 / 60)} Min.`; }
 
 /* ================= Glückstränke ================= */
-const POT_R = { 2: 10, 4: 6, 6: 4 };
+const POT_R = { 2: 8, 4: 5, 6: 3 };
 const potCap = () => r2(base() * 1.5);
 function potionsHTML() {
   return `<div class="pots">${[2, 4, 6].map(m => `<div><div class="pot p${m}"><i>×${m}</i></div><b class="num">${S.pot[m]}×</b><button class="btn dark sm w" data-drink="${m}" ${S.pot[m] < 1 || S.potAct ? 'disabled' : ''}>Trinken</button></div>`).join('')}</div>`;
@@ -2549,7 +2549,7 @@ function startGame(id) {
       html = `<h2>${m ? `Trank ×${m} gebraut!` : 'Misslungen…'}</h2><p>${score} Treffer${m ? '' : ' – du brauchst mindestens 6.'}</p>${m ? `<div class="pot p${m}" style="margin:0 auto 24px;animation:pop .6s var(--spring)"><i>×${m}</i></div>` : ''}`;
       if (m) { SND.big(); FX.burst(100, { cols: ['#c487f0', '#5fa0f5', '#7ad07a', '#fff'] }); } else SND.lose();
     } else {
-      const amt = r2(base() * clamp(score / max, 0, 1));
+      const amt = r2(base() * .75 * clamp(score / max, 0, 1));
       S.st.shifts++; taskProg('shifts', 1);
       let potTxt = '';
       if (score >= max) { S.st.perfect++; if (Math.random() < .05) { S.pot[2]++; potTxt = '<br>✨ Bonus: Glückstrank ×2!'; } }
@@ -2737,7 +2737,7 @@ function labRun(body, done, cl, isEnded) {
 
 /* ================= Imperium ================= */
 const SHOPS = [['kiosk', 'Kiosk', '🏪', 500, 10], ['spaeti', 'Späti', '🏬', 2500, 45], ['doener', 'Dönerbude', '🥙', 10000, 160], ['wasch', 'Waschsalon', '🧺', 40000, 560], ['bar', 'Cocktailbar', '🍸', 150000, 1900], ['hotel', 'Hotel', '🏨', 750000, 8500], ['casino', 'Casino', '🎰', 5e6, 50000], ['bank', 'Privatbank', '🏦', 4e7, 350000]];
-const shopInc = (s, l) => l > 0 ? s[4] * Math.pow(1.5, l - 1) : 0;
+const shopInc = (s, l) => l > 0 ? r2(s[4] * .8 * Math.pow(1.5, l - 1)) : 0;
 const shopCost = (s, l) => r2(s[3] * Math.pow(1.8, l));
 function shopRate() { return r2(SHOPS.reduce((a, s) => a + shopInc(s, S.shops[s[0]] || 0), 0)); }
 function shopPending() { const h = Math.min(24, (Date.now() - S.shopTs) / 36e5); return r2(shopRate() * h); }
@@ -3684,26 +3684,27 @@ async function renameAcc(name, pw) {
   SND.win(); toast(`✏️ Du heißt jetzt ${esc(name)}`, 'good', 3500); hdr(true); setTimeout(() => location.reload(), 1500);
 }
 /* ================= Belohnungen (Battle Pass + Kalender) ================= */
+const RW_F = .75; // 💸 Wirtschaft etwas gedrosselt (0.2.6)
 function rwTxt([t, v]) {
-  if (t === 'm') return fmt(r2(v * base()));
+  if (t === 'm') return fmt(r2(v * base() * RW_F));
   if (t === 'p') return `Glückstrank ×${v}`;
   if (t === 'e') return `+${v} ⚡ Energie`;
   if (t === 'f') return `Rahmen „${frName(v)}“`;
   if (t === 't') return `Titel „${titName(v)}“`;
   if (t === 'ft') { const [f, ti] = v.split('|'); return `Rahmen „${frName(f)}“ + Titel „${titName(ti)}“`; }
-  if (t === 'big') return `${fmt(r2(v * base()))} + Glückstrank ×6`;
+  if (t === 'big') return `${fmt(r2(v * base() * RW_F))} + Glückstrank ×6`;
   return '';
 }
 function rwIcon(t) { return { m: '💰', p: '🧪', e: '⚡', f: '🖼️', t: '🏷️', ft: '🔥', big: '🎁' }[t] || '🎁'; }
 function giveRw([t, v]) {
   const txt = rwTxt([t, v]);
-  if (t === 'm') earn(r2(v * base()), 'Belohnung');
+  if (t === 'm') earn(r2(v * base() * RW_F), 'Belohnung');
   else if (t === 'p') S.pot[v] = (S.pot[v] || 0) + 1;
   else if (t === 'e') addEnergy(v);
   else if (t === 'f') { if (!S.frames.includes(v)) S.frames.push(v); }
   else if (t === 't') { if (!S.titles.includes(v)) S.titles.push(v); }
   else if (t === 'ft') { const [f, ti] = v.split('|'); if (!S.frames.includes(f)) S.frames.push(f); if (!S.titles.includes(ti)) S.titles.push(ti); }
-  else if (t === 'big') { earn(r2(v * base()), 'Kalender'); S.pot[6] = (S.pot[6] || 0) + 1; }
+  else if (t === 'big') { earn(r2(v * base() * RW_F), 'Kalender'); S.pot[6] = (S.pot[6] || 0) + 1; }
   hdr(true); checkAch(); save();
   return txt;
 }
