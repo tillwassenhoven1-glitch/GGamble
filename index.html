@@ -1127,9 +1127,33 @@ function celebrate(amount, mult, label) {
 }
 
 /* ================= Toast / Sheets ================= */
-function toast(msg, kind = '', ms = 3200) {
+/* 👆 Antippbare Benachrichtigungen: führen zur passenden Seite (Ziel aus dem Text erkannt oder direkt übergeben) */
+const TOAST_GO = [
+  [/Level \d+ erreicht|Battle-Pass|BP-Punkte|Mission|Belohnung/i, 'pass'],
+  [/Aufgabe/i, 'spiele'], [/Energie|⚡|Glückstrank|Trank/i, 'spiele'],
+  [/Freund|Duell|⚔️/i, 'freunde'], [/Clan/i, 'clan'],
+  [/📣|Bestenliste|Platz \d/i, 'rang'],
+  [/Erfolg|Abzeichen|Titel/i, 'profil'],
+  [/Position|Stop Loss|Take Profit|Börse|Margin/i, 'boerse'], [/Wette/i, 'wetten'],
+  [/Laden|Imperium|Einnahmen/i, 'imperium'], [/Dispo|Kredit|Insolvenz|Mahnung|Inkasso|Zinsen|Konto/i, 'konto'],
+  [/Rubbel|Los\b|Lose\b/i, 'lose']];
+function toastDest(msg, kind) {
+  if (kind === 'bad') return null;
+  const txt = String(msg).replace(/<[^>]+>/g, '');
+  for (const [re, p] of TOAST_GO) if (re.test(txt)) return p;
+  return null;
+}
+function toast(msg, kind = '', ms = 3200, dest) {
   const t = document.createElement('div'); t.className = 'toast ' + kind;
-  t.innerHTML = `<div class="ti">${kind === 'good' ? '✓' : kind === 'bad' ? '!' : 'i'}</div><div>${msg}</div>`;
+  if (dest === undefined) dest = toastDest(msg, kind);
+  const can = dest && (typeof dest === 'function' || (typeof PAGES !== 'undefined' && PAGES[dest]));
+  t.innerHTML = `<div class="ti">${kind === 'good' ? '✓' : kind === 'bad' ? '!' : 'i'}</div><div style="flex:1">${msg}</div>${can ? '<div style="opacity:.55;font-size:22px">›</div>' : ''}`;
+  if (can) {
+    t.style.pointerEvents = 'auto'; t.style.cursor = 'pointer';
+    t.onclick = () => { if (!S || document.querySelector('.game-ov[data-run]') || (typeof MS !== 'undefined' && MS && MS.busy)) return; t.classList.add('out'); setTimeout(() => t.remove(), 300); SND.click();
+      document.querySelectorAll('.ov').forEach(o => o.close ? o.close() : o.remove());
+      if (typeof dest === 'function') dest(); else go(dest); };
+  }
   $('#toasts').appendChild(t);
   setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 400); }, ms);
 }
@@ -3047,7 +3071,7 @@ async function recallAll() {
 }
 function broadcast(m) { Object.values(T.conns).forEach(c => { try { c.open && c.send(m); } catch (e) { } }); }
 function sysMsg(t) { T.log.push(`<p style="color:var(--mut)">${t}</p>`); refreshChat(); }
-function addMsg(n, t) { T.log.push(`<p><b>${esc(n)}:</b> ${esc(t)}</p>`); if (T.log.length > 100) T.log.shift(); refreshChat(); if (!T.ov) { toast(`💬 ${esc(n)}: ${esc(t).slice(0, 60)}`); } }
+function addMsg(n, t) { T.log.push(`<p><b>${esc(n)}:</b> ${esc(t)}</p>`); if (T.log.length > 100) T.log.shift(); refreshChat(); if (!T.ov) { toast(`💬 ${esc(n)}: ${esc(t).slice(0, 60)}`, '', 3200, 'treff'); } }
 function refreshChat() { $$('.chatlog').forEach(l => { l.innerHTML = T.log.join(''); l.scrollTop = 1e6; }); }
 function roomUI() {
   if (!T.room) return;
@@ -4281,7 +4305,7 @@ async function dmPoll(first) {
     DM.inbox.push(...fresh);
     if (!first && fresh.length && (!DM.open || fresh.some(m => m.von !== DM.open))) {
       const m = fresh.find(x => x.von !== DM.open);
-      if (m) { toast(`💬 <b>${esc(m.disp || m.von)}</b>: ${esc(m.txt).slice(0, 60)}`, 'good', 4500); SND.coin(); }
+      if (m) { toast(`💬 <b>${esc(m.disp || m.von)}</b>: ${esc(m.txt).slice(0, 60)}`, 'good', 4500, () => openDM(m.von, m.disp || m.von)); SND.coin(); }
     }
     frBadge();
   } catch (e) { }
