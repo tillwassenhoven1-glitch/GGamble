@@ -144,6 +144,12 @@ service cloud.firestore {
       allow create, update: if request.resource.data.keys().hasOnly(['p','ts']) && request.resource.data.p is string && request.resource.data.p.size() <= 20000;
       allow delete: if false;
     }
+    match /treff/{id} {
+      allow read: if true;
+      allow create, update: if request.resource.data.keys().hasOnly(['r','pid','name','rt','ts','txt'])
+                            && request.resource.data.rt is string && request.resource.data.get('txt', '').size() <= 200;
+      allow delete: if false;
+    }
   }
 }
 ```

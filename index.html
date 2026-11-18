@@ -2894,7 +2894,7 @@ function renderTreff(el) {
     <button class="btn dark" id="camT" style="margin-bottom:18px">${icon('wand')} Kamera &amp; Filter testen</button>
     ${ROOMS.map(([id, n, ic, lvl]) => `<div class="card room"><div class="ibox">${icon(ic)}</div><div class="inf"><b>${n}</b><small>${T.room === id ? `Du bist drin · ${Object.keys(T.names).length + 1} Leute` : 'Video-Raum · bis 6 Leute'}</small></div>
       ${S.level < lvl ? `<span class="chip">${icon('lock')} Level ${lvl}</span>` : T.room === id ? `<button class="btn white sm" data-open>Öffnen</button>` : `<button class="btn white sm" data-r="${id}">Beitreten</button>`}</div>`).join('')}
-    <div class="card"><div class="row" style="align-items:flex-start">${icon('face')}<p class="hint" style="margin:0">Räume laufen direkt zwischen den Geräten (über PeerJS). Wer zuerst im Raum ist, ist der Gastgeber – verlässt er den Raum, schließt er sich. In manchen Schul- oder Firmen-WLANs kann die Verbindung blockiert sein.</p></div></div>`;
+    <div class="card"><div class="row" style="align-items:flex-start">${icon('face')}<p class="hint" style="margin:0">Wer im Raum ist und der Chat laufen über GGamble-Online – das klappt immer. Video läuft direkt zwischen den Geräten; in manchen Schul-/Firmen-WLANs oder Handy-Netzen kann nur das Video blockiert sein.</p></div></div>`;
   $('#camT', el).onclick = camTest;
   el.onclick = e => { const b = e.target.closest('[data-r]'); if (b) joinRoom(b.dataset.r); if (e.target.closest('[data-open]')) roomUI(); };
 }
@@ -2919,60 +2919,70 @@ const PEER_CFG = { config: { iceServers: [
   { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' },
   { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
   { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-  { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }] } };
+  { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'stun:freestun.net:3478' }, { urls: 'turn:freestun.net:3478', username: 'free', credential: 'free' }] } };
 function loadPeer() {
   if (window.Peer) return Promise.resolve();
   return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js'; s.onload = res; s.onerror = () => rej(new Error('PeerJS konnte nicht geladen werden')); document.head.appendChild(s); });
 }
+/* Treff: Wer im Raum ist + Chat laufen über Firestore (/treff) – klappt immer. Video per PeerJS direkt zwischen den Geräten. */
+const TF = { pid: '', join: 0, seen: new Set(), tryC: {}, since: {}, hb: 0, poll: 0 };
+const trDoc = (id, f, keep) => fetch(fsDoc('treff/' + encodeURIComponent(id)), { method: 'PATCH', keepalive: !!keep, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: f }) });
+function trBeat(gone, keep) {
+  if (!T.room || !TF.pid) return;
+  const t = gone ? 0 : Date.now();
+  return trDoc(T.room + '~' + TF.pid, { r: fstr(T.room), pid: fstr(TF.pid), name: fstr(S.disp), rt: fstr('p:' + T.room + '|' + padTs(t)), ts: fint(t) }, keep).catch(() => { });
+}
+async function trPoll() {
+  const room = T.room; if (!room || document.hidden && !T.stream) return;
+  try {
+    const [ps, ms] = await Promise.all([
+      fsQuery({ from: [{ collectionId: 'treff' }], where: rangeQ('rt', 'p:' + room, Date.now() - 30000), limit: 30 }),
+      fsQuery({ from: [{ collectionId: 'treff' }], where: rangeQ('rt', 'm:' + room, TF.join - 3000), orderBy: [{ field: { fieldPath: 'rt' }, direction: 'ASCENDING' }], limit: 100 })]);
+    if (T.room !== room) return;
+    const live = {}; ps.forEach(p => { if (p.pid && p.pid !== TF.pid) live[p.pid] = p.name || '?'; });
+    Object.entries(live).forEach(([pid, n]) => {
+      if (!T.names[pid]) { TF.since[pid] = Date.now(); sysMsg(`${esc(n)} ist da 👋`); }
+      T.names[pid] = n;
+      // Verbindung baut immer der mit der kleineren ID auf (sonst doppelt)
+      if (T.peer && !T.conns[pid] && TF.pid < pid && !(TF.tryC[pid] > Date.now() - 15000)) { TF.tryC[pid] = Date.now(); try { wireConn(T.peer.connect(pid, { reliable: true })); if (T.stream) callPeer(pid); } catch (e) { } }
+    });
+    Object.keys(T.names).forEach(pid => { if (live[pid] || (T.conns[pid] && T.conns[pid].open)) return; const n = T.names[pid]; delete T.names[pid]; if (T.calls[pid]) { try { T.calls[pid].close(); } catch (e) { } delete T.calls[pid]; } sysMsg(`${esc(n)} ist gegangen`); });
+    ms.forEach(m => { if (TF.seen.has(m.id)) return; TF.seen.add(m.id); if (m.pid !== TF.pid) addMsg(m.name || '?', m.txt || ''); });
+    refreshRoom();
+  } catch (e) { }
+}
+function trSend(txt) {
+  const now = Date.now();
+  return fsCreate('treff', null, { r: fstr(T.room), pid: fstr(TF.pid), name: fstr(S.disp), txt: fstr(txt.slice(0, 200)), rt: fstr('m:' + T.room + '|' + padTs(now)), ts: fint(now) }).then(r => { if (!r.ok) throw 0; }).catch(() => broadcast({ t: 'chat', name: S.disp, txt }));
+}
 async function joinRoom(id) {
   if (T.room) { if (T.room === id) return roomUI(); await leaveRoom(); }
+  if (!onlineOn()) { toast('Treff braucht die Online-Verbindung.', 'bad'); return; }
   toast('Verbinde mit dem Raum …');
-  try { await loadPeer(); } catch (e) { toast(e.message, 'bad'); return; }
   await getCam();
-  T.room = id; T.names = {}; T.log = []; T.conns = {}; T.calls = {}; T.filt = {}; T.ask = {};
+  T.room = id; T.names = {}; T.log = []; T.conns = {}; T.calls = {}; T.filt = {}; T.ask = {}; T.host = false;
+  TF.join = Date.now(); TF.seen = new Set(); TF.tryC = {}; TF.since = {};
   clearInterval(T.healT); T.healT = setInterval(healVideo, 4000);
-  const base = 'ggamble-treff-v1-' + id;
-  const setup = (peer, host) => {
-    T.peer = peer; T.host = host;
+  let peer = null;
+  try {
+    await loadPeer();
+    peer = await new Promise(res => { const p = new Peer(undefined, PEER_CFG); let d = false; const no = () => { if (d) return; d = true; try { p.destroy(); } catch (x) { } res(null); }; p.on('open', () => { if (!d) { d = true; res(p); } }); p.on('error', no); setTimeout(no, 10000); });
+  } catch (e) { }
+  if (T.room !== id) { try { peer && peer.destroy(); } catch (e) { } return; }
+  if (peer) {
+    T.peer = peer; TF.pid = peer.id;
     peer.on('connection', conn => wireConn(conn));
     peer.on('call', call => { call.answer(T.stream || undefined); wireCall(call); });
     peer.on('disconnected', () => { try { peer.reconnect(); } catch (e) { } });
-  };
-  // Als Gastgeber versuchen (ID frei?)
-  const tryHost = hid => new Promise(res => {
-    const p = new Peer(hid, PEER_CFG); let done = false;
-    const fin = r => { if (done) return; done = true; res(r); };
-    p.on('open', () => fin({ p }));
-    p.on('error', e => { try { p.destroy(); } catch (x) { } fin({ err: e.type }); });
-    setTimeout(() => { try { p.destroy(); } catch (x) { } fin({ err: 'timeout' }); }, 9000);
-  });
-  // Als Gast zu einem Gastgeber verbinden – antwortet er nicht (z. B. „Geister-Gastgeber“ nach Neuladen), nächster Platz
-  let G = null;
-  const guestPeer = () => G ? Promise.resolve(G) : new Promise((res, rej) => { const g = new Peer(undefined, PEER_CFG); g.on('open', () => { G = g; setup(g, false); res(g); }); g.on('error', e => { if (!G) rej(e); }); setTimeout(() => !G && rej(new Error('timeout')), 9000); });
-  const tryGuest = (g, hid) => new Promise(res => {
-    const c = g.connect(hid, { reliable: true }); let done = false;
-    const fin = ok => { if (done) return; done = true; if (!ok) { try { c.close(); } catch (e) { } } res(ok); };
-    c.on('open', () => fin(true));
-    const onErr = e => { if (e && e.type === 'peer-unavailable' && String(e.message || '').includes(hid)) fin(false); };
-    g.on('error', onErr);
-    wireConn(c, true);
-    setTimeout(() => { g.off && g.off('error', onErr); fin(false); }, 20000);
-  });
-  for (let i = 0; i < 4 && T.room === id; i++) {
-    const hid = base + (i ? '-' + i : '');
-    const h = await tryHost(hid);
-    if (h.p) {
-      if (G) { try { G.destroy(); } catch (e) { } }
-      setup(h.p, true); sysMsg('Du hast den Raum eröffnet. Warte auf andere …'); S.st.treff++; checkAch(); roomUI(); go(curPage, true); return;
-    }
-    if (h.err !== 'unavailable-id') { toast('Verbindung fehlgeschlagen: ' + h.err, 'bad'); return leaveRoom(); }
-    let g; try { g = await guestPeer(); } catch (e) { toast('Verbindung fehlgeschlagen – Internet prüfen.', 'bad'); return leaveRoom(); }
-    if (await tryGuest(g, hid)) { S.st.treff++; checkAch(); roomUI(); go(curPage, true); return; }
-  }
-  if (T.room === id) { toast('Raum gerade nicht erreichbar – versuch es gleich nochmal.', 'bad'); leaveRoom(); }
+  } else { TF.pid = 'x' + Math.random().toString(36).slice(2, 12); sysMsg('⚠️ Video-Server gerade nicht erreichbar – der Chat funktioniert trotzdem.'); }
+  sysMsg('Du bist im Raum. Andere sehen dich in ein paar Sekunden.');
+  trBeat(); clearInterval(TF.hb); TF.hb = setInterval(() => trBeat(), 10000);
+  clearInterval(TF.poll); TF.poll = setInterval(trPoll, 3000); setTimeout(trPoll, 600);
+  S.st.treff++; checkAch(); roomUI(); go(curPage, true);
 }
 // Beim Schließen der Seite die Raum-ID sofort freigeben (sonst bleibt ein „Geister-Gastgeber“ übrig)
-addEventListener('pagehide', () => { try { if (T.peer) T.peer.destroy(); } catch (e) { } });
+addEventListener('pagehide', () => { try { trBeat(true, true); if (T.peer) T.peer.destroy(); } catch (e) { } });
 function wireConn(conn, toHost) {
   conn.on('open', () => {
     T.conns[conn.peer] = conn;
@@ -2981,7 +2991,7 @@ function wireConn(conn, toHost) {
   conn.on('data', d => {
     if (!d || !d.t) return;
     if (d.t === 'hi') {
-      T.names[conn.peer] = d.name; T.filt[conn.peer] = d.f; sysMsg(`${esc(d.name)} ist da 👋`);
+      if (!T.names[conn.peer]) { TF.since[conn.peer] = Date.now(); sysMsg(`${esc(d.name)} ist da 👋`); } T.names[conn.peer] = d.name; T.filt[conn.peer] = d.f;
       if (T.host) { conn.send({ t: 'peers', list: Object.keys(T.conns).filter(p => p !== conn.peer).map(p => ({ id: p, name: T.names[p] })) }); }
       refreshRoom();
     } else if (d.t === 'peers') {
@@ -3031,7 +3041,7 @@ function roomUI() {
     <div class="row"><input class="inp" id="cIn" placeholder="Nachricht …" maxlength="200"><button class="btn white sm" id="cGo">Senden</button></div>
     <button class="btn red w" id="rLeave" style="margin-top:14px">Raum verlassen</button>`, { onClose: () => { T.ov = null; updMini(); } });
   T.ov = o; refreshRoom(); refreshChat(); updMini();
-  const send = () => { const i = $('#cIn', o), t = i.value.trim(); if (!t) return; i.value = ''; addMsg(S.disp, t); broadcast({ t: 'chat', name: S.disp, txt: t }); };
+  const send = () => { const i = $('#cIn', o), t = i.value.trim(); if (!t) return; i.value = ''; addMsg(S.disp, t); trSend(t); };
   $('#cGo', o).onclick = send; $('#cIn', o).addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
   $('#rLeave', o).onclick = () => { o.close(); leaveRoom(); };
   $('#rRe', o).onclick = recallAll; $('#rDuel', o).onclick = duelPick;
@@ -3051,13 +3061,13 @@ function refreshRoom() {
     const me = $('#vMe', vg); if (me) { if (me.srcObject !== T.stream) me.srcObject = T.stream; me.style.filter = FILTERS[S.set.filter || 'Normal']; }
     $$('video[data-p]', vg).forEach(v => {
       const p = v.dataset.p, c = T.calls[p]; v.style.filter = FILTERS[T.filt[p] || 'Normal'];
-      const w = $(`[data-w="${p}"]`, vg); if (w) w.classList.toggle('hidden', !!(c && c._s));
+      const w = $(`[data-w="${p}"]`, vg); if (w) { w.classList.toggle('hidden', !!(c && c._s)); if (!(c && c._s)) w.textContent = Date.now() - (TF.since[p] || Date.now()) > 25000 ? 'Kein Video – Netzwerk blockiert? Chat geht trotzdem 💬' : 'Verbinde Video …'; }
       if (c && c._s && v.srcObject !== c._s) {
         v.srcObject = c._s;
         v.play().catch(() => { v.muted = true; v.play().catch(() => { }); const u = $(`[data-um="${p}"]`, vg); u && u.classList.remove('hidden'); });
       }
     });
-    const rc = $('#rCnt', T.ov); if (rc) rc.textContent = `${Object.keys(T.names).length + 1} im Raum${T.host ? ' · du bist Gastgeber' : ''}`;
+    const rc = $('#rCnt', T.ov); if (rc) rc.textContent = `${Object.keys(T.names).length + 1} im Raum`;
     const db = $('#rDuel', T.ov); if (db) db.disabled = !Object.keys(T.names).length || !!(T.duel && !T.duel.end);
   }
   updMini();
@@ -3069,6 +3079,7 @@ function updMini() {
   const v = $('video', m); if (v.srcObject !== T.stream) v.srcObject = T.stream; v.style.filter = FILTERS[S.set.filter || 'Normal'];
 }
 async function leaveRoom() {
+  clearInterval(TF.hb); clearInterval(TF.poll); trBeat(true);
   Object.values(T.calls).forEach(c => { try { c.close(); } catch (e) { } });
   Object.values(T.conns).forEach(c => { try { c.close(); } catch (e) { } });
   if (T.peer) { try { T.peer.destroy(); } catch (e) { } }
@@ -4827,13 +4838,13 @@ function giftTxt(k, amt, x) {
   if (k === 'en') return `${amt} Energie ⚡`;
   if (k === 'p2' || k === 'p4' || k === 'p6') return `${amt}× ${GIFT_K[k][1]}`;
   if (k === 'lv') return `${amt > 0 ? '+' : ''}${amt} Level`;
-  if (k === 'ban') return amt > 0 ? `Sperre für ${amt} Min.` : 'Entsperrung';
+  if (k === 'ban') return amt > 0 ? `Sperre für ${amt} ${x === 's' ? 'Sek.' : 'Min.'}` : 'Entsperrung';
   if (k === 'bp') return `${amt > 0 ? '+' : ''}${amt} Battle-Pass-Stufe${Math.abs(amt) === 1 ? '' : 'n'}`;
   return fmt(amt, { sign: true });
 }
 function giftApply(k, a, x) {
   if (k === 'fk') return; // Spaß – es wird nichts gutgeschrieben
-  if (k === 'ban') { S.banUntil = a > 0 ? Date.now() + Math.min(60 * 24 * 30, a) * 60000 : 0; S.banBy = ''; banCheck(); return; }
+  if (k === 'ban') { S.banUntil = a > 0 ? Date.now() + Math.min(30 * 864e5, a * (x === 's' ? 1000 : 60000)) : 0; S.banBy = ''; banCheck(); return; }
   if (k === 'sp') { const n = Math.max(1, Math.min(500, Math.round(a))), st = Math.max(.1, Math.min(1e6, +x || 1)); S.gspin = S.gspin && S.gspin.st === st ? { n: S.gspin.n + n, st } : { n: (S.gspin ? S.gspin.n : 0) + n, st }; }
   else if (k === 'en') S.energy = (S.energy || 0) + Math.max(1, Math.min(500, Math.round(a)));
   else if (k === 'p2' || k === 'p4' || k === 'p6') { const m = +k[1]; S.pot[m] = (S.pot[m] || 0) + Math.max(1, Math.min(100, Math.round(a))); }
@@ -4894,6 +4905,7 @@ function openGift() {
     <div class="lbl2" style="margin-top:0">Spielername</div><input class="inp" id="gfN" maxlength="18" placeholder="z. B. Robin" autocomplete="off">
     <div class="lbl2">Was?</div><div class="fdgg" id="gfK" style="grid-template-columns:repeat(4,1fr)">${Object.entries(GIFT_K).map(([k, [ic, n]]) => `<button class="btn ${k === 'm' ? 'gold' : 'dark'}" data-k="${k}" style="font-size:13px;padding:10px 4px">${ic}<br>${n.replace('Glückstrank ', '')}</button>`).join('')}</div>
     <div class="lbl2" id="gfAL">Betrag (mit Minus zum Abziehen, z. B. -500)</div><input class="inp num" id="gfA" type="number" inputmode="decimal" placeholder="z. B. 1000">
+    <div id="gfUW" class="hidden"><div class="filters" id="gfU" style="margin-top:8px"><button data-u="m" class="on">Minuten</button><button data-u="s">Sekunden</button></div></div>
     <div id="gfXW" class="hidden"><div class="lbl2">Einsatz pro Gratis-Dreh</div><input class="inp num" id="gfX" type="number" inputmode="decimal" value="10"></div>
     <div class="lbl2">Nachricht (optional)</div><input class="inp" id="gfM" maxlength="120" placeholder="z. B. Entschädigung fürs Duell 😉">
     <div class="card tight list" style="background:#151517;margin-top:14px">
@@ -4904,15 +4916,17 @@ function openGift() {
     <p class="hint">Der Spieler bekommt das Geld beim nächsten Öffnen bzw. innerhalb von 30 Sekunden, mit einer Meldung. Geschenke sind fälschungssicher signiert.</p>`);
   let kind = 'm';
   const LBL0 = 0; const LBL = { ban: 'Wie viele Minuten sperren? (0 = entsperren)', bp: 'Wie viele Battle-Pass-Stufen? (Minus zum Abziehen)', m: 'Betrag (mit Minus zum Abziehen, z. B. -500)', sp: 'Anzahl Gratis-Drehs', en: 'Wie viel Energie?', p2: 'Wie viele Tränke?', p4: 'Wie viele Tränke?', p6: 'Wie viele Tränke?', lv: 'Wie viele Level? (Minus zum Abziehen)' };
-  $('#gfK', o).onclick = e => { const b = e.target.closest('[data-k]'); if (!b) return; kind = b.dataset.k; $$('#gfK button', o).forEach(x => x.className = 'btn ' + (x.dataset.k === kind ? 'gold' : 'dark')); $('#gfAL', o).textContent = LBL[kind]; $('#gfXW', o).classList.toggle('hidden', kind !== 'sp'); SND.click(); };
+  $('#gfK', o).onclick = e => { const b = e.target.closest('[data-k]'); if (!b) return; kind = b.dataset.k; $$('#gfK button', o).forEach(x => x.className = 'btn ' + (x.dataset.k === kind ? 'gold' : 'dark')); $('#gfAL', o).textContent = LBL[kind]; $('#gfXW', o).classList.toggle('hidden', kind !== 'sp'); $('#gfUW', o).classList.toggle('hidden', kind !== 'ban'); SND.click(); };
+  let unit = 'm';
+  $('#gfU', o).onclick = e => { const b = e.target.closest('[data-u]'); if (!b) return; unit = b.dataset.u; $$('#gfU button', o).forEach(x => x.classList.toggle('on', x === b)); $('#gfAL', o).textContent = unit === 's' ? 'Wie viele Sekunden sperren? (0 = entsperren)' : LBL.ban; SND.click(); };
   let fake = false, reveal = false;
   $('#gfF', o).onclick = e => { fake = !fake; e.target.classList.toggle('on', fake); $('#gfFR', o).classList.toggle('hidden', !fake); $('#gfVW', o).classList.toggle('hidden', !fake); };
   $('#gfR', o).onclick = e => { reveal = !reveal; e.target.classList.toggle('on', reveal); };
   $('#gfGo', o).onclick = async function () {
-    const nm = $('#gfN', o).value.trim().toLowerCase(), amt = r2(+$('#gfA', o).value || 0), msg = $('#gfM', o).value.trim(), x = kind === 'sp' ? r2(+$('#gfX', o).value || 0) : '';
+    const nm = $('#gfN', o).value.trim().toLowerCase(), amt = r2(+$('#gfA', o).value || 0), msg = $('#gfM', o).value.trim(), x = kind === 'sp' ? r2(+$('#gfX', o).value || 0) : kind === 'ban' && unit === 's' ? 's' : '';
     if (kind === 'sp' && !(x >= .1)) return toast('Einsatz mindestens 0,10 €', 'bad');
     if (kind !== 'm' && kind !== 'lv' && kind !== 'bp' && kind !== 'ban' && amt <= 0) return toast('Anzahl muss größer als 0 sein', 'bad');
-    if (kind === 'ban' && amt < 0) return toast('Minuten dürfen nicht negativ sein', 'bad');
+    if (kind === 'ban' && amt < 0) return toast('Zeit darf nicht negativ sein', 'bad');
     if (!nm) return toast('Name fehlt', 'bad');
     if ((!amt && kind !== 'ban') || !isFinite(amt) || Math.abs(amt) > 1e12) return toast('Ungültiger Betrag', 'bad');
     this.disabled = true;
@@ -5038,17 +5052,22 @@ function openReactor() {
     done = true; cancelAnimationFrame(raf); delete o.dataset.run;
     const gain = hits >= 5 ? 3 : hits >= 4 ? 1 : 0;
     if (gain) { S.energy = (S.energy || 0) + gain; save(); hdr(true); SND.big(); FX.burst(90, { cols: ['#ffe066', '#7cf0a2', '#fff'] }); } else SND.lose();
-    $('.gbody', o).innerHTML = `<div class="result"><h2>${gain ? `+${gain} ⚡ Energie!` : 'Reaktor überhitzt 💥'}</h2><p>${hits} / 5 Treffer${gain ? '' : ' – du brauchst mindestens 4.'}<br>Nächster Versuch in 10 Minuten.</p><button class="btn white" id="erEnd" style="width:min(90vw,420px)">Fertig</button></div>`;
+    $('.gbody', o).innerHTML = `<div class="result"><h2>${gain ? `+${gain} ⚡ Energie!` : 'Reaktor überhitzt 💥'}</h2><p>${hits} / 5 Treffer${gain ? '' : ' – du brauchst mindestens 4.'}<br>Nächster Versuch in 5 Minuten.</p><button class="btn white" id="erEnd" style="width:min(90vw,420px)">Fertig</button></div>`;
     $('#erEnd', o).onclick = close;
   };
   const close = () => { done = true; cancelAnimationFrame(raf); delete o.dataset.run; o.style.transition = 'opacity .3s'; o.style.opacity = 0; setTimeout(() => o.remove(), 300); if (curPage === 'spiele') go('spiele', true); };
   $('#erX', o).onclick = close;
-  $('#erGo', o).onclick = () => {
-    if (done) return;
-    const d = Math.abs(((ang - zone.a + 540) % 360) - 180);
+  // pointerdown statt click: reagiert sofort beim Antippen (kein Tablet-Verzug); Winkel genau zum Tipp-Zeitpunkt
+  const stop = e => {
+    if (done) return; if (e) { e.preventDefault(); }
+    const now = performance.now(), a = (ang + spd * Math.max(0, Math.min(50, now - last)) / 16.7) % 360;
+    const d = Math.abs(((a - zone.a + 540) % 360) - 180);
     if (d <= zone.w / 2) { hits++; $$('#erP i', o)[hits - 1].classList.add('on'); SND.coin(hits); vib(15); if (hits >= 5) return finish(); spd *= 1.36; newZone(); }
     else { vib([60, 40, 60]); finish(); }
   };
+  const go_ = $('#erGo', o); go_.style.touchAction = 'manipulation'; go_.addEventListener('pointerdown', stop);
+  $('#erS', o).style.touchAction = 'manipulation'; $('#erS', o).addEventListener('pointerdown', stop); // auch Tippen auf den Ring zählt
+  const key = e => { if (!o.isConnected) return removeEventListener('keydown', key); if (e.code === 'Space' || e.key === 'Enter') stop(e); }; addEventListener('keydown', key);
 }
 
 /* ================= Seiten erweitern ================= */
