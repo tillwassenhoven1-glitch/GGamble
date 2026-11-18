@@ -907,6 +907,7 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 /* ===== core.js ===== */
 'use strict';
 const VERSION = '0.2.1 Open Beta';
+const FORCE_V = 2; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
 const WARTUNG = true; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
 /* ================= Helfer ================= */
 const $ = (s, r = document) => r.querySelector(s);
@@ -3467,10 +3468,12 @@ let MY_HASH = null;
 function checkUpdate() {
   if (!/^https?:/.test(location.protocol) || document.readyState === 'loading') return;
   if (!MY_HASH) MY_HASH = codeHash(document);
-  // nicht mitten in Freispielen oder einer Crash-Runde neu laden
-  if ((typeof T !== 'undefined' && T.room) || (typeof FDX !== 'undefined' && FDX.cur) || (typeof MS !== 'undefined' && MS && (MS.busy || MS.fs > 0)) || (typeof CR !== 'undefined' && CR.run && !CR.run.done)) return;
+  // nicht mitten in Freispielen, Duellen, Treff-Räumen oder einer Crash-Runde neu laden – außer bei einem Pflicht-Update
+  const busy = (typeof T !== 'undefined' && T.room) || (typeof FDX !== 'undefined' && FDX.cur) || (typeof MS !== 'undefined' && MS && (MS.busy || MS.fs > 0)) || (typeof CR !== 'undefined' && CR.run && !CR.run.done);
   fetch(location.pathname + '?nc=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.text() : null).then(t => {
     if (!t) return;
+    const fv = +((/const FORCE_V = (\d+)/.exec(t) || [])[1] || 0);
+    if (busy && !(fv > FORCE_V)) return;
     const h = codeHash(new DOMParser().parseFromString(t, 'text/html'));
     if (h === MY_HASH) return;
     // Schutz gegen Endlosschleife: höchstens 3 Neuladungen pro Minute
@@ -3481,7 +3484,7 @@ function checkUpdate() {
     location.replace(location.pathname + '?u=' + h);
   }).catch(() => { });
 }
-setTimeout(checkUpdate, 800); setInterval(checkUpdate, 90000);
+setTimeout(checkUpdate, 800); setInterval(checkUpdate, 45000); document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdate(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { checkUpdate(); if (S) { applyInterest(); regenEnergy(); bxCatchUp(); settleBets(); hdr(); save(); } } });
 addEventListener('pageshow', e => { if (e.persisted) checkUpdate(); });
 /* Doppeltipp-/Pinch-Zoom auf iPhone/iPad verhindern */
