@@ -1192,13 +1192,33 @@ function claimName(key, rid) { return fetch(`${FS()}/namen?documentId=${encodeUR
 const isOldSave = sv => !sv || sv.ep !== RESET_EP || (sv.created || 0) < RESET_TS; // Spielstand von vor dem Neustart
 function cloudPut(cid, a, sv) {
   if (isOldSave(sv)) return Promise.resolve({ ok: true, status: 200, skipped: true }); // alte Stände nie mehr hochladen
-  const data = JSON.stringify({ name: a.name, created: a.created, save: sv }), body = JSON.stringify({ fields: { data: { stringValue: data }, ts: { integerValue: String(Date.now()) } } });
+  const data = JSON.stringify({ name: a.name, created: a.created, save: sv, dev: DEV_ID }), body = JSON.stringify({ fields: { data: { stringValue: data }, ts: { integerValue: String(Date.now()) } } });
   return fetch(fsDoc('konten/' + cid), { method: 'PATCH', keepalive: body.length < 60000, headers: { 'Content-Type': 'application/json' }, body });
 }
-let cloudT = 0, cloudLast = '';
+let cloudT = 0, cloudLast = '', cloudMine = Date.now();
+/* 📱📱 Gleiches Konto auf 2 Geräten: Vor dem Hochladen prüfen, ob ein anderes Gerät inzwischen neuer gespeichert hat → dann dessen Stand übernehmen statt ihn zu überschreiben */
+const DEV_ID = (() => { try { let d = localStorage.getItem('gg_dev'); if (!d) { d = Math.random().toString(36).slice(2, 10); localStorage.setItem('gg_dev', d); } return d; } catch (e) { return 'x' + Math.random().toString(36).slice(2, 8); } })();
+const syncBusy = () => (typeof T !== 'undefined' && T.room) || (typeof FDX !== 'undefined' && FDX.cur) || (typeof MS !== 'undefined' && MS && (MS.busy || MS.fs > 0)) || (typeof CR !== 'undefined' && CR.run && !CR.run.done) || !!document.querySelector('.game-ov[data-run]');
+let syncing = false;
+async function cloudSync(allowAdopt = true) { // true = anderes Gerät ist neuer (nicht hochladen!)
+  const a = Accounts.all()[ACC]; if (!a || !a.cid || !onlineOn()) return false;
+  let cl; try { cl = await cloudGet(a.cid); } catch (e) { return true; } // offline/Fehler → lieber nicht überschreiben
+  if (!cl || !cl.d || !cl.d.dev || cl.d.dev === DEV_ID || cl.ts <= cloudMine + 1000 || isOldSave(cl.d.save)) return false;
+  if (!allowAdopt || syncBusy()) return true; // später übernehmen
+  const cur = Accounts.all(), x = cur[ACC]; x.save = cl.d.save; x.ts = cl.ts; Accounts.put(cur); cloudMine = cl.ts;
+  S = null; toast('📱 Neuerer Spielstand von deinem anderen Gerät übernommen', 'good', 3000); setTimeout(() => location.reload(), 900);
+  return true;
+}
+async function syncTick() { if (!S || !ACC || syncing || document.hidden) return; syncing = true; try { await cloudSync(true); } finally { syncing = false; } }
+setInterval(syncTick, 15000); document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(syncTick, 300); });
 function cloudPush(now) {
   if (typeof ONLINE === 'undefined' || !onlineOn() || !S || !ACC) return;
-  const run = () => { cloudT = 0; const a = Accounts.all()[ACC]; if (!a || !a.cid) return; const sig = JSON.stringify(S); if (sig === cloudLast) return; cloudPut(a.cid, a, S).then(r => { if (r.ok) cloudLast = sig; }).catch(() => { }); };
+  const run = async () => {
+    cloudT = 0; const a = Accounts.all()[ACC]; if (!a || !a.cid || !S) return; const sig = JSON.stringify(S); if (sig === cloudLast) return;
+    if (!now && await cloudSync(true)) return; // anderes Gerät ist neuer → nicht überschreiben
+    if (!S) return;
+    cloudPut(a.cid, a, S).then(r => { if (r.ok) { cloudLast = sig; cloudMine = Date.now(); } }).catch(() => { });
+  };
   if (now) { clearTimeout(cloudT); run(); } else if (!cloudT) cloudT = setTimeout(run, 12000);
 }
 let saveT = 0; function save() { clearTimeout(saveT); saveT = setTimeout(persist, 250); }
