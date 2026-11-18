@@ -3507,7 +3507,7 @@ if (WARTUNG) {
   const sp = document.getElementById('splash'); if (sp) sp.remove();
   setInterval(checkUpdate, 30000);
 } else
-Promise.all([Promise.race([TIME.sync(), new Promise(r => setTimeout(r, 4000))]), new Promise(r => setTimeout(r, 1500))]).then(() => {
+Promise.all([Promise.race([TIME.sync(), new Promise(r => setTimeout(r, 1500))]), new Promise(r => setTimeout(r, 600))]).then(() => {
   $('#splash').classList.add('out'); setTimeout(() => $('#splash').remove(), 800);
   const k = localStorage.getItem(SES_KEY), all = Accounts.all();
   if (k && all[k]) startApp(k); else showLogin();
@@ -4568,7 +4568,7 @@ function openCity() {
 }
 
 /* ================= 🟢 Live-Spielerzahl ================= */
-const ONL = { n: 0, list: [], iv: 0, ok: true };
+const ONL = (() => { try { const c = JSON.parse(localStorage.getItem('gg_onl') || 'null'); if (c && Date.now() - c.t < 10 * 60000) return { n: c.n, list: c.list || [], iv: 0, ok: true }; } catch (e) { } return { n: 0, list: [], iv: 0, ok: false }; })();
 async function onlBeat() {
   if (!S || !onlineOn() || document.hidden || !S.lbId) return;
   try { await fetch(fsDoc('online/' + S.lbId), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: { ts: fint(Date.now()), n: fstr(S.disp) } }) }); } catch (e) { }
@@ -4578,14 +4578,15 @@ async function onlCount() {
   try {
     const d = await fsQuery({ from: [{ collectionId: 'online' }], where: { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(Date.now() - 150000) } }, limit: 300 });
     ONL.list = d.map(x => x.n || '?'); ONL.n = Math.max(1, d.length); ONL.ok = true;
+    try { localStorage.setItem('gg_onl', JSON.stringify({ n: ONL.n, list: ONL.list, t: Date.now() })); } catch (e) { }
   } catch (e) { ONL.ok = false; }
   onlDraw();
 }
 function onlDraw() { $$('.onl').forEach(b => { b.classList.toggle('hidden', !ONL.ok || !onlineOn()); b.innerHTML = `<i></i>${ONL.n} online`; }); }
 function onlStart() {
   if (ONL.iv || !onlineOn()) return;
-  onlBeat(); setTimeout(onlCount, 1500);
-  ONL.iv = setInterval(() => { if (document.hidden) return; onlBeat(); onlCount(); }, 60000);
+  onlDraw(); onlBeat().then(onlCount);
+  ONL.iv = setInterval(() => { if (document.hidden) return; onlBeat(); onlCount(); }, 20000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { onlBeat(); onlCount(); } });
 }
 function onlShow() {
