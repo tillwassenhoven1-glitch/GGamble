@@ -919,7 +919,7 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 
 /* ===== core.js ===== */
 'use strict';
-const VERSION = '0.2.5 Open Beta';
+const VERSION = '0.2.6 Open Beta';
 const FORCE_V = 12; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
 const WARTUNG = false; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
 /* ================= Helfer ================= */
@@ -1249,13 +1249,15 @@ function canPay(a) {
   if (S.bal - a < -dispoNow() - 1e-9) { toast(dispoNow() ? `Nicht genug Guthaben – Dispo nur bis ${fmt(-DISPO)}.` : (S.note > 0 ? 'Nicht genug Guthaben – mit offenem Schuldschein gibt es keinen Dispo.' : 'Nicht genug Guthaben – nach einer Insolvenz gibt es 24 Std. keinen Dispo.'), 'bad'); SND.err(); return false; }
   return true;
 }
+/* Battle-Pass: voller Punkt ab diesem Einsatz (höchstens 5 €, damit auch kleine Konten mitkommen) */
+const bpMin = () => Math.min(5, Math.max(1, base() * .25));
 /* Einsatz abbuchen (Glücksspiel) */
 function bet(a, game) {
   if (!canPay(a)) return false;
   S.bal = r2(S.bal - a); touchToday(); S.today.v = r2(S.today.v - a);
   S.st.wagered += a; S.st.rounds++; S.st.net = r2(S.st.net - a);
   if (S.note > 0) { const rp = r2(Math.min(S.note, Math.max(.01, a * .1))); S.bal = r2(S.bal - rp); S.note = r2(S.note - rp); S.st.noteSpin = r2((S.st.noteSpin || 0) + rp); if (S.note <= 0.004) { S.note = 0; setTimeout(() => { toast('Schuldschein komplett abbezahlt! 🎉', 'good'); FX.burst(80); SND.win(); }, 500); } }
-  addXP(Math.min(a, 15 + S.level * 15)); bpAdd(Math.min(1, a / Math.max(1, base() * .25))); wkAdd(-a);
+  addXP(Math.min(a, 15 + S.level * 15)); bpAdd(Math.min(1, a / bpMin())); wkAdd(-a);
   taskProg('wager', a); taskProg('rounds', 1);
   hdr(); checkAch(); save(); return true;
 }
@@ -1269,7 +1271,7 @@ function payout(a, game, stake) {
   if (a > S.st.biggest) { S.st.biggest = r2(a); S.st.bestGame = game; }
   if (stake) S.st.maxMult = Math.max(S.st.maxMult, a / stake);
   if (stake > 0 && typeof bpAdd === 'function') { // 🎟️ Große Gewinne geben Battle-Pass-Punkte (anteilig bei kleinem Einsatz)
-    const m = a / stake, bp = m >= 500 ? 100 : m >= 100 ? 60 : m >= 50 ? 30 : m >= 10 ? 10 : 0, pts = Math.round(bp * Math.min(1, stake / Math.max(1, base() * .25)));
+    const m = a / stake, bp = m >= 500 ? 100 : m >= 100 ? 60 : m >= 50 ? 30 : m >= 10 ? 10 : 0, pts = Math.round(bp * Math.min(1, stake / bpMin()));
     if (pts > 0) { bpAdd(pts); whenFree(() => setTimeout(() => toast(`🎟️ Großer Gewinn (${NF0.format(m)}×): +${pts} Battle-Pass-Punkte`, 'good', 3000), 1200)); }
   }
   if (cut > 0) setTimeout(() => toast(`Inkasso Krause kassiert ${fmt(cut)} (40 %)`), 900);
@@ -1307,8 +1309,9 @@ let lastBal = null;
 function initials(n) { const p = String(n).trim().split(/\s+/); return (p.length > 1 ? p[0][0] + p[1][0] : String(n).slice(0, 2)).toUpperCase(); }
 const AVA_COLS = ['radial-gradient(circle at 35% 30%,#e3c25a,#a8862a)', 'radial-gradient(circle at 35% 30%,#8fd0ff,#2f6fd0)', 'radial-gradient(circle at 35% 30%,#ff9ea0,#c23a4a)', 'radial-gradient(circle at 35% 30%,#b5f59a,#3d9a3a)', 'radial-gradient(circle at 35% 30%,#e0b0ff,#7a3ad0)', 'radial-gradient(circle at 35% 30%,#f0f0f0,#8a8a8a)'];
 function avaHTML(o, cls = '') {
-  const st = o.photo ? `background-image:url(${o.photo})` : `background:${AVA_COLS[o.color || 0]}`;
-  return `<div class="avatar ${cls}${typeof frmCls === 'function' ? frmCls(o.frm) : ''}" style="${st}">${o.photo ? '' : esc(o.ini || initials(o.disp || o.name))}</div>`;
+  const nk = String(o.name || '').trim().toLowerCase(), ph = o.photo || (nk && typeof PH !== 'undefined' && PH.m[nk]) || '';
+  const st = ph ? `background-image:url(${ph})` : `background:${AVA_COLS[o.color || 0]}`;
+  return `<div class="avatar ${cls}${typeof frmCls === 'function' ? frmCls(o.frm) : ''}" ${nk ? `data-n="${esc(nk)}"` : ''} style="${st}">${ph ? '' : esc(o.ini || initials(o.disp || o.name))}</div>`;
 }
 function hdr(anim) {
   if (!S) return; touchToday();
@@ -3298,7 +3301,7 @@ function editProfile() {
     }; img.src = URL.createObjectURL(f);
   };
   const r = $('#eR', o); if (r) r.onclick = () => { photo = ''; r.remove(); };
-  $('#eS', o).onclick = () => { const n = $('#eN', o).value.trim(); if (n.length < 2) { toast('Name zu kurz', 'bad'); return; } S.disp = n; S.color = col; S.photo = photo; S.st.edits++; persist(); hdr(); o.close(); go('profil', true); toast('Profil gespeichert ✓', 'good'); };
+  $('#eS', o).onclick = () => { const n = $('#eN', o).value.trim(); if (n.length < 2) { toast('Name zu kurz', 'bad'); return; } S.disp = n; S.color = col; S.photo = photo; S.st.edits++; persist(); hdr(); if (typeof phUpload === 'function') setTimeout(phUpload, 300); o.close(); go('profil', true); toast('Profil gespeichert ✓', 'good'); };
 }
 function openSettings() {
   const o = sheet(`<div class="row sb"><h2>Einstellungen</h2><button class="x" data-close>${icon('x')}</button></div>
@@ -3618,7 +3621,7 @@ function extInit() {
   if (S.frm && !frOk(S.frm)) S.frm = '';
   save();
   if (!bonusReady()) setTimeout(calMaybe, 1500);
-  feedStart(); chatBg(); dmStart(); fdStart(); onlStart(); giftStart();
+  feedStart(); chatBg(); dmStart(); fdStart(); onlStart(); giftStart(); if (typeof phStart === 'function') phStart();
 }
 
 /* Bestenlisten-ID gehört zum Namen (namen/{name}.rid) – so bleibt z. B. der Besitzer-Rang nach einem Reset erhalten */
@@ -3744,7 +3747,7 @@ function bpClaim(i) {
 function renderPass(el) {
   const lv = bpLv(), pts = S.bp.pts, inLv = lv >= BP_N ? BP_PER : pts % BP_PER, open = bpOpen();
   el.innerHTML = `<button class="btn dark sm" id="back">${icon('left')} Minispiele</button>
-    <h1 class="t" style="margin-top:16px">Battle Pass</h1><p class="sub">Saison ${seasonName()} · ${seasonLeft()} · 1 Punkt pro Runde ab ${fmt(Math.max(1, base() * .25))} Einsatz, Missionen +${BPM_PTS.day} / +${BPM_PTS.week}, Login-Kalender +20</p>
+    <h1 class="t" style="margin-top:16px">Battle Pass</h1><p class="sub">Saison ${seasonName()} · ${seasonLeft()} · 1 Punkt pro Runde ab ${fmt(bpMin())} Einsatz, Missionen +${BPM_PTS.day} / +${BPM_PTS.week}, Login-Kalender +20</p>
     <div class="card"><div class="row sb"><b style="font-size:26px">Stufe ${lv} / ${BP_N}</b><span class="chip gold num">${NF0.format(Math.floor(pts))} Punkte</span></div>
       <div class="bpbar"><i style="width:${lv >= BP_N ? 100 : inLv / BP_PER * 100}%"></i></div>
       <p class="hint">${lv >= BP_N ? 'Alles geschafft – stark! 🔥' : `Noch ${Math.ceil(BP_PER - inLv)} Punkte bis Stufe ${lv + 1}`}</p>
@@ -4971,6 +4974,37 @@ function openLbh() {
   $('#lhS', o).onclick = function () { act($('#lhN', o).value, false, this); };
   $('#lhL', o).onclick = e => { const b = e.target.closest('[data-u]'); if (b) act(b.dataset.u, false, b); };
   draw(true);
+}
+
+/* ================= 🖼️ Profilbilder für alle sichtbar: kleines Vorschaubild in /bilder/{name} ================= */
+const PH = { m: {}, t: 0 };
+function phThumb(src) {
+  return new Promise(res => { if (!src) return res(''); const img = new Image(); img.onload = () => { const cv = document.createElement('canvas'); cv.width = cv.height = 64; cv.getContext('2d').drawImage(img, 0, 0, 64, 64); res(cv.toDataURL('image/jpeg', .7)); }; img.onerror = () => res(''); img.src = src; });
+}
+async function phUpload() {
+  if (!S || !onlineOn()) return;
+  const sig = meKey() + '|' + (S.photo ? S.photo.length + ':' + S.photo.slice(-40) : '');
+  if (S.phUp === sig) return;
+  try {
+    const p = await phThumb(S.photo);
+    const r = await fetch(fsDoc('bilder/' + encodeURIComponent(meKey())), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: { p: fstr(p), ts: fint(Date.now()) } }) });
+    if (r.ok) { S.phUp = sig; save(); PH.m[meKey()] = p; }
+  } catch (e) { }
+}
+function phPatch() {
+  document.querySelectorAll('.avatar[data-n]').forEach(a => { const p = PH.m[a.dataset.n]; if (!p || a.style.backgroundImage) return; a.style.background = ''; a.style.backgroundImage = `url(${p})`; a.textContent = ''; });
+}
+async function phLoad() {
+  if (!onlineOn() || document.hidden) return;
+  try {
+    const d = await fsQuery({ from: [{ collectionId: 'bilder' }], where: { fieldFilter: { field: { fieldPath: 'p' }, op: 'GREATER_THAN', value: fstr('') } }, limit: 400 });
+    d.forEach(x => { if (typeof x.p === 'string' && x.p.startsWith('data:image/')) PH.m[decodeURIComponent(x.id)] = x.p; }); PH.t = Date.now(); phPatch();
+  } catch (e) { }
+}
+function phStart() {
+  if (!onlineOn()) return;
+  setTimeout(phUpload, 3000); setTimeout(phLoad, 1500); setInterval(phLoad, 180000); setInterval(phUpload, 60000);
+  new MutationObserver(() => { clearTimeout(PH.mo); PH.mo = setTimeout(phPatch, 60); }).observe(document.body, { childList: true, subtree: true });
 }
 
 /* ================= ⚡ Energie-Reaktor: sehr schweres Minispiel, das Energie gibt ================= */
