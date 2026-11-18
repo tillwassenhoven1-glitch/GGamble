@@ -1402,6 +1402,20 @@ function prep(m) {
   }
   m.ready = true; return m;
 }
+/* 🧪 Glückstrank-Stärke: „bestes aus N“ wäre viel zu stark (bis 800 %). Gewinne werden so skaliert, dass im Schnitt
+   ×2 → 135 %, ×4 → 180 %, ×6 → 260 % vom Einsatz zurückkommen. Pro Automat einmal ausgerechnet. */
+const POT_T = { 2: 1.35, 4: 1.8, 6: 2.6 };
+function potF(m, n) {
+  prep(m); m.potF = m.potF || {}; if (m.potF[n]) return m.potF[n];
+  const rng = mulberry(777 + m.i * 13 + n), N = 6000, ev1 = g => m.t === 'v' ? evalV(m, g, 1) : { tot: evalC(m, g).tot, fs: false };
+  // Wert einer normalen Freispiel-Serie (ohne Trank)
+  let fsv = 0; if (m.t === 'v') { const K = 1500; for (let i = 0; i < K; i++) { let fs = 10, t = 0; while (fs > 0) { const e = ev1(genGrid(m, rng)); t += e.tot * 2; fs--; if (e.fs && fs < 40) fs += 10; } fsv += t; } fsv /= K; }
+  let line = 0, fsPart = 0;
+  for (let i = 0; i < N; i++) { let b = null; for (let k = 0; k < n; k++) { const e = ev1(genGrid(m, rng)); if (!b || e.tot > b.tot) b = e; } line += b.tot; if (b.fs) fsPart += fsv; }
+  line /= N; fsPart /= N;
+  const f = clamp(((POT_T[n] || 1) - fsPart) / Math.max(.01, line), .15, 1);
+  return (m.potF[n] = f);
+}
 function wpick(m, rng) { const tot = m.W.reduce((a, b) => a + b); let r = rng() * tot; for (let i = 0; i < m.W.length; i++) { r -= m.W[i]; if (r < 0) return m.cells[i]; } return m.cells[0]; }
 function genGrid(m, rng = Math.random) { const R = m.t === 'v' ? 5 : 3; const g = []; for (let r = 0; r < R; r++) { g.push([wpick(m, rng), wpick(m, rng), wpick(m, rng)]); } return g; }
 /* Auswertung 3-Walzen: Gewinn in Vielfachen des Einsatzes */
@@ -1621,14 +1635,15 @@ async function doSpin() {
   // Jackpot-Pool wächst
   if (m.t === 'j' && !free) S.jp[m.jp] = r2(S.jp[m.jp] + stake * .02);
   // Ergebnis (mit Glückstrank: bestes aus N)
-  let rolls = 1; const usePot = S.potAct && stake <= potCap() + 1e-9;
+  let rolls = 1; const usePot = !free && S.potAct && stake <= potCap() + 1e-9; // Trank wirkt nicht in Freispielen
   if (S.potAct && !usePot) toast(`⚠️ Trank wirkt nicht: Einsatz über ${fmt(potCap())}. Nimm einen kleineren Einsatz oder „Max“.`, 'bad', 2600);
   if (usePot) { rolls = S.potAct.m; S.potAct.left--; S.st.potUse = (S.st.potUse || 0) + 1; }
   let best = null;
   for (let k = 0; k < rolls; k++) {
     const g = genGrid(m), ev = m.t === 'v' ? evalV(m, g, stake) : (() => { const e = evalC(m, g); return { tot: e.tot * stake, wins: e.wins.map(w => ({ ...w, w: w.w * stake })) }; })();
-    if (!best || ev.tot > best.ev.tot || (ev.fs && !best.ev.fs)) best = { g, ev };
+    if (!best || ev.tot > best.ev.tot) best = { g, ev };
   }
+  if (usePot) { const f = potF(m, rolls); if (f < 1) { best.ev.tot *= f; best.ev.wins = best.ev.wins.map(w => ({ ...w, w: w.w * f })); } } // Trank: bestes aus N, aber gedeckelt
   let jackpot = 0;
   if (m.t === 'j' && !free) {
     let ch = JP[m.jp].ch * rolls;
