@@ -2018,10 +2018,11 @@ function buyTicket(L) {
     $('#okT', o).onclick = () => { S.tut[L.ty] = 1; save(); o.close(); setTimeout(() => buyTicket(L), 300); };
     return;
   }
-  const wait = 5000 - (Date.now() - (S.tkLast || 0));
+  S.tkBy = S.tkBy || {}; // Sperre pro Los-Sorte
+  const wait = 5000 - (Date.now() - (S.tkBy[L.id] || 0));
   if (wait > 0) { toast(`⏳ Nächstes Los in ${Math.ceil(wait / 1000)} s`, 'bad', 1200); SND.err(); return; }
   if (!bet(L.p, L.n)) return;
-  S.tkLast = Date.now();
+  S.tkBy[L.id] = Date.now();
   S.st.scratches++; taskProg('scratch', 1);
   if (Math.random() < 1 / 3000) setTimeout(() => { addEnergy(1); toast('⚡ Seltener Fund auf dem Los: +1 Energie!', 'good', 4000); SND.big(); }, 1500);
   let rolls = 1; if (S.potAct && L.p <= potCap()) { rolls = S.potAct.m; S.potAct.left--; }
@@ -2048,7 +2049,7 @@ async function checkTicket(L) {
   const bar = $('.tkbar', box); bar.innerHTML = `<button class="btn white w" data-buy>Nochmal · ${shortMoney(L.p)}</button>`;
   const nb = $('[data-buy]', bar); nb.onclick = () => buyTicket(L);
   // 5-Sekunden-Sperre mit Countdown
-  const cd = () => { if (!nb.isConnected) return; const w = 5000 - (Date.now() - (S.tkLast || 0)); if (w > 0) { nb.disabled = true; nb.textContent = `⏳ Nochmal in ${Math.ceil(w / 1000)} s`; setTimeout(cd, 250); } else { nb.disabled = false; nb.textContent = `Nochmal · ${shortMoney(L.p)}`; } };
+  const cd = () => { if (!nb.isConnected) return; const w = 5000 - (Date.now() - ((S.tkBy || {})[L.id] || 0)); if (w > 0) { nb.disabled = true; nb.textContent = `⏳ Nochmal in ${Math.ceil(w / 1000)} s`; setTimeout(cd, 250); } else { nb.disabled = false; nb.textContent = `Nochmal · ${shortMoney(L.p)}`; } };
   cd();
 }
 
