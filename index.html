@@ -911,7 +911,7 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 /* ===== core.js ===== */
 'use strict';
 const VERSION = '0.2.1 Open Beta';
-const FORCE_V = 4; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
+const FORCE_V = 5; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
 const WARTUNG = false; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
 /* ================= Helfer ================= */
 const $ = (s, r = document) => r.querySelector(s);
@@ -2009,7 +2009,7 @@ function buyTicket(L) {
     $('#okT', o).onclick = () => { S.tut[L.ty] = 1; save(); o.close(); setTimeout(() => buyTicket(L), 300); };
     return;
   }
-  const wait = 3000 - (Date.now() - (S.tkLast || 0));
+  const wait = 5000 - (Date.now() - (S.tkLast || 0));
   if (wait > 0) { toast(`⏳ Nächstes Los in ${Math.ceil(wait / 1000)} s`, 'bad', 1200); SND.err(); return; }
   if (!bet(L.p, L.n)) return;
   S.tkLast = Date.now();
@@ -2038,8 +2038,8 @@ async function checkTicket(L) {
   checkAch(); save();
   const bar = $('.tkbar', box); bar.innerHTML = `<button class="btn white w" data-buy>Nochmal · ${shortMoney(L.p)}</button>`;
   const nb = $('[data-buy]', bar); nb.onclick = () => buyTicket(L);
-  // 3-Sekunden-Sperre mit Countdown
-  const cd = () => { if (!nb.isConnected) return; const w = 3000 - (Date.now() - (S.tkLast || 0)); if (w > 0) { nb.disabled = true; nb.textContent = `⏳ Nochmal in ${Math.ceil(w / 1000)} s`; setTimeout(cd, 250); } else { nb.disabled = false; nb.textContent = `Nochmal · ${shortMoney(L.p)}`; } };
+  // 5-Sekunden-Sperre mit Countdown
+  const cd = () => { if (!nb.isConnected) return; const w = 5000 - (Date.now() - (S.tkLast || 0)); if (w > 0) { nb.disabled = true; nb.textContent = `⏳ Nochmal in ${Math.ceil(w / 1000)} s`; setTimeout(cd, 250); } else { nb.disabled = false; nb.textContent = `Nochmal · ${shortMoney(L.p)}`; } };
   cd();
 }
 
