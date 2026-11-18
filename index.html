@@ -1143,6 +1143,22 @@ function toastDest(msg, kind) {
   for (const [re, p] of TOAST_GO) if (re.test(txt)) return p;
   return null;
 }
+// Läuft gerade ein Automat (Dreh, Freispiele, Auto-Spin) oder ein Minispiel, wird erst danach gewechselt
+let TN_IV = 0;
+function tnBusy() { return !!document.querySelector('.game-ov[data-run]') || (typeof MS !== 'undefined' && MS && (MS.busy || MS.fs > 0 || MS.auto)); }
+function toastNav(dest) {
+  clearInterval(TN_IV);
+  const run = () => {
+    document.querySelectorAll('.ov').forEach(o => o.close ? o.close() : o.remove());
+    document.querySelectorAll('.full,.game-ov').forEach(x => x.remove()); document.body.classList.remove('inmach');
+    try { if (typeof MS !== 'undefined') MS = null; } catch (e) { }
+    hdr(); if (typeof dest === 'function') dest(); else go(dest);
+  };
+  try { if (MS && MS.auto && typeof autoStop === 'function') autoStop('Auto-Spin gestoppt'); } catch (e) { }
+  if (!tnBusy()) return run();
+  toast('👌 Geht gleich weiter, sobald die Runde vorbei ist', '', 2200, null);
+  TN_IV = setInterval(() => { if (!S) return clearInterval(TN_IV); if (!tnBusy()) { clearInterval(TN_IV); setTimeout(run, 1200); } }, 300);
+}
 function toast(msg, kind = '', ms = 3200, dest) {
   const t = document.createElement('div'); t.className = 'toast ' + kind;
   if (dest === undefined) dest = toastDest(msg, kind);
@@ -1150,9 +1166,7 @@ function toast(msg, kind = '', ms = 3200, dest) {
   t.innerHTML = `<div class="ti">${kind === 'good' ? '✓' : kind === 'bad' ? '!' : 'i'}</div><div style="flex:1">${msg}</div>${can ? '<div style="opacity:.55;font-size:22px">›</div>' : ''}`;
   if (can) {
     t.style.pointerEvents = 'auto'; t.style.cursor = 'pointer';
-    t.onclick = () => { if (!S || document.querySelector('.game-ov[data-run]') || (typeof MS !== 'undefined' && MS && MS.busy)) return; t.classList.add('out'); setTimeout(() => t.remove(), 300); SND.click();
-      document.querySelectorAll('.ov').forEach(o => o.close ? o.close() : o.remove());
-      if (typeof dest === 'function') dest(); else go(dest); };
+    t.onclick = () => { if (!S) return; t.classList.add('out'); setTimeout(() => t.remove(), 300); SND.click(); toastNav(dest); };
   }
   $('#toasts').appendChild(t);
   setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 400); }, ms);
