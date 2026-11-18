@@ -2863,24 +2863,48 @@ async function joinRoom(id) {
   await getCam();
   T.room = id; T.names = {}; T.log = []; T.conns = {}; T.calls = {}; T.filt = {}; T.ask = {};
   clearInterval(T.healT); T.healT = setInterval(healVideo, 4000);
-  const hostId = 'ggamble-treff-v1-' + id;
+  const base = 'ggamble-treff-v1-' + id;
   const setup = (peer, host) => {
     T.peer = peer; T.host = host;
     peer.on('connection', conn => wireConn(conn));
     peer.on('call', call => { call.answer(T.stream || undefined); wireCall(call); });
     peer.on('disconnected', () => { try { peer.reconnect(); } catch (e) { } });
   };
-  const asHost = new Peer(hostId);
-  asHost.on('open', () => { setup(asHost, true); sysMsg('Du hast den Raum eröffnet. Warte auf andere …'); S.st.treff++; checkAch(); roomUI(); go(curPage, true); });
-  asHost.on('error', err => {
-    if (err.type === 'unavailable-id') {
-      asHost.destroy();
-      const g = new Peer();
-      g.on('open', () => { setup(g, false); const c = g.connect(hostId, { reliable: true }); wireConn(c, true); S.st.treff++; checkAch(); roomUI(); go(curPage, true); });
-      g.on('error', e2 => { if (e2.type === 'peer-unavailable') { toast('Raum nicht erreichbar – versuch es nochmal.', 'bad'); leaveRoom(); } });
-    } else if (!T.peer) { toast('Verbindung fehlgeschlagen: ' + err.type, 'bad'); T.room = null; }
+  // Als Gastgeber versuchen (ID frei?)
+  const tryHost = hid => new Promise(res => {
+    const p = new Peer(hid); let done = false;
+    const fin = r => { if (done) return; done = true; res(r); };
+    p.on('open', () => fin({ p }));
+    p.on('error', e => { try { p.destroy(); } catch (x) { } fin({ err: e.type }); });
+    setTimeout(() => { try { p.destroy(); } catch (x) { } fin({ err: 'timeout' }); }, 9000);
   });
+  // Als Gast zu einem Gastgeber verbinden – antwortet er nicht (z. B. „Geister-Gastgeber“ nach Neuladen), nächster Platz
+  let G = null;
+  const guestPeer = () => G ? Promise.resolve(G) : new Promise((res, rej) => { const g = new Peer(); g.on('open', () => { G = g; setup(g, false); res(g); }); g.on('error', e => { if (!G) rej(e); }); setTimeout(() => !G && rej(new Error('timeout')), 9000); });
+  const tryGuest = (g, hid) => new Promise(res => {
+    const c = g.connect(hid, { reliable: true }); let done = false;
+    const fin = ok => { if (done) return; done = true; if (!ok) { try { c.close(); } catch (e) { } } res(ok); };
+    c.on('open', () => fin(true));
+    const onErr = e => { if (e && e.type === 'peer-unavailable' && String(e.message || '').includes(hid)) fin(false); };
+    g.on('error', onErr);
+    wireConn(c, true);
+    setTimeout(() => { g.off && g.off('error', onErr); fin(false); }, 6000);
+  });
+  for (let i = 0; i < 4 && T.room === id; i++) {
+    const hid = base + (i ? '-' + i : '');
+    const h = await tryHost(hid);
+    if (h.p) {
+      if (G) { try { G.destroy(); } catch (e) { } }
+      setup(h.p, true); sysMsg('Du hast den Raum eröffnet. Warte auf andere …'); S.st.treff++; checkAch(); roomUI(); go(curPage, true); return;
+    }
+    if (h.err !== 'unavailable-id') { toast('Verbindung fehlgeschlagen: ' + h.err, 'bad'); return leaveRoom(); }
+    let g; try { g = await guestPeer(); } catch (e) { toast('Verbindung fehlgeschlagen – Internet prüfen.', 'bad'); return leaveRoom(); }
+    if (await tryGuest(g, hid)) { S.st.treff++; checkAch(); roomUI(); go(curPage, true); return; }
+  }
+  if (T.room === id) { toast('Raum gerade nicht erreichbar – versuch es gleich nochmal.', 'bad'); leaveRoom(); }
 }
+// Beim Schließen der Seite die Raum-ID sofort freigeben (sonst bleibt ein „Geister-Gastgeber“ übrig)
+addEventListener('pagehide', () => { try { if (T.peer) T.peer.destroy(); } catch (e) { } });
 function wireConn(conn, toHost) {
   conn.on('open', () => {
     T.conns[conn.peer] = conn;
@@ -3439,7 +3463,7 @@ function checkUpdate() {
   if (!/^https?:/.test(location.protocol) || document.readyState === 'loading') return;
   if (!MY_HASH) MY_HASH = codeHash(document);
   // nicht mitten in Freispielen oder einer Crash-Runde neu laden
-  if ((typeof MS !== 'undefined' && MS && (MS.busy || MS.fs > 0)) || (typeof CR !== 'undefined' && CR.run && !CR.run.done)) return;
+  if ((typeof T !== 'undefined' && T.room) || (typeof MS !== 'undefined' && MS && (MS.busy || MS.fs > 0)) || (typeof CR !== 'undefined' && CR.run && !CR.run.done)) return;
   fetch(location.pathname + '?nc=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.text() : null).then(t => {
     if (!t) return;
     const h = codeHash(new DOMParser().parseFromString(t, 'text/html'));
