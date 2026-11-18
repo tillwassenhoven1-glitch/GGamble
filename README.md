@@ -37,7 +37,7 @@ Version 0.2.2 · Open Beta
 - 🎟️ **Battle Pass** – jeden Monat eine neue Saison mit 30 Stufen: Geld, Tränke, Energie, Rahmen und Titel
 - 📆 **Login-Kalender** – 7 Tage am Stück einloggen, am 7. Tag gibt's den großen Preis
 - 🏢 **Clans** – gründe einen Clan oder tritt einem bei: gemeinsamer Kontostand und eigene Clan-Bestenliste
-- 👥 **Freunde** hinzufügen, private Nachrichten schreiben und zum **Duell** herausfordern (💣 Minenfeld, 🚀 Crash-Duell, ✊ Schere-Stein-Papier oder 🎲 Würfelduell – beide zahlen in den Topf, der Gewinner bekommt 95 %)
+- 👥 **Freunde** hinzufügen, private Nachrichten schreiben und zum **Duell** herausfordern (💣 Minenfeld, 🚀 Crash-Duell, ✊ Schere-Stein-Papier, 🎲 Würfelduell, ⭕ Tic-Tac-Toe, ⚡ Reaktionstest, 🃏 Höher oder Tiefer oder 🪙 Münzwurf – beide zahlen in den Topf, der Gewinner bekommt 95 %)
 - 🟢 **Live-Spielerzahl** – wie viele gerade online sind (antippen = wer)
 - 💬 **Lobby-Chat** für alle Spieler und 📣 **Live-Feed** mit den größten Gewinnen
 - 🧪 **Glückstränke** – ×2, ×4 oder ×6: Jeder Dreh und jedes Los wird mehrmals gewürfelt, du bekommst das beste Ergebnis

@@ -665,6 +665,9 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .onl i,.onl-dot{width:9px;height:9px;border-radius:50%;background:#2fd36b;box-shadow:0 0 8px #2fd36b;animation:onlp 1.6s ease-in-out infinite;display:inline-block}
 .onl-dot{margin-right:12px}
 @keyframes onlp{50%{opacity:.35}}
+.tttg{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:330px;margin:6px auto}.tttg button{aspect-ratio:1;border-radius:20px;background:#151517;border:1px solid var(--line2);font-size:46px;display:grid;place-items:center}.tttg button.win{background:rgba(47,211,107,.2);border-color:#2fd36b}
+.fdcard{width:110px;height:150px;margin:4px auto 14px;border-radius:16px;background:linear-gradient(160deg,#fff,#e9e6dd);color:#b8281e;display:grid;place-items:center;font-size:62px;font-weight:900;box-shadow:0 10px 26px rgba(0,0,0,.4)}
+.fdreact{height:170px;border-radius:24px;display:grid;place-items:center;font-size:28px;font-weight:900;color:#fff;cursor:pointer;user-select:none}.fdreact.red{background:#c4271b}.fdreact.green{background:#2fd36b;color:#062}
 .fdgg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px}.fdgg .btn{padding:14px 8px;font-size:16px}
 .fdsc{display:flex;align-items:center;justify-content:center;gap:22px;margin:6px 0 10px}.fdsc div{text-align:center}.fdsc small{display:block;color:var(--mut);font-size:13px}.fdsc b{font-size:46px}.fdsc span{font-size:34px;color:var(--mut)}
 .fdhist{display:flex;flex-direction:column;gap:6px}.fdr{display:grid;grid-template-columns:70px 1fr 26px 1fr 80px;align-items:center;gap:6px;padding:8px 12px;border-radius:14px;background:#151517;font-size:20px;text-align:center}
@@ -4185,7 +4188,7 @@ function openDM(k, d, onClose) {
 
 /* ================= Freundes-Duelle: Minenfeld & Crash (Topf, 5 % Gebühr) ================= */
 const DUEL_TAX = .05;
-const FDG = { mines: ['💣', 'Minenfeld'], crash: ['🚀', 'Crash-Duell'], rps: ['✊', 'Schere-Stein-Papier'], dice: ['🎲', 'Würfelduell'] };
+const FDG = { mines: ['💣', 'Minenfeld'], crash: ['🚀', 'Crash-Duell'], rps: ['✊', 'Schere-Stein-Papier'], dice: ['🎲', 'Würfelduell'], ttt: ['⭕', 'Tic-Tac-Toe'], react: ['⚡', 'Reaktionstest'], hilo: ['🃏', 'Höher oder Tiefer'], coin: ['🪙', 'Münzwurf'] };
 const FDX = { cur: null, iv: 0, seen: new Set(), busy: false };
 const potWin = st => r2(st * 2 * (1 - DUEL_TAX));
 const fdUrl = (id, mask) => `${FS()}/duelle/${id}?${mask ? mask.map(m => 'updateMask.fieldPaths=' + m + '&').join('') : ''}key=${ONLINE.apiKey}`;
@@ -4207,7 +4210,7 @@ function fdPick(k, d) {
     <div class="lbl2">Einsatz pro Spieler (max. ${fmt(duelMax())})</div><input class="inp num" id="fdS" type="number" inputmode="decimal" value="${Math.min(10, duelMax())}">
     <p class="hint" id="fdP"></p>
     <button class="btn white w" id="fdGo" style="margin-top:8px">Herausfordern</button>`);
-  const H = { mines: 'Ihr deckt abwechselnd Felder auf. Wer eine Bombe erwischt, verliert.', crash: 'Eine Rakete für beide! Wer später aussteigt, gewinnt – aber wer zu lange wartet, explodiert.', rps: 'Best of 3: Wer zuerst 2 Runden gewinnt, bekommt den Topf. Beide wählen gleichzeitig.', dice: 'Best of 3: Beide würfeln – die höhere Zahl gewinnt die Runde. Wer zuerst 2 Runden hat, gewinnt.' };
+  const H = { mines: 'Ihr deckt abwechselnd Felder auf. Wer eine Bombe erwischt, verliert.', crash: 'Eine Rakete für beide! Wer später aussteigt, gewinnt – aber wer zu lange wartet, explodiert.', rps: 'Best of 3: Wer zuerst 2 Runden gewinnt, bekommt den Topf. Beide wählen gleichzeitig.', dice: 'Best of 3: Beide würfeln – die höhere Zahl gewinnt die Runde. Wer zuerst 2 Runden hat, gewinnt.', ttt: 'Klassisch: Wer zuerst drei in einer Reihe hat, gewinnt. Abwechselnd ziehen.', react: 'Best of 3: Wenn das Feld grün wird, so schnell wie möglich tippen. Wer schneller ist, gewinnt die Runde.', hilo: 'Best of 3: Kommt die nächste Karte höher oder tiefer? Wer richtig liegt und der andere nicht, gewinnt die Runde.', coin: 'Best of 3: Kopf oder Zahl? Wer richtig rät und der andere nicht, gewinnt die Runde.' };
   const upd = () => { $$('#fdG button', o).forEach(b => b.className = 'btn ' + (b.dataset.g === g ? 'gold' : 'dark')); $('#fdH', o).textContent = H[g]; const st = +$('#fdS', o).value || 0; $('#fdP', o).innerHTML = st > 0 ? `Topf: <b>${fmt(st * 2)}</b> · Gewinner bekommt <b class="goldc">${fmt(potWin(st))}</b> (5 % Gebühr)` : ''; };
   $('#fdG', o).onclick = e => { const b = e.target.closest('[data-g]'); if (b) { g = b.dataset.g; SND.click(); upd(); } };
   $('#fdS', o).oninput = upd; upd();
@@ -4339,49 +4342,93 @@ function fdPlay(D) {
       }
     };
     tick(); iv = setInterval(tick, 1000);
-  } else if (D.g === 'rps' || D.g === 'dice') {
-    const rps = D.g === 'rps', IC = { S: '✌️', T: '✊', P: '✋' }, NM = { S: 'Schere', T: 'Stein', P: 'Papier' };
-    const beats = (x, y) => (x === 'S' && y === 'P') || (x === 'T' && y === 'S') || (x === 'P' && y === 'T');
-    const roll = (seed, r, who) => 1 + Math.floor(mulberry((seed ^ (r * 7919 + (who === 'a' ? 17 : 91))) >>> 0)() * 6);
+  } else if (D.g === 'ttt') {
+    B.innerHTML = `<div class="tttg" id="fG">${Array.from({ length: 9 }, (_, i) => `<button data-c="${i}"></button>`).join('')}</div><p class="hint" style="text-align:center" id="fTi"></p>`;
+    let turn = 'a', mv = [], sending = false, fi = 'a';
+    const sym = who => who === fi ? '❌' : '⭕';
+    const draw = d => {
+      mv = fdMoves(d); turn = d.tn; fi = d.fi || 'a';
+      const own = i => (i % 2 === 0 ? fi : (fi === 'a' ? 'b' : 'a'));
+      const cells = Array(9).fill(null); mv.forEach((c, i) => cells[c] = own(i));
+      const w = fdTttWin(cells);
+      $$('#fG button', o).forEach(b => { const c = +b.dataset.c; b.textContent = cells[c] ? sym(cells[c]) : ''; b.className = w && w.line.includes(c) ? 'win' : ''; b.disabled = !!cells[c] || D.end || turn !== D.me || sending || !!w; });
+      $('#fTi', o).textContent = `Du spielst ${sym(D.me)} · ${D.opp} spielt ${sym(other)}`;
+      if (w) return finish(w.who === D.me ? 'win' : 'lose', w.who === D.me ? `🎉 Drei in einer Reihe – du gewinnst ${fmt(potWin(D.st))}!` : `😬 ${esc(D.opp)} hat drei in einer Reihe.`);
+      if (mv.length >= 9) return finish('draw', '🤝 Unentschieden – Einsatz zurück');
+      if (d.s === 'end' && d.w) return finish(d.w === D.me ? 'win' : 'lose', d.w === D.me ? `🏃 ${esc(D.opp)} ist weg – du gewinnst ${fmt(potWin(D.st))}!` : 'Du warst zu lange weg – Duell verloren.');
+      const mine = turn === D.me; T_.textContent = mine ? '👉 Du bist dran!' : `⏳ ${D.opp} ist dran …`; T_.classList.toggle('me', mine);
+      if (!mine && Date.now() - (d.ts || 0) > 60000 && !$('#fClaim', o)) {
+        F.innerHTML = `<button class="btn gold w" id="fClaim" style="margin-top:12px">${esc(D.opp)} reagiert nicht – Sieg holen</button>`;
+        $('#fClaim', o).onclick = async () => { try { const x = await fdGet(D.id); if (Date.now() - (x.ts || 0) < 60000 || x.tn === D.me) return toast('Dein Gegner ist doch noch da 🙂'); await fdSet(D.id, { s: 'end', w: D.me }); x.s = 'end'; x.w = D.me; draw(x); } catch (e) { } };
+      }
+    };
+    $('#fG', o).onclick = async e => {
+      const b = e.target.closest('[data-c]'); if (!b || D.end || !doc || turn !== D.me || sending) return;
+      const c = +b.dataset.c; if (mv.includes(c)) return;
+      const nm = [...mv, c]; sending = true;
+      try { await fdSet(D.id, { mv: nm.join(','), tn: other, ts: Date.now() }); doc.mv = nm.join(','); doc.tn = other; doc.ts = Date.now(); SND.click(); vib(8); } catch (er) { toast('Zug nicht gesendet – nochmal tippen.', 'bad'); }
+      sending = false; draw(doc);
+    };
+    const tick = async () => { let d; try { d = await fdGet(D.id); } catch (e) { return; } if (D.end) return; const before = doc ? fdMoves(doc).length : 0; doc = d; if (fdMoves(d).length > before && before) SND.coin(3); draw(d); };
+    tick(); iv = setInterval(tick, 1000);
+  } else if (FD_ROUND.includes(D.g)) {
+    const g = D.g;
     B.innerHTML = `<div class="fdsc"><div><small>Du</small><b class="num" id="fW1">0</b></div><span>:</span><div><small>${esc(D.opp)}</small><b class="num" id="fW2">0</b></div></div>
       <div class="fdhist" id="fHist"></div>
       <div id="fAct" style="margin-top:14px"></div>`;
-    let seed = 0, sending = false;
+    let seed = 0, sending = false, react = null;
     const lists = d => [(d.am || '').split(',').filter(Boolean), (d.bm || '').split(',').filter(Boolean)];
     const state = d => {
       const [la, lb] = lists(d), mine = D.me === 'a' ? la : lb, theirs = D.me === 'a' ? lb : la, n = Math.min(la.length, lb.length), rounds = [];
       let w1 = 0, w2 = 0;
-      for (let r = 0; r < n; r++) {
-        let res;
-        if (rps) res = mine[r] === theirs[r] ? 0 : beats(mine[r], theirs[r]) ? 1 : -1;
-        else { const a = roll(seed, r, D.me), b = roll(seed, r, other); res = a === b ? 0 : a > b ? 1 : -1; rounds.push({ a, b, res }); continue; }
-        rounds.push({ a: mine[r], b: theirs[r], res });
-      }
-      rounds.forEach(x => { if (x.res > 0) w1++; else if (x.res < 0) w2++; });
+      for (let r = 0; r < n; r++) { let res = fdRound(g, seed, r, la[r], lb[r]); if (D.me === 'b') res = -res; rounds.push({ r, a: mine[r], b: theirs[r], res }); if (res > 0) w1++; else if (res < 0) w2++; }
       return { mine, theirs, n, rounds, w1, w2 };
     };
+    const show = (x, who) => fdShow(g, seed, x.r, who === 'me' ? x.a : x.b, who === 'me' ? D.me : other);
+    const mid = x => g === 'coin' ? (fdCoin(seed, x.r) === 'K' ? '👑' : '🔢') : g === 'hilo' ? `${fdCardN(fdCard(seed, x.r))}→${fdCardN(fdCard(seed, x.r + 100))}` : 'vs';
+    const ask = { rps: 'wähl deine Hand!', dice: 'würfle!', coin: 'Kopf oder Zahl?', hilo: 'kommt die nächste Karte höher oder tiefer?', react: 'sei schneller als dein Gegner!' }[g];
     const draw = d => {
       const st = state(d);
       $('#fW1', o).textContent = st.w1; $('#fW2', o).textContent = st.w2;
-      $('#fHist', o).innerHTML = st.rounds.map((x, i) => `<div class="fdr ${x.res > 0 ? 'w' : x.res < 0 ? 'l' : ''}"><small>Runde ${i + 1}</small><span>${rps ? IC[x.a] : '🎲 ' + x.a}</span><small>vs</small><span>${rps ? IC[x.b] : '🎲 ' + x.b}</span><b>${x.res > 0 ? 'gewonnen' : x.res < 0 ? 'verloren' : 'gleich'}</b></div>`).join('');
+      $('#fHist', o).innerHTML = st.rounds.map((x, i) => `<div class="fdr ${x.res > 0 ? 'w' : x.res < 0 ? 'l' : ''}"><small>Runde ${i + 1}</small><span>${show(x, 'me')}</span><small>${mid(x)}</small><span>${show(x, 'op')}</span><b>${x.res > 0 ? 'gewonnen' : x.res < 0 ? 'verloren' : 'gleich'}</b></div>`).join('');
       if (st.w1 >= 2 || st.w2 >= 2) return finish(st.w1 >= 2 ? 'win' : 'lose', st.w1 >= 2 ? `🎉 ${st.w1}:${st.w2} – du gewinnst ${fmt(potWin(D.st))}!` : `😬 ${st.w1}:${st.w2} – ${esc(D.opp)} gewinnt.`);
       if (st.n >= 9) return finish('draw', '🤝 Zu viele Unentschieden – Einsatz zurück');
       if (d.s === 'end' && d.w) return finish(d.w === D.me ? 'win' : 'lose', d.w === D.me ? `🏃 ${esc(D.opp)} ist weg – du gewinnst ${fmt(potWin(D.st))}!` : 'Du warst zu lange weg – Duell verloren.');
       const waiting = st.mine.length > st.n;
-      T_.textContent = waiting ? `⏳ Warte auf ${D.opp} …` : `Runde ${st.n + 1} – ${rps ? 'wähl deine Hand!' : 'würfle!'}`; T_.classList.toggle('me', !waiting);
-      const A = $('#fAct', o);
-      if (waiting) A.innerHTML = `<p class="hint" style="text-align:center">Du hast ${rps ? IC[st.mine[st.n]] + ' ' + NM[st.mine[st.n]] + ' gewählt' : 'gewürfelt'} – gleich wird aufgedeckt.</p>`;
-      else A.innerHTML = rps ? `<div class="fdrps">${['S', 'T', 'P'].map(k => `<button class="btn dark" data-m="${k}" ${sending ? 'disabled' : ''}><span>${IC[k]}</span>${NM[k]}</button>`).join('')}</div>` : `<button class="btn gold w" data-m="x" style="font-size:22px" ${sending ? 'disabled' : ''}>🎲 Würfeln</button>`;
+      T_.textContent = waiting ? `⏳ Warte auf ${D.opp} …` : `Runde ${st.n + 1} – ${ask}`; T_.classList.toggle('me', !waiting);
+      const A = $('#fAct', o), dis = sending ? 'disabled' : '';
+      if (react) return; // Reaktionstest läuft gerade
+      if (waiting) A.innerHTML = `<p class="hint" style="text-align:center">Du: ${fdShow(g, seed, st.n, st.mine[st.n], D.me)} – gleich wird aufgedeckt.</p>`;
+      else if (g === 'rps') A.innerHTML = `<div class="fdrps">${['S', 'T', 'P'].map(k => `<button class="btn dark" data-m="${k}" ${dis}><span>${FD_IC[k]}</span>${FD_NM[k]}</button>`).join('')}</div>`;
+      else if (g === 'dice') A.innerHTML = `<button class="btn gold w" data-m="x" style="font-size:22px" ${dis}>🎲 Würfeln</button>`;
+      else if (g === 'coin') A.innerHTML = `<div class="fdrps" style="grid-template-columns:1fr 1fr"><button class="btn dark" data-m="K" ${dis}><span>👑</span>Kopf</button><button class="btn dark" data-m="Z" ${dis}><span>🔢</span>Zahl</button></div>`;
+      else if (g === 'hilo') A.innerHTML = `<div class="fdcard">${fdCardN(fdCard(seed, st.n))}</div><div class="fdrps" style="grid-template-columns:1fr 1fr"><button class="btn dark" data-m="H" ${dis}><span>⬆️</span>Höher</button><button class="btn dark" data-m="T" ${dis}><span>⬇️</span>Tiefer</button></div>`;
+      else if (g === 'react') A.innerHTML = `<button class="btn gold w" data-r="go" style="font-size:22px" ${dis}>⚡ Start</button><p class="hint" style="text-align:center">Nach dem Start wird das Feld rot. Sobald es <b style="color:#2fd36b">GRÜN</b> wird, so schnell wie möglich tippen! Zu früh = verloren.</p>`;
       if (!waiting || Date.now() - (d.ts || 0) < 60000 || $('#fClaim', o)) return;
       F.innerHTML = `<button class="btn gold w" id="fClaim" style="margin-top:12px">${esc(D.opp)} reagiert nicht – Sieg holen</button>`;
       $('#fClaim', o).onclick = async () => { try { const x = await fdGet(D.id); const s2 = state(x); if (Date.now() - (x.ts || 0) < 60000 || s2.theirs.length >= s2.mine.length) return toast('Dein Gegner ist doch noch da 🙂'); await fdSet(D.id, { s: 'end', w: D.me }); x.s = 'end'; x.w = D.me; draw(x); } catch (e) { } };
     };
-    $('#fAct', o).onclick = async e => {
-      const b = e.target.closest('[data-m]'); if (!b || D.end || sending || !doc) return;
-      const st = state(doc); if (st.mine.length > st.n) return;
-      sending = true; const nl = [...st.mine, b.dataset.m].join(',');
+    const submit = async m => {
+      const st = state(doc); if (st.mine.length > st.n || sending) return;
+      sending = true; const nl = [...st.mine, m].join(',');
       try { await fdSet(D.id, { [D.me + 'm']: nl, ts: Date.now() }); doc[D.me + 'm'] = nl; doc.ts = Date.now(); SND.click(); vib(10); } catch (er) { toast('Nicht gesendet – nochmal tippen.', 'bad'); }
       sending = false; draw(doc);
+    };
+    $('#fAct', o).onclick = async e => {
+      if (D.end || !doc) return;
+      if (react) { // Tipp während des Reaktionstests
+        if (react.state === 'red') { clearTimeout(react.t); react = null; SND.err(); toast('Zu früh! ⚡', 'bad'); return submit('9999'); }
+        if (react.state === 'green') { const ms = Math.min(9998, Math.round(performance.now() - react.t0)); react = null; toast(`⚡ ${ms} ms`, 'good'); return submit(String(ms)); }
+        return;
+      }
+      const r = e.target.closest('[data-r]');
+      if (r) {
+        const st = state(doc), A = $('#fAct', o);
+        react = { state: 'red' }; A.innerHTML = '<div class="fdreact red">Warten …</div>';
+        react.t = setTimeout(() => { if (!react) return; react.state = 'green'; react.t0 = performance.now(); A.innerHTML = '<div class="fdreact green">JETZT TIPPEN!</div>'; vib(20); }, fdDelay(seed, st.n));
+        return;
+      }
+      const b = e.target.closest('[data-m]'); if (b) submit(b.dataset.m);
     };
     const tick = async () => { let d; try { d = await fdGet(D.id); } catch (e) { return; } if (D.end) return; if (!seed) seed = d.seed; const before = doc ? state(doc).n : 0; doc = d; if (state(d).n > before) SND.coin(3); draw(d); };
     tick(); iv = setInterval(tick, 1000);
@@ -4439,6 +4486,33 @@ function fdSettle(D, res) {
   S.fdPend = null; S.st.duels = (S.st.duels || 0) + (res === 'win' || res === 'lose' ? 1 : 0); hdr(true); save();
 }
 /* Liegen gebliebenes Duell auswerten: wer hat schon verloren bzw. wer hat nicht mehr reagiert? */
+const FD_ROUND = ['rps', 'dice', 'coin', 'hilo', 'react'];
+const FD_IC = { S: '✌️', T: '✊', P: '✋' }, FD_NM = { S: 'Schere', T: 'Stein', P: 'Papier' };
+const fdBeats = (x, y) => (x === 'S' && y === 'P') || (x === 'T' && y === 'S') || (x === 'P' && y === 'T');
+const fdRnd = (seed, r, salt) => mulberry((seed ^ (r * 7919 + salt)) >>> 0)();
+const fdRoll = (seed, r, who) => 1 + Math.floor(fdRnd(seed, r, who === 'a' ? 17 : 91) * 6);
+const fdCoin = (seed, r) => fdRnd(seed, r, 333) < .5 ? 'K' : 'Z';
+const fdCard = (seed, r) => 1 + Math.floor(fdRnd(seed, r, 555) * 13);
+const fdCardN = v => ({ 1: 'A', 11: 'B', 12: 'D', 13: 'K' }[v] || String(v));
+const fdDelay = (seed, r) => 1500 + Math.floor(fdRnd(seed, r, 777) * 3000);
+function fdRound(g, seed, r, ma, mb) { // Ergebnis aus Sicht von a: 1 / -1 / 0
+  if (g === 'rps') return ma === mb ? 0 : fdBeats(ma, mb) ? 1 : -1;
+  if (g === 'dice') { const x = fdRoll(seed, r, 'a'), y = fdRoll(seed, r, 'b'); return x === y ? 0 : x > y ? 1 : -1; }
+  if (g === 'coin') { const c = fdCoin(seed, r), A = ma === c, B = mb === c; return A === B ? 0 : A ? 1 : -1; }
+  if (g === 'hilo') { const c0 = fdCard(seed, r), c1 = fdCard(seed, r + 100), ok = m => (m === 'H' && c1 > c0) || (m === 'T' && c1 < c0), A = ok(ma), B = ok(mb); return A === B ? 0 : A ? 1 : -1; }
+  if (g === 'react') { const x = +ma, y = +mb; return x === y ? 0 : x < y ? 1 : -1; }
+  return 0;
+}
+function fdShow(g, seed, r, m, who) {
+  if (g === 'rps') return FD_IC[m] || '?';
+  if (g === 'dice') return '🎲 ' + fdRoll(seed, r, who);
+  if (g === 'coin') return m === 'K' ? '👑' : '🔢';
+  if (g === 'hilo') return m === 'H' ? '⬆️' : '⬇️';
+  if (g === 'react') return +m >= 9999 ? '❌' : (+m) + ' ms';
+  return m;
+}
+const TTT_L = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+function fdTttWin(cells) { for (const l of TTT_L) { const [x, y, z] = l; if (cells[x] && cells[x] === cells[y] && cells[x] === cells[z]) return { who: cells[x], line: l }; } return null; }
 function fdJudge(d) {
   const oth = r => r === 'a' ? 'b' : 'a';
   if (d.g === 'mines') {
@@ -4447,14 +4521,13 @@ function fdJudge(d) {
     return oth(d.tn || 'a'); // wer dran war und nicht mehr gezogen hat, verliert
   }
   if (d.g === 'crash') { const a = +d.ac || 0, b = +d.bc || 0; return a === b ? 'draw' : a > b ? 'a' : 'b'; }
+  if (d.g === 'ttt') {
+    const mv = fdMoves(d), fi = d.fi || 'a', cells = Array(9).fill(null); mv.forEach((c, i) => cells[c] = i % 2 === 0 ? fi : oth(fi));
+    const w = fdTttWin(cells); if (w) return w.who; if (mv.length >= 9) return 'draw'; return oth(d.tn || 'a');
+  }
   const la = String(d.am || '').split(',').filter(Boolean), lb = String(d.bm || '').split(',').filter(Boolean);
   const n = Math.min(la.length, lb.length); let wa = 0, wb = 0;
-  const beats = (x, y) => (x === 'S' && y === 'P') || (x === 'T' && y === 'S') || (x === 'P' && y === 'T');
-  const roll = (r, who) => 1 + Math.floor(mulberry((d.seed ^ (r * 7919 + (who === 'a' ? 17 : 91))) >>> 0)() * 6);
-  for (let r = 0; r < n && wa < 2 && wb < 2; r++) {
-    if (d.g === 'rps') { if (beats(la[r], lb[r])) wa++; else if (beats(lb[r], la[r])) wb++; }
-    else { const x = roll(r, 'a'), y = roll(r, 'b'); if (x > y) wa++; else if (y > x) wb++; }
-  }
+  for (let r = 0; r < n && wa < 2 && wb < 2; r++) { const x = fdRound(d.g, d.seed, r, la[r], lb[r]); if (x > 0) wa++; else if (x < 0) wb++; }
   if (wa >= 2 || wb >= 2) return wa >= 2 ? 'a' : 'b';
   if (la.length !== lb.length) return la.length > lb.length ? 'a' : 'b'; // wer nicht mehr gewählt hat, verliert
   return 'draw';
