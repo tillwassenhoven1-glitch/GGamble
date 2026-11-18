@@ -1217,7 +1217,7 @@ async function cloudSync(allowAdopt = true) { // true = anderes Gerät ist neuer
   return true;
 }
 async function syncTick() { if (!S || !ACC || syncing || document.hidden) return; syncing = true; try { await cloudSync(true); } finally { syncing = false; } }
-setInterval(syncTick, 15000); document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(syncTick, 300); });
+setInterval(syncTick, 30000); document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(syncTick, 300); });
 function cloudPush(now) {
   if (typeof ONLINE === 'undefined' || !onlineOn() || !S || !ACC) return;
   const run = async () => {
@@ -2954,7 +2954,7 @@ async function trPoll() {
   try {
     const [ps, ms] = await Promise.all([
       fsQuery({ from: [{ collectionId: 'treff' }], where: rangeQ('rt', 'p:' + room, Date.now() - 30000), limit: 30 }),
-      fsQuery({ from: [{ collectionId: 'treff' }], where: rangeQ('rt', 'm:' + room, TF.join - 3000), orderBy: [{ field: { fieldPath: 'rt' }, direction: 'ASCENDING' }], limit: 100 })]);
+      fsQuery({ from: [{ collectionId: 'treff' }], where: rangeQ('rt', 'm:' + room, TF.lastM || TF.join - 3000), orderBy: [{ field: { fieldPath: 'rt' }, direction: 'ASCENDING' }], limit: 100 })]);
     if (T.room !== room) return;
     const live = {}; ps.forEach(p => { if (p.pid && p.pid !== TF.pid) live[p.pid] = p.name || '?'; });
     Object.entries(live).forEach(([pid, n]) => {
@@ -2964,7 +2964,7 @@ async function trPoll() {
       if (T.peer && !T.conns[pid] && TF.pid < pid && !(TF.tryC[pid] > Date.now() - 15000)) { TF.tryC[pid] = Date.now(); try { wireConn(T.peer.connect(pid, { reliable: true })); if (T.stream) callPeer(pid); } catch (e) { } }
     });
     Object.keys(T.names).forEach(pid => { if (live[pid] || (T.conns[pid] && T.conns[pid].open)) return; const n = T.names[pid]; delete T.names[pid]; if (T.calls[pid]) { try { T.calls[pid].close(); } catch (e) { } delete T.calls[pid]; } sysMsg(`${esc(n)} ist gegangen`); });
-    ms.forEach(m => { if (TF.seen.has(m.id)) return; TF.seen.add(m.id); if (m.pid !== TF.pid) addMsg(m.name || '?', m.txt || ''); });
+    ms.forEach(m => { TF.lastM = Math.max(TF.lastM || 0, (+m.ts || 0) - 1); if (TF.seen.has(m.id)) return; TF.seen.add(m.id); if (m.pid !== TF.pid) addMsg(m.name || '?', m.txt || ''); });
     refreshRoom();
   } catch (e) { }
 }
@@ -2978,7 +2978,7 @@ async function joinRoom(id) {
   toast('Verbinde mit dem Raum …');
   await getCam();
   T.room = id; T.names = {}; T.log = []; T.conns = {}; T.calls = {}; T.filt = {}; T.ask = {}; T.host = false;
-  TF.join = Date.now(); TF.seen = new Set(); TF.tryC = {}; TF.since = {};
+  TF.join = Date.now(); TF.lastM = 0; TF.seen = new Set(); TF.tryC = {}; TF.since = {};
   clearInterval(T.healT); T.healT = setInterval(healVideo, 4000);
   let peer = null;
   try {
@@ -2994,7 +2994,7 @@ async function joinRoom(id) {
   } else { TF.pid = 'x' + Math.random().toString(36).slice(2, 12); sysMsg('⚠️ Video-Server gerade nicht erreichbar – der Chat funktioniert trotzdem.'); }
   sysMsg('Du bist im Raum. Andere sehen dich in ein paar Sekunden.');
   trBeat(); clearInterval(TF.hb); TF.hb = setInterval(() => trBeat(), 10000);
-  clearInterval(TF.poll); TF.poll = setInterval(trPoll, 3000); setTimeout(trPoll, 600);
+  clearInterval(TF.poll); TF.poll = setInterval(trPoll, 4000); setTimeout(trPoll, 600);
   S.st.treff++; checkAch(); roomUI(); go(curPage, true);
 }
 // Beim Schließen der Seite die Raum-ID sofort freigeben (sonst bleibt ein „Geister-Gastgeber“ übrig)
@@ -4177,7 +4177,9 @@ function perVal(d, p, tracked) {
   if ((d.since || 0) >= perStart(p)) return r2((d.bal || 0) - START_BAL);
   return tracked === undefined || tracked === null ? null : (+tracked || 0);
 }
-async function rgFetch() {
+let RG_C = null;
+async function rgFetch() { if (RG_C && Date.now() - RG_C.t < 45000) return RG_C.d.map(x => ({ ...x, me: x.k === S.lbId })); const d = await rgFetch0(); RG_C = { t: Date.now(), d }; return d; }
+async function rgFetch0() {
   if (typeof lbhLoad === 'function') await lbhLoad();
   const docs = (await fsQuery({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'since' }, op: 'GREATER_THAN_OR_EQUAL', value: fint(RESET_TS) } }, limit: 1000 })).filter(r => r.id === S.lbId || (typeof lbhHas === 'function' ? !lbhHas(r.name) : true));
   return docs.map(d => ({ k: d.id, name: d.name || '?', disp: d.disp || d.name || '?', bal: d.bal || 0, lvl: d.level || 1, color: d.color || 0, ts: d.ts || 0, me: d.id === S.lbId,
@@ -4698,7 +4700,7 @@ async function fdRecover() {
     }
   } catch (e) { }
 }
-function fdStart() { if (FDX.iv || !onlineOn()) return; setTimeout(fdRecover, 3000); setInterval(() => { if (S && S.fdPend && !FDX.cur) fdRecover(); }, 60000); FDX.iv = setInterval(fdInbox, 8000); setTimeout(fdInbox, 4000); }
+function fdStart() { if (FDX.iv || !onlineOn()) return; setTimeout(fdRecover, 3000); setInterval(() => { if (S && S.fdPend && !FDX.cur) fdRecover(); }, 60000); FDX.iv = setInterval(() => { if (!document.hidden) fdInbox(); }, 20000); setTimeout(fdInbox, 4000); }
 
 /* Spielerprofil: Freund hinzufügen / Nachricht schreiben */
 (() => {
@@ -4816,8 +4818,11 @@ async function onlBeat() {
 async function onlCount() {
   if (!S || !onlineOn()) return;
   try {
-    const d = await fsQuery({ from: [{ collectionId: 'online' }], where: { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(Date.now() - 150000) } }, limit: 300 });
-    ONL.list = d.map(x => x.n || '?'); ONL.n = Math.max(1, d.length); ONL.ok = true;
+    // Nur zählen (Aggregation = kaum Lesevorgänge) statt alle Dokumente zu laden – spart Firebase-Kontingent
+    const r = await fetch(`${FS()}:runAggregationQuery?key=${ONLINE.apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ structuredAggregationQuery: { structuredQuery: { from: [{ collectionId: 'online' }], where: { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(Date.now() - 150000) } } }, aggregations: [{ alias: 'n', count: {} }] } }) });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json(), n = +((j[0] && j[0].result && j[0].result.aggregateFields && j[0].result.aggregateFields.n && j[0].result.aggregateFields.n.integerValue) || 0);
+    ONL.n = Math.max(1, n); ONL.ok = true;
     try { localStorage.setItem('gg_onl', JSON.stringify({ n: ONL.n, list: ONL.list, t: Date.now() })); } catch (e) { }
   } catch (e) { ONL.ok = false; }
   onlDraw();
@@ -4826,10 +4831,11 @@ function onlDraw() { $$('.onl').forEach(b => { b.classList.toggle('hidden', !ONL
 function onlStart() {
   if (ONL.iv || !onlineOn()) return;
   onlDraw(); onlBeat().then(onlCount);
-  ONL.iv = setInterval(() => { if (document.hidden) return; onlBeat(); onlCount(); }, 20000);
+  ONL.iv = setInterval(() => { if (document.hidden) return; onlBeat(); onlCount(); }, 45000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { onlBeat(); onlCount(); } });
 }
-function onlShow() {
+async function onlShow() {
+  try { const d = await fsQuery({ from: [{ collectionId: 'online' }], where: { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(Date.now() - 150000) } }, limit: 100 }); ONL.list = d.map(x => x.n || '?'); ONL.n = Math.max(1, d.length); onlDraw(); } catch (e) { }
   const names = [...new Set(ONL.list)].sort((a, b) => a.localeCompare(b));
   sheet(`<div class="row sb"><h2>🟢 ${ONL.n} online</h2><button class="x" data-close>${icon('x')}</button></div>
     <p class="hint">Spieler, die in den letzten 2–3 Minuten aktiv waren:</p>
@@ -4920,7 +4926,7 @@ function banCheck() {
   const t = document.getElementById('banT'); if (t) t.textContent = `${m}:${String(sec).padStart(2, '0')}`;
 }
 setInterval(() => { if (S) banCheck(); }, 1000);
-function giftStart() { if (!onlineOn()) return; setTimeout(giftPoll, 2500); setInterval(giftPoll, 30000); setTimeout(() => typeof bcPoll === 'function' && bcPoll(), 3500); setInterval(() => typeof bcPoll === 'function' && bcPoll(), 20000); document.addEventListener('visibilitychange', () => { if (!document.hidden && typeof bcPoll === 'function') setTimeout(bcPoll, 800); }); }
+function giftStart() { if (!onlineOn()) return; setTimeout(giftPoll, 2500); setInterval(giftPoll, 30000); setTimeout(() => typeof bcPoll === 'function' && bcPoll(), 3500); setInterval(() => typeof bcPoll === 'function' && bcPoll(), 45000); document.addEventListener('visibilitychange', () => { if (!document.hidden && typeof bcPoll === 'function') setTimeout(bcPoll, 800); }); }
 function openGift() {
   const o = sheet(`<div class="row sb"><h2>🎁 Spielern etwas geben</h2><button class="x" data-close>${icon('x')}</button></div>
     <div class="lbl2" style="margin-top:0">Spielername</div><input class="inp" id="gfN" maxlength="18" placeholder="z. B. Robin" autocomplete="off">
@@ -5026,23 +5032,20 @@ async function phUpload() {
     if (r.ok) { S.phUp = sig; save(); PH.m[meKey()] = p; }
   } catch (e) { }
 }
-PH.tried = {};
+PH.tried = PH.tried || {};
 function phPatch() {
   const miss = new Set();
-  document.querySelectorAll('.avatar[data-n]').forEach(a => { const n = a.dataset.n, p = PH.m[n]; if (!p) { if (PH.t && !(PH.tried[n] > Date.now() - 300000)) miss.add(n); return; } if (a.dataset.ph === '1' || a.style.backgroundImage.includes('data:image')) return; a.dataset.ph = '1'; a.style.background = ''; a.style.backgroundImage = `url(${p})`; a.style.backgroundSize = 'cover'; a.textContent = ''; });
+  document.querySelectorAll('.avatar[data-n]').forEach(a => { const n = a.dataset.n, p = PH.m[n]; if (!p) { if (PH.t && !(PH.tried[n] > Date.now() - 12 * 36e5)) miss.add(n); return; } if (a.dataset.ph === '1' || a.style.backgroundImage.includes('data:image')) return; a.dataset.ph = '1'; a.style.background = ''; a.style.backgroundImage = `url(${p})`; a.style.backgroundSize = 'cover'; a.textContent = ''; });
   // einzeln nachladen, falls die Liste ein Bild nicht mitgeliefert hat
-  [...miss].slice(0, 25).forEach(n => { PH.tried[n] = Date.now(); fetch(fsDoc('bilder/' + encodeURIComponent(n)), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(j => { const p = j?.fields?.p?.stringValue || ''; if (p.startsWith('data:image/')) { PH.m[n] = p; phPatch(); } }).catch(() => { }); });
+  [...miss].slice(0, 25).forEach(n => { PH.tried[n] = Date.now(); fetch(fsDoc('bilder/' + encodeURIComponent(n)), { cache: 'no-store' }).then(r => r.status === 404 ? {} : r.ok ? r.json() : null).then(j => { if (!j) return; const p = j?.fields?.p?.stringValue || ''; phSave(n, p.startsWith('data:image/') ? p : ''); if (p.startsWith('data:image/')) { PH.m[n] = p; phPatch(); } }).catch(() => { }); });
 }
-async function phLoad() {
-  if (!onlineOn() || document.hidden) return;
-  try {
-    const d = await fsQuery({ from: [{ collectionId: 'bilder' }], limit: 500 }); // ohne Filter: lange Bild-Texte sind in Firestore nicht indexiert
-    d.forEach(x => { if (typeof x.p === 'string' && x.p.startsWith('data:image/')) PH.m[decodeURIComponent(x.id)] = x.p; }); PH.t = Date.now(); phPatch();
-  } catch (e) { }
-}
+// Bilder einzeln laden und 12 Std. auf dem Gerät merken (spart Firebase-Lesevorgänge)
+try { const c = JSON.parse(localStorage.getItem('gg_ph') || '{}'); for (const k in c) if (Date.now() - c[k].t < 12 * 36e5) { if (c[k].p) PH.m[k] = c[k].p; PH.tried && (PH.tried[k] = c[k].t); } PH.c = c; } catch (e) { PH.c = {}; }
+function phSave(n, p) { try { PH.c[n] = { p, t: Date.now() }; const ks = Object.keys(PH.c); if (ks.length > 150) ks.sort((a, b) => PH.c[a].t - PH.c[b].t).slice(0, ks.length - 150).forEach(k => delete PH.c[k]); localStorage.setItem('gg_ph', JSON.stringify(PH.c)); } catch (e) { } }
+async function phLoad() { PH.t = Date.now(); phPatch(); }
 function phStart() {
   if (!onlineOn()) return;
-  setTimeout(phUpload, 3000); setTimeout(phLoad, 1500); setInterval(phLoad, 180000); setInterval(phUpload, 60000);
+  setTimeout(phUpload, 3000); setTimeout(phLoad, 1500); setInterval(phUpload, 120000);
   new MutationObserver(() => { clearTimeout(PH.mo); PH.mo = setTimeout(phPatch, 60); }).observe(document.body, { childList: true, subtree: true });
 }
 
@@ -5094,7 +5097,7 @@ function openBc() {
 
 /* ================= 💎 Der Tresor: Hochrisiko-Spiel für reiche Spieler (Geld-Senke) =================
    Ehrliche Chancen, aber nur 60 % Auszahlungsquote → wer viel reinsteckt, verliert auf Dauer viel. */
-const TR_RTP = .6, TR_T = [2, 5, 10, 100];
+const TR_RTP = .5, TR_T = [2, 5, 10, 100], TR_CD = 60000; // 50 % Quote, 1 Runde pro Minute
 function openTresor() {
   if (S.bal < 1000) { toast(`💎 Der Tresor ist nur für High Roller – ab ${fmt(1000)} Guthaben.`, 'bad'); SND.err(); return; }
   let tgt = 5, pct = .25;
@@ -5117,8 +5120,9 @@ function openTresor() {
   $('#trGo', o).onclick = async function () {
     const st = stake(); if (st < 1) return toast('Zu wenig Guthaben', 'bad');
     if (S.bal < 1000) { o.close(); return toast(`💎 Erst ab ${fmt(1000)} Guthaben.`, 'bad'); }
+    const cdl = (S.trT || 0) + TR_CD - Date.now(); if (cdl > 0) { SND.err(); return toast(`🔐 Der Tresor lädt neu – noch ${Math.ceil(cdl / 1000)} Sek.`, 'bad'); }
     if (pct >= 1 && !await confirmBox('💎 Wirklich ALLES setzen?', `Du setzt <b>${fmt(st)}</b>. Chance auf ×${tgt}: ${NF2.format(TR_RTP / tgt * 100).replace(/,?0+$/, '')} %.`, 'Alles setzen', true)) return;
-    if (!bet(st, 'Tresor')) return;
+    if (!bet(st, 'Tresor')) return; S.trT = Date.now(); save();
     this.disabled = true; $$('#trP button,#trT button', o).forEach(b => b.disabled = true); hdr(true);
     const v = $('#trV', o); v.style.transform = 'rotate(720deg) scale(1.15)'; SND.tick();
     const tk = setInterval(() => SND.tick(), 160);
