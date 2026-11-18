@@ -1207,10 +1207,13 @@ let cloudT = 0, cloudLast = '', cloudMine = Date.now();
 const DEV_ID = (() => { try { let d = localStorage.getItem('gg_dev'); if (!d) { d = Math.random().toString(36).slice(2, 10); localStorage.setItem('gg_dev', d); } return d; } catch (e) { return 'x' + Math.random().toString(36).slice(2, 8); } })();
 const syncBusy = () => (typeof T !== 'undefined' && T.room) || (typeof FDX !== 'undefined' && FDX.cur) || (typeof MS !== 'undefined' && MS && (MS.busy || MS.fs > 0)) || (typeof CR !== 'undefined' && CR.run && !CR.run.done) || !!document.querySelector('.game-ov[data-run]');
 let syncing = false;
+/* Fortschritt eines Spielstands (zählt nur hoch) – ein alter Stand von einem 2. Gerät darf nie einen weiteren überschreiben */
+const svProg = sv => { const st = (sv && sv.st) || {}; return (st.rounds || 0) + (st.shifts || 0) + (st.bets || 0) + (st.trades || 0) + (st.brews || 0) + (sv && sv.level || 0) * 50; };
 async function cloudSync(allowAdopt = true) { // true = anderes Gerät ist neuer (nicht hochladen!)
   const a = Accounts.all()[ACC]; if (!a || !a.cid || !onlineOn()) return false;
   let cl; try { cl = await cloudGet(a.cid); } catch (e) { return true; } // offline/Fehler → lieber nicht überschreiben
   if (!cl || !cl.d || !cl.d.dev || cl.d.dev === DEV_ID || cl.ts <= cloudMine + 1000 || isOldSave(cl.d.save)) return false;
+  if (S && svProg(cl.d.save) < svProg(S)) { cloudMine = cl.ts; cloudLast = ""; setTimeout(() => cloudPush(true), 0); return true; } // Cloud-Stand ist älter (z. B. vergessener Tab) → unseren hochladen statt übernehmen
   if (!allowAdopt || syncBusy()) return true; // später übernehmen
   const cur = Accounts.all(), x = cur[ACC]; x.save = cl.d.save; x.ts = cl.ts; Accounts.put(cur); cloudMine = cl.ts;
   S = null; toast('📱 Neuerer Spielstand von deinem anderen Gerät übernommen', 'good', 3000); setTimeout(() => location.reload(), 900);
@@ -3469,7 +3472,7 @@ function showLogin() {
       if (on) { try { cl = await cloudGet(cid); } catch (e) { if (!a) { done(); return err('Keine Verbindung – bitte Internet prüfen.'); } } }
       if (!ok && !cl) { done(); return err(a ? 'Falsches Passwort' : 'Name oder Passwort falsch – oder das Konto ist noch nicht online gesichert. Öffne GGamble einmal auf dem alten Gerät (dort wirst du nach dem Passwort gefragt) oder nimm unten den Spielstand-Code.'); }
       if (!a || !ok) { const salt = mkSalt(); a = all[key] = Object.assign(a || {}, { name: cl.d.name || name, salt, hash: await Accounts.hash(pw, salt), created: cl.d.created || Date.now() }); }
-      if (cl && (!a.save || cl.ts > (a.ts || 0)) && !(isOldSave(cl.d.save) && a.save && !isOldSave(a.save))) { a.save = cl.d.save; a.ts = cl.ts; }
+      if (cl && (!a.save || cl.ts > (a.ts || 0) || svProg(cl.d.save) > svProg(a.save)) && !(a.save && svProg(cl.d.save) < svProg(a.save)) && !(isOldSave(cl.d.save) && a.save && !isOldSave(a.save))) { a.save = cl.d.save; a.ts = cl.ts; }
       const first = !a.cid; a.cid = cid; Accounts.put(all);
       if (on && first) { if (!a.save) a.save = newState(a.name); if (!a.save.lbId) a.save.lbId = newRid(key); Accounts.put(all); claimName(key, a.save.lbId); if (!cl) cloudPut(cid, a, a.save || newState(a.name)).catch(() => { }); }
     }
