@@ -907,6 +907,7 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 /* ===== core.js ===== */
 'use strict';
 const VERSION = '0.2.1 Open Beta';
+const WARTUNG = true; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
 /* ================= Helfer ================= */
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1217,7 +1218,7 @@ function bet(a, game) {
   S.bal = r2(S.bal - a); touchToday(); S.today.v = r2(S.today.v - a);
   S.st.wagered += a; S.st.rounds++; S.st.net = r2(S.st.net - a);
   if (S.note > 0) { const rp = r2(Math.min(S.note, Math.max(.01, a * .1))); S.bal = r2(S.bal - rp); S.note = r2(S.note - rp); S.st.noteSpin = r2((S.st.noteSpin || 0) + rp); if (S.note <= 0.004) { S.note = 0; setTimeout(() => { toast('Schuldschein komplett abbezahlt! 🎉', 'good'); FX.burst(80); SND.win(); }, 500); } }
-  addXP(Math.min(a, 15 + S.level * 15)); bpAdd(1); wkAdd(-a);
+  addXP(Math.min(a, 15 + S.level * 15)); bpAdd(Math.min(1, a / Math.max(1, maxStake() * .1))); wkAdd(-a);
   taskProg('wager', a); taskProg('rounds', 1);
   hdr(); checkAch(); save(); return true;
 }
@@ -1562,6 +1563,7 @@ async function doSpin() {
   let stake = free ? MS.fsStake : STAKES[S.stakeI];
   const allIn = !free && MS.allIn;
   if (allIn) { stake = r2(maxBtnStake()); if (stake <= 0) { toast('Max-Einsatz geht nur mit Guthaben im Plus.', 'bad'); SND.err(); return; } }
+  if (free) { S.fsRun = MS.fs - 1 > 0 ? { mi: m.i, fs: MS.fs - 1, n: MS.fsN, st: MS.fsStake, w: MS.fsWin } : null; persist(); } // Freispiel gilt als verbraucht, sobald es startet
   const shown = { bal: S.bal, here: MS.here };
   MS.busy = true;
   if (!free) { if (!bet(stake, m.n)) { MS.busy = false; HOLD = []; return; } MS.here = r2(MS.here - stake); S.st.spins++; taskProg('spins', 1); }
@@ -3490,6 +3492,14 @@ document.addEventListener('touchend', e => { const n = Date.now(); if (n - lastT
 /* ================= Start ================= */
 $('#ver').textContent = 'Version ' + VERSION; $('#lVer').textContent = 'Version ' + VERSION;
 FX.init();
+if (WARTUNG) {
+  document.body.insertAdjacentHTML('beforeend', `<div style="position:fixed;inset:0;z-index:9999;background:#050506;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;gap:14px;color:#fff">
+    <div style="font-size:72px">🛠️</div><h1 style="font-size:36px;margin:0">Wartungsarbeiten</h1>
+    <p style="color:#a8a8b0;font-size:18px;max-width:420px;line-height:1.5;margin:0">GGamble ist gleich wieder da! Wir machen gerade ein paar Verbesserungen.<br>Dein Spielstand ist sicher gespeichert 💾</p>
+    <p style="color:#6a6a72;font-size:14px;margin:0">Die Seite lädt automatisch neu, sobald es weitergeht.</p></div>`);
+  const sp = document.getElementById('splash'); if (sp) sp.remove();
+  setInterval(checkUpdate, 30000);
+} else
 Promise.all([Promise.race([TIME.sync(), new Promise(r => setTimeout(r, 4000))]), new Promise(r => setTimeout(r, 1500))]).then(() => {
   $('#splash').classList.add('out'); setTimeout(() => $('#splash').remove(), 800);
   const k = localStorage.getItem(SES_KEY), all = Accounts.all();
@@ -3594,10 +3604,10 @@ function bpClaim(i) {
 function renderPass(el) {
   const lv = bpLv(), pts = S.bp.pts, inLv = lv >= BP_N ? BP_PER : pts % BP_PER, open = bpOpen();
   el.innerHTML = `<button class="btn dark sm" id="back">${icon('left')} Minispiele</button>
-    <h1 class="t" style="margin-top:16px">Battle Pass</h1><p class="sub">Saison ${seasonName()} · ${seasonLeft()} · jede Runde = 1 Punkt, Login-Kalender +20</p>
-    <div class="card"><div class="row sb"><b style="font-size:26px">Stufe ${lv} / ${BP_N}</b><span class="chip gold num">${NF0.format(pts)} Punkte</span></div>
+    <h1 class="t" style="margin-top:16px">Battle Pass</h1><p class="sub">Saison ${seasonName()} · ${seasonLeft()} · 1 Punkt pro Runde ab ${fmt(Math.max(1, maxStake() * .1))} Einsatz (kleiner = anteilig), Login-Kalender +20</p>
+    <div class="card"><div class="row sb"><b style="font-size:26px">Stufe ${lv} / ${BP_N}</b><span class="chip gold num">${NF0.format(Math.floor(pts))} Punkte</span></div>
       <div class="bpbar"><i style="width:${lv >= BP_N ? 100 : inLv / BP_PER * 100}%"></i></div>
-      <p class="hint">${lv >= BP_N ? 'Alles geschafft – stark! 🔥' : `Noch ${BP_PER - inLv} Punkte bis Stufe ${lv + 1}`}</p>
+      <p class="hint">${lv >= BP_N ? 'Alles geschafft – stark! 🔥' : `Noch ${Math.ceil(BP_PER - inLv)} Punkte bis Stufe ${lv + 1}`}</p>
       ${open ? `<button class="btn gold w" id="bpAll">Alle ${open} Belohnungen abholen</button>` : ''}</div>
     <div class="bpl">${BP_R.map((r, i) => { const got = S.bp.got.includes(i), ok = i < lv; return `<div class="bpi ${got ? 'got' : ok ? 'ok' : ''}"><span class="bpn">${i + 1}</span><span class="bpic">${rwIcon(r[0])}</span><span class="bpt">${rwTxt(r)}</span>${got ? '<span class="chip">✓</span>' : ok ? `<button class="btn gold xs" data-bp="${i}">Abholen</button>` : '<span class="chip">🔒</span>'}</div>`; }).join('')}</div>
     <p class="hint">Jeden Monat startet eine neue Saison. Rahmen und Titel bleiben für immer.</p>`;
@@ -4400,6 +4410,27 @@ function fdSettle(D, res) {
   if (D.paid) { if (res === 'win') payout(potWin(D.st), 'Duell', D.st); else if (res === 'draw' || res === 'refund') earn(D.st); }
   S.fdPend = null; S.st.duels = (S.st.duels || 0) + (res === 'win' || res === 'lose' ? 1 : 0); hdr(true); save();
 }
+/* Liegen gebliebenes Duell auswerten: wer hat schon verloren bzw. wer hat nicht mehr reagiert? */
+function fdJudge(d) {
+  const oth = r => r === 'a' ? 'b' : 'a';
+  if (d.g === 'mines') {
+    const b = fdBombs(d.seed), mv = fdMoves(d), hit = mv.findIndex(c => b.includes(c));
+    if (hit >= 0) { const by = hit % 2 === 0 ? d.fi : oth(d.fi); return oth(by); }
+    return oth(d.tn || 'a'); // wer dran war und nicht mehr gezogen hat, verliert
+  }
+  if (d.g === 'crash') { const a = +d.ac || 0, b = +d.bc || 0; return a === b ? 'draw' : a > b ? 'a' : 'b'; }
+  const la = String(d.am || '').split(',').filter(Boolean), lb = String(d.bm || '').split(',').filter(Boolean);
+  const n = Math.min(la.length, lb.length); let wa = 0, wb = 0;
+  const beats = (x, y) => (x === 'S' && y === 'P') || (x === 'T' && y === 'S') || (x === 'P' && y === 'T');
+  const roll = (r, who) => 1 + Math.floor(mulberry((d.seed ^ (r * 7919 + (who === 'a' ? 17 : 91))) >>> 0)() * 6);
+  for (let r = 0; r < n && wa < 2 && wb < 2; r++) {
+    if (d.g === 'rps') { if (beats(la[r], lb[r])) wa++; else if (beats(lb[r], la[r])) wb++; }
+    else { const x = roll(r, 'a'), y = roll(r, 'b'); if (x > y) wa++; else if (y > x) wb++; }
+  }
+  if (wa >= 2 || wb >= 2) return wa >= 2 ? 'a' : 'b';
+  if (la.length !== lb.length) return la.length > lb.length ? 'a' : 'b'; // wer nicht mehr gewählt hat, verliert
+  return 'draw';
+}
 /* Nach Absturz: offenes Duell abrechnen */
 async function fdRecover() {
   const p = S && S.fdPend; if (!p || !onlineOn()) return;
@@ -4412,8 +4443,11 @@ async function fdRecover() {
       const R2 = { id: p.id, me: p.me, st: p.st, g: d.g, opp: p.me === 'a' ? d.bd : d.ad, paid: true };
       toast('🎮 Dein Duell geht weiter!', 'good'); fdPlay(R2);
     }
-    else if (Date.now() - Math.max(d.ts || 0, d.t0 || 0) > 4 * 60000) { // abgebrochen → Einsatz zurück
-      fdSet(p.id, { s: 'end', w: 'draw' }).catch(() => { }); fdSettle(D, 'refund'); toast('Duell abgebrochen – dein Einsatz ist zurück.');
+    else if (Date.now() - Math.max(d.ts || 0, d.t0 || 0) > 4 * 60000) { // liegen geblieben → fair auswerten
+      const w = fdJudge(d);
+      fdSet(p.id, { s: 'end', w }).catch(() => { });
+      if (w === 'draw') { fdSettle(D, 'refund'); toast('Duell abgebrochen – dein Einsatz ist zurück.'); }
+      else { fdSettle(D, w === p.me ? 'win' : 'lose'); toast(w === p.me ? `🎉 Dein abgebrochenes Duell zählt als Sieg: +${fmt(potWin(p.st))}` : 'Dein abgebrochenes Duell zählt als verloren.'); }
     }
   } catch (e) { }
 }
