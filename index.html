@@ -1226,7 +1226,7 @@ function cloudPush(now) {
     if (!S) return;
     cloudPut(a.cid, a, S).then(r => { if (r.ok) { cloudLast = sig; cloudMine = Date.now(); } }).catch(() => { });
   };
-  if (now) { clearTimeout(cloudT); run(); } else if (!cloudT) cloudT = setTimeout(run, 12000);
+  if (now) { clearTimeout(cloudT); run(); } else if (!cloudT) cloudT = setTimeout(run, 45000); // seltener speichern (Firebase-Kontingent); beim Schließen wird sofort gespeichert
 }
 let saveT = 0; function save() { clearTimeout(saveT); saveT = setTimeout(persist, 250); }
 addEventListener('pagehide', () => { persist(); cloudPush(true); try { pushScore(); } catch (e) { } }); document.addEventListener('visibilitychange', () => { if (document.hidden) { persist(); cloudPush(true); } });
@@ -3551,7 +3551,8 @@ function startApp(key) {
   const pend = shopPending(); if (pend > 1 && away > 6e4) setTimeout(() => toast(`Deine Geschäfte haben ${fmt(pend)} verdient – im Imperium einsammeln 🏪`, 'good', 4500), 1600);
   if (S.fsRun && MACH[S.fsRun.mi] && S.fsRun.fs > 0) setTimeout(resumeFreeSpins, 1200);
   else if (bonusReady()) setTimeout(() => S && openBonus(), 900);
-  setInterval(() => { if (!S) return; applyInterest(); regenEnergy(); hdr(); save(); pushScore(); }, 30000);
+  setInterval(() => { if (!S) return; applyInterest(); regenEnergy(); hdr(); save(); }, 30000);
+  setInterval(() => { if (S && !document.hidden) pushScore(); }, 75000); // Bestenliste alle 75 Sek. aktualisieren
   setTimeout(() => pushScore(true), 3000);
   setInterval(() => { if (!S) return; if (S.bx.pos.length || S.bx.ord.length) bxTick(); else S.bx.lastTick = Date.now(); settleBets(); }, 2000);
   document.addEventListener('pointerdown', () => SND.c(), { once: true });
@@ -4203,7 +4204,7 @@ async function renderRang2(el) {
   if (onlineOn()) {
     pushScore(true);
     try { await new Promise(r => setTimeout(r, 400)); all = await rgFetch(); }
-    catch (e) { info = '⚠️ Online-Bestenliste gerade nicht erreichbar – das hier sind nur die Konten auf diesem Gerät.'; }
+    catch (e) { info = `⚠️ Online-Bestenliste gerade nicht erreichbar (${esc(String(e && e.message || e).slice(0, 60))}) – das hier sind nur die Konten auf diesem Gerät.`; }
   } else info = 'ℹ️ Die Online-Bestenliste ist nicht eingerichtet – du siehst nur die Konten auf diesem Gerät.';
   if (!all) { persist(); all = localAll().filter(r => !r.me && (r.since || 0) >= RESET_TS); }
   // mich selbst immer mit den aktuellen Werten
@@ -4819,7 +4820,7 @@ async function onlCount() {
   if (!S || !onlineOn()) return;
   try {
     // Nur zählen (Aggregation = kaum Lesevorgänge) statt alle Dokumente zu laden – spart Firebase-Kontingent
-    const r = await fetch(`${FS()}:runAggregationQuery?key=${ONLINE.apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ structuredAggregationQuery: { structuredQuery: { from: [{ collectionId: 'online' }], where: { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(Date.now() - 150000) } } }, aggregations: [{ alias: 'n', count: {} }] } }) });
+    const r = await fetch(`${FS()}:runAggregationQuery?key=${ONLINE.apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ structuredAggregationQuery: { structuredQuery: { from: [{ collectionId: 'online' }], where: { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(Date.now() - 180000) } } }, aggregations: [{ alias: 'n', count: {} }] } }) });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const j = await r.json(), n = +((j[0] && j[0].result && j[0].result.aggregateFields && j[0].result.aggregateFields.n && j[0].result.aggregateFields.n.integerValue) || 0);
     ONL.n = Math.max(1, n); ONL.ok = true;
@@ -4831,11 +4832,11 @@ function onlDraw() { $$('.onl').forEach(b => { b.classList.toggle('hidden', !ONL
 function onlStart() {
   if (ONL.iv || !onlineOn()) return;
   onlDraw(); onlBeat().then(onlCount);
-  ONL.iv = setInterval(() => { if (document.hidden) return; onlBeat(); onlCount(); }, 45000);
+  ONL.iv = setInterval(() => { if (document.hidden) return; onlBeat(); onlCount(); }, 70000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { onlBeat(); onlCount(); } });
 }
 async function onlShow() {
-  try { const d = await fsQuery({ from: [{ collectionId: 'online' }], where: { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(Date.now() - 150000) } }, limit: 100 }); ONL.list = d.map(x => x.n || '?'); ONL.n = Math.max(1, d.length); onlDraw(); } catch (e) { }
+  try { const d = await fsQuery({ from: [{ collectionId: 'online' }], where: { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(Date.now() - 180000) } }, limit: 100 }); ONL.list = d.map(x => x.n || '?'); ONL.n = Math.max(1, d.length); onlDraw(); } catch (e) { }
   const names = [...new Set(ONL.list)].sort((a, b) => a.localeCompare(b));
   sheet(`<div class="row sb"><h2>🟢 ${ONL.n} online</h2><button class="x" data-close>${icon('x')}</button></div>
     <p class="hint">Spieler, die in den letzten 2–3 Minuten aktiv waren:</p>
