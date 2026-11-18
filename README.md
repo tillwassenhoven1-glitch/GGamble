@@ -38,6 +38,7 @@ Version 0.2.1 · Open Beta
 - 📆 **Login-Kalender** – 7 Tage am Stück einloggen, am 7. Tag gibt's den großen Preis
 - 🏢 **Clans** – gründe einen Clan oder tritt einem bei: gemeinsamer Kontostand und eigene Clan-Bestenliste
 - 👥 **Freunde** hinzufügen, private Nachrichten schreiben und zum **Duell** herausfordern (💣 Minenfeld, 🚀 Crash-Duell, ✊ Schere-Stein-Papier oder 🎲 Würfelduell – beide zahlen in den Topf, der Gewinner bekommt 95 %)
+- 🟢 **Live-Spielerzahl** – wie viele gerade online sind (antippen = wer)
 - 💬 **Lobby-Chat** für alle Spieler und 📣 **Live-Feed** mit den größten Gewinnen
 - 🧪 **Glückstränke** – ×2, ×4 oder ×6: Jeder Dreh und jedes Los wird mehrmals gewürfelt, du bekommst das beste Ergebnis
 - 🥇 **Rang** – Online-Bestenliste: Top 10 aller echten Spieler mit Podest, dazu Gewinn-Ranglisten für **heute, diese Woche und diesen Monat** – Top 10, dein Platz und „Mehr anzeigen“ für alle
@@ -110,6 +111,11 @@ service cloud.firestore {
       allow create: if keysOk() && request.resource.data.st is number && request.resource.data.st >= 1;
       allow update: if keysOk() && request.resource.data.a == resource.data.a
                     && request.resource.data.b == resource.data.b && request.resource.data.st == resource.data.st;
+      allow delete: if false;
+    }
+    match /online/{id} {
+      allow read: if true;
+      allow create, update: if request.resource.data.keys().hasOnly(['ts','n']) && request.resource.data.ts is int;
       allow delete: if false;
     }
     match /feed/{id} {
