@@ -2733,6 +2733,7 @@ function pushScore(force) {
     if (r.status === 403 || r.status === 400) return attempt(i + 1);
     lbLast = '';
   });
+  if (lbTier && Date.now() - (window._lbRetry || 0) > 120000) { window._lbRetry = Date.now(); lbTier = 0; } // alle 2 Min. wieder die volle Variante probieren (z. B. nach neuen Firebase-Regeln)
   attempt(force ? 0 : lbTier)
     .catch(() => { lbLast = ''; });
 }
