@@ -2446,7 +2446,7 @@ function drawChart(cv, sym, tf) {
 /* ===== spiele.js ===== */
 'use strict';
 /* ================= Aufgaben ================= */
-const TASKS_D = [['trades', 3, 'Schließ {g} Trades'], ['shifts', 2, 'Erledige {g} Schichten'], ['wager', 90, 'Setz insgesamt {g} €'], ['spins', 40, 'Dreh {g}-mal am Automaten'], ['scratch', 5, 'Rubbel {g} Lose'], ['bets', 2, 'Platziere {g} Wetten'], ['rounds', 80, 'Spiel {g} Runden']];
+const TASKS_D = [['trades', 3, 'Schließ {g} Trades'], ['shifts', 2, 'Spiel {g} Energie-Minispiele (z. B. Hütchenspiel)'], ['wager', 90, 'Setz insgesamt {g} €'], ['spins', 40, 'Dreh {g}-mal am Automaten'], ['scratch', 5, 'Rubbel {g} Lose'], ['bets', 2, 'Platziere {g} Wetten'], ['rounds', 80, 'Spiel {g} Runden']];
 function mkTasks(seed, mult, money, xp) {
   const r = mulberry(seed), pool = [...TASKS_D].sort(() => r() - .5).slice(0, 3);
   return pool.map(([k, g, n]) => { const goal = k === 'wager' ? Math.round(g * S.level * mult) : g * mult; return { k, g: goal, n: n.replace('{g}', NF0.format(goal)), p: 0, en: 0, rew: r2(base() * money), xp: Math.round(xp), done: false }; });
@@ -3729,7 +3729,7 @@ function bpAdd(n) {
   if (nw > old) whenFree(() => setTimeout(() => { toast(`🎟️ Battle Pass Stufe ${nw}! Belohnung unter Spiele abholen`, 'good', 3500); SND.win(); }, 600));
 }
 /* 🎯 Battle-Pass-Missionen: täglich 3 + wöchentlich 3, geben Battle-Pass-Punkte */
-const BPM_D = [['spins', 30, 'Dreh {g}-mal am Automaten'], ['scratch', 4, 'Rubbel {g} Lose'], ['bets', 2, 'Platziere {g} Sportwetten'], ['trades', 2, 'Schließ {g} Börsen-Trades'], ['rounds', 60, 'Spiel {g} Runden'], ['wager', 0, 'Setz insgesamt {g} €'], ['shifts', 2, 'Erledige {g} Schichten']];
+const BPM_D = [['spins', 30, 'Dreh {g}-mal am Automaten'], ['scratch', 4, 'Rubbel {g} Lose'], ['bets', 2, 'Platziere {g} Sportwetten'], ['trades', 2, 'Schließ {g} Börsen-Trades'], ['rounds', 60, 'Spiel {g} Runden'], ['wager', 0, 'Setz insgesamt {g} €'], ['shifts', 2, 'Spiel {g} Energie-Minispiele (z. B. Hütchenspiel)']];
 const BPM_PTS = { day: 25, week: 100 };
 function bpmMk(seed, mult, pts) {
   const r = mulberry(seed), pool = [...BPM_D].sort(() => r() - .5).slice(0, 3);
@@ -3737,6 +3737,7 @@ function bpmMk(seed, mult, pts) {
 }
 function bpmEnsure() {
   const d = dayKey(), w = weekKey(); if (!S.bpm) S.bpm = {};
+  [S.bpm.day, S.bpm.week, S.tasks && S.tasks.day, S.tasks && S.tasks.week].forEach(L => (L || []).forEach(t => { if (t.k === 'shifts') t.n = `Spiel ${NF0.format(t.g)} Energie-Minispiele (z. B. Hütchenspiel)`; }));
   if (S.bpm.d !== d) { S.bpm.d = d; S.bpm.day = bpmMk(hashStr('bpm' + d + ACC), 1, BPM_PTS.day); }
   if (S.bpm.w !== w) { S.bpm.w = w; S.bpm.week = bpmMk(hashStr('bpmw' + w + ACC), 5, BPM_PTS.week); }
 }
