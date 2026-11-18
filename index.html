@@ -1327,7 +1327,7 @@ function prep(m) {
     const W = m.t === 'k' ? [50, 18, 13, 10, 6, 3] : [30, 24, 18, 13, 9, 6];
     const raw = m.t === 'k' ? [1.5, 10, 20, 40, 80] : [5, 8, 12, 20, 40];
     const tot = W.reduce((a, b) => a + b), p = W.map(w => w / tot);
-    const target = m.t === 'j' ? .85 : .9;
+    const target = m.t === 'j' ? .9 : .95; // Auszahlungsquote: 95 % (Jackpot-Automaten 90 % + Jackpot)
     const topPart = p[5] ** 3 * m.top;
     const rest = raw.reduce((a, r, i) => a + p[i] ** 3 * r, 0);
     const k = (target - topPart) / rest;
@@ -1349,7 +1349,7 @@ function prep(m) {
       }
     }
     line /= N; scat /= N;
-    const k = Math.max(.2, (.9 - scat) / line);
+    const k = Math.max(.2, (.95 - scat) / line); // Video-Automaten: 95 %
     m.pay = m.pay.map((r, i) => r.map((v, j) => (i === 8 && j === 2) ? v : Math.max(1, Math.round(v * k * 10) / 10)));
     m.pay[8][2] = Math.max(m.pay[8][2], Math.round(m.pay[7][2] * 1.6 / 10) * 10); m.mx = m.pay[8][2] / 10;
   }
