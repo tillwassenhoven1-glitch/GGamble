@@ -914,8 +914,8 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 /* ===== core.js ===== */
 'use strict';
 const VERSION = '0.2.3 Open Beta';
-const FORCE_V = 11; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
-const WARTUNG = true; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
+const FORCE_V = 12; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
+const WARTUNG = false; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
 /* ================= Helfer ================= */
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -3593,7 +3593,7 @@ const tagHTML = t => t ? `<span class="ctag">[${esc(t)}]</span>` : '';
 /* ---------- Start ---------- */
 function extInit() {
   if (!S) return;
-  if (!S.bp || S.bp.s !== seasonKey()) S.bp = { s: seasonKey(), pts: 0, got: [] };
+  if (!S.bp || S.bp.s !== seasonKey() || S.bp.r !== BP_RESET) S.bp = { s: seasonKey(), pts: 0, got: [], r: BP_RESET };
   S.titles = S.titles || []; S.frames = S.frames || [];
   S.cal = S.cal || { last: '', day: 0 };
   if (S.bx && S.bx.lev > 20) S.bx.lev = 20;
@@ -3642,6 +3642,7 @@ function giveRw([t, v]) {
 }
 
 /* ================= Battle Pass ================= */
+const BP_RESET = 'r2026-11-18'; // Battle Pass für alle zurück auf Anfang (Belohnungen bleiben)
 const BP_PER = 100, BP_N = 50; // 50 Stufen, 100 Punkte pro Stufe
 const BP_R = [
   ['m', 0.45], ['m', 0.65], ['m', 0.8], ['e', 3], ['p', 2], ['m', 1.35], ['m', 1.5], ['e', 3], ['m', 1.9], ['p', 4],
@@ -3654,7 +3655,7 @@ const bpLv = () => Math.min(BP_N, Math.floor((S.bp ? S.bp.pts : 0) / BP_PER));
 const bpOpen = () => { let n = 0; for (let i = 0; i < bpLv(); i++) if (!S.bp.got.includes(i)) n++; return n; };
 function bpAdd(n) {
   if (!S) return;
-  if (!S.bp || S.bp.s !== seasonKey()) S.bp = { s: seasonKey(), pts: 0, got: [] };
+  if (!S.bp || S.bp.s !== seasonKey() || S.bp.r !== BP_RESET) S.bp = { s: seasonKey(), pts: 0, got: [], r: BP_RESET };
   const old = bpLv(); S.bp.pts += n; const nw = bpLv();
   if (nw > old) whenFree(() => setTimeout(() => { toast(`🎟️ Battle Pass Stufe ${nw}! Belohnung unter Spiele abholen`, 'good', 3500); SND.win(); }, 600));
 }
