@@ -120,7 +120,7 @@ service cloud.firestore {
     }
     match /gifts/{id} {
       allow read: if true;
-      allow create: if request.resource.data.keys().hasOnly(['to','amt','ts','msg','sig','von']) && request.resource.data.amt is number;
+      allow create: if request.resource.data.keys().hasOnly(['to','amt','ts','msg','sig','von','k','x']) && request.resource.data.amt is number;
       allow update, delete: if false;
     }
     match /feed/{id} {
