@@ -23,7 +23,8 @@ html,body{background:#000;color:var(--txt);font-family:-apple-system,BlinkMacSys
 body{min-height:100vh;overflow-x:hidden}
 #main{overflow-x:hidden}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
-input,select{font:inherit;color:var(--txt)}
+input,select,textarea{font:inherit;color:var(--txt)}
+textarea.inp{resize:none;line-height:1.35}
 .hidden{display:none!important}
 .num{font-variant-numeric:tabular-nums}
 .neg{color:var(--red)!important}.pos{color:var(--green)!important}.goldc{color:var(--gold2)!important}
@@ -5043,7 +5044,9 @@ function bcShow(txt, von) {
     <div style="font-size:clamp(30px,8vw,64px);font-weight:900;line-height:1.15;max-width:900px;word-break:break-word">${esc(txt)}</div>
     <div style="color:#a8a8b0;font-size:17px">– ${esc(von || 'Der Besitzer')}</div>
     <button class="btn white" id="bcOk" style="min-width:200px;font-size:22px;margin-top:10px">OK 👍</button></div>`);
-  SND.big(); vib([80, 40, 80]); document.getElementById('bcOk').onclick = () => document.getElementById('bcOv').remove();
+  SND.big(); vib([80, 40, 80]);
+  const ov = document.getElementById('bcOv'), hide = () => { if (!ov.isConnected || ov.dataset.h) return; ov.dataset.h = 1; ov.style.transition = 'opacity .5s'; ov.style.opacity = 0; setTimeout(() => ov.remove(), 500); };
+  document.getElementById('bcOk').onclick = hide; setTimeout(hide, 2500); // verschwindet nach 2,5 Sek. von selbst
 }
 async function bcPoll() {
   if (!S || !onlineOn() || document.hidden) return;
