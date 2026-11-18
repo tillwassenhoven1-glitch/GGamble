@@ -920,7 +920,7 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 
 /* ===== core.js ===== */
 'use strict';
-const VERSION = '0.2.6 Open Beta';
+const VERSION = '0.2.7 Open Beta';
 const FORCE_V = 12; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
 const WARTUNG = false; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
 /* ================= Helfer ================= */
@@ -5080,44 +5080,49 @@ const ER_CD = 5 * 60000; // alle 5 Minuten ein Versuch
 function erLeft() { return Math.max(0, (S.erT || 0) + ER_CD - Date.now()); }
 function openReactor() {
   const left = erLeft();
-  if (left > 0) { toast(`⚡ Reaktor kühlt ab – nächster Versuch in ${Math.ceil(left / 60000)} Min.`, 'bad'); SND.err(); return; }
+  if (left > 0) { toast(`⚡ Energie-Code lädt – nächster Versuch in ${Math.ceil(left / 60000)} Min.`, 'bad'); SND.err(); return; }
   S.erT = Date.now(); save();
+  // ⚡ Energie-Code: Farbfolge merken und nachtippen (Simon). Startet mit 3, jede Runde +1 und schneller.
+  const COLS = ['#ffd23f', '#3cbf63', '#4a86e8', '#e8524a'], START = 3, GOAL = 8, ROUNDS = GOAL - START + 1;
   const o = document.createElement('div'); o.className = 'game-ov'; o.dataset.run = '1';
-  o.innerHTML = `<div class="gh"><button class="pill circbtn" style="margin:0;width:54px;height:54px" id="erX">${icon('x')}</button><b>⚡ Energie-Reaktor</b><span class="chip">${icon('battery')} ${S.energy}</span></div>
-    <div class="gbody"><div class="lab" style="gap:18px">
-      <div class="lpips" id="erP">${Array.from({ length: 5 }, () => '<i></i>').join('')}</div>
-      <svg viewBox="0 0 220 220" class="ersvg" id="erS"><circle cx="110" cy="110" r="92" fill="none" stroke="#232327" stroke-width="18"/>
-        <path id="erZ" fill="none" stroke="#3cbf63" stroke-width="18" stroke-linecap="round"/>
-        <line id="erN" x1="110" y1="110" x2="110" y2="14" stroke="#fff" stroke-width="5" stroke-linecap="round"/><circle cx="110" cy="110" r="9" fill="#fff"/></svg>
-      <p class="lhelp" id="erH">Stopp den Zeiger <b style="color:#3cbf63">5× hintereinander</b> im grünen Bereich.<br>Jeder Treffer: schneller und kleiner. Ein Fehler = vorbei.<br>5/5 → <b>+3 ⚡</b> · 4/5 → <b>+1 ⚡</b></p>
-      <button class="btn white w" id="erGo" style="font-size:24px">STOPP</button></div></div>`;
+  o.innerHTML = `<div class="gh"><button class="pill circbtn" style="margin:0;width:54px;height:54px" id="erX">${icon('x')}</button><b>⚡ Energie-Code</b><span class="chip">${icon('battery')} ${S.energy}</span></div>
+    <div class="gbody"><div class="lab" style="gap:16px">
+      <div class="lpips" id="erP">${Array.from({ length: ROUNDS }, () => '<i></i>').join('')}</div>
+      <p class="lhelp" id="erH" style="min-height:52px">Merk dir die Farbfolge und tipp sie nach.<br>Länge ${GOAL - 1} → <b>+1 ⚡</b> · Länge ${GOAL} → <b>+3 ⚡</b></p>
+      <div id="erG" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;width:min(80vw,340px);aspect-ratio:1;touch-action:manipulation">
+        ${COLS.map((c, i) => `<button data-i="${i}" style="border-radius:28px;background:${c};opacity:.32;transition:opacity .08s,transform .08s;touch-action:manipulation"></button>`).join('')}</div>
+      <button class="btn white w" id="erGo" style="font-size:22px">Start</button></div></div>`;
   document.body.appendChild(o);
-  let ang = 0, spd = 3.9, hits = 0, done = false, zone = { a: 0, w: 26 }, raf = 0, last = performance.now();
-  const arc = (a, w) => { const r = 92, s0 = (a - w / 2 - 90) * Math.PI / 180, s1 = (a + w / 2 - 90) * Math.PI / 180; return `M${110 + r * Math.cos(s0)},${110 + r * Math.sin(s0)} A${r},${r} 0 0 1 ${110 + r * Math.cos(s1)},${110 + r * Math.sin(s1)}`; };
-  const newZone = () => { zone = { a: (ang + 120 + Math.random() * 180) % 360, w: Math.max(6, 22 - hits * 4) }; $('#erZ', o).setAttribute('d', arc(zone.a, zone.w)); };
-  newZone();
-  const loop = t => { if (done) return; const dt = Math.min(50, t - last); last = t; ang = (ang + spd * dt / 16.7) % 360; $('#erN', o).setAttribute('transform', `rotate(${ang} 110 110)`); raf = requestAnimationFrame(loop); };
-  raf = requestAnimationFrame(loop);
+  const pads = [...o.querySelectorAll('#erG button')], H = $('#erH', o);
+  let seq = [], pos = 0, input = false, done = false, best = 0, speed = 520, timers = [];
+  const light = (i, ms) => { const p = pads[i]; p.style.opacity = 1; p.style.transform = 'scale(.95)'; SND.coin(i + 1); timers.push(setTimeout(() => { p.style.opacity = .32; p.style.transform = ''; }, ms)); };
+  const play = () => {
+    input = false; pos = 0; H.innerHTML = `👀 Pass auf … (Länge ${seq.length})`;
+    seq.forEach((c, k) => timers.push(setTimeout(() => light(c, speed * .7), 700 + k * speed)));
+    timers.push(setTimeout(() => { if (done) return; input = true; H.innerHTML = `👆 Jetzt du! (${seq.length} Farben)`; }, 700 + seq.length * speed));
+  };
+  const next = () => { seq.push(Math.floor(Math.random() * 4)); if (seq.length < START) return next(); play(); };
   const finish = () => {
-    done = true; cancelAnimationFrame(raf); delete o.dataset.run;
-    const gain = hits >= 5 ? 3 : hits >= 4 ? 1 : 0;
+    done = true; input = false; timers.forEach(clearTimeout); delete o.dataset.run;
+    const gain = best >= GOAL ? 3 : best >= GOAL - 1 ? 1 : 0;
     if (gain) { S.energy = (S.energy || 0) + gain; save(); hdr(true); SND.big(); FX.burst(90, { cols: ['#ffe066', '#7cf0a2', '#fff'] }); } else SND.lose();
-    $('.gbody', o).innerHTML = `<div class="result"><h2>${gain ? `+${gain} ⚡ Energie!` : 'Reaktor überhitzt 💥'}</h2><p>${hits} / 5 Treffer${gain ? '' : ' – du brauchst mindestens 4.'}<br>Nächster Versuch in 5 Minuten.</p><button class="btn white" id="erEnd" style="width:min(90vw,420px)">Fertig</button></div>`;
+    $('.gbody', o).innerHTML = `<div class="result"><h2>${gain ? `+${gain} ⚡ Energie!` : 'Code falsch 💥'}</h2><p>Geschafft: Länge ${best || 0} von ${GOAL}${gain ? '' : ` – du brauchst mindestens ${GOAL - 1}.`}<br>Nächster Versuch in 5 Minuten.</p><button class="btn white" id="erEnd" style="width:min(90vw,420px)">Fertig</button></div>`;
     $('#erEnd', o).onclick = close;
   };
-  const close = () => { done = true; cancelAnimationFrame(raf); delete o.dataset.run; o.style.transition = 'opacity .3s'; o.style.opacity = 0; setTimeout(() => o.remove(), 300); if (curPage === 'spiele') go('spiele', true); };
+  const close = () => { done = true; timers.forEach(clearTimeout); delete o.dataset.run; o.style.transition = 'opacity .3s'; o.style.opacity = 0; setTimeout(() => o.remove(), 300); if (curPage === 'spiele') go('spiele', true); };
   $('#erX', o).onclick = close;
-  // pointerdown statt click: reagiert sofort beim Antippen (kein Tablet-Verzug); Winkel genau zum Tipp-Zeitpunkt
-  const stop = e => {
-    if (done) return; if (e) { e.preventDefault(); }
-    const now = performance.now(), a = (ang + spd * Math.max(0, Math.min(50, now - last)) / 16.7) % 360;
-    const d = Math.abs(((a - zone.a + 540) % 360) - 180);
-    if (d <= zone.w / 2) { hits++; $$('#erP i', o)[hits - 1].classList.add('on'); SND.coin(hits); vib(15); if (hits >= 5) return finish(); spd *= 1.36; newZone(); }
-    else { vib([60, 40, 60]); finish(); }
-  };
-  const go_ = $('#erGo', o); go_.style.touchAction = 'manipulation'; go_.addEventListener('pointerdown', stop);
-  $('#erS', o).style.touchAction = 'manipulation'; $('#erS', o).addEventListener('pointerdown', stop); // auch Tippen auf den Ring zählt
-  const key = e => { if (!o.isConnected) return removeEventListener('keydown', key); if (e.code === 'Space' || e.key === 'Enter') stop(e); }; addEventListener('keydown', key);
+  $('#erGo', o).onclick = function () { this.remove(); next(); };
+  $('#erG', o).addEventListener('pointerdown', e => {
+    const b = e.target.closest('[data-i]'); if (!b || !input || done) return; e.preventDefault();
+    const i = +b.dataset.i; light(i, 180);
+    if (i !== seq[pos]) { vib([60, 40, 60]); return finish(); }
+    pos++;
+    if (pos >= seq.length) {
+      input = false; best = seq.length; const pi = $$('#erP i', o)[best - START]; if (pi) pi.classList.add('on'); vib(15);
+      if (best >= GOAL) return setTimeout(finish, 400);
+      speed = Math.max(260, speed * .88); H.innerHTML = '✅ Richtig!'; timers.push(setTimeout(() => { seq.push(Math.floor(Math.random() * 4)); play(); }, 700));
+    }
+  });
 }
 
 /* ================= Seiten erweitern ================= */
@@ -5131,7 +5136,7 @@ PAGES.crash = renderCrash; PAGES.pass = renderPass; PAGES.clan = renderClan; PAG
     sub.insertAdjacentHTML('afterend', `<div class="xg">
       <button class="card gm xcard" data-x="crash" style="position:relative"><span class="neu">NEU</span><div class="ibox" style="font-size:38px">🚀</div><h4>Crash</h4><p>Steig aus, bevor die Rakete explodiert!</p></button>
       <button class="card gm xcard" data-x="pass" style="position:relative">${op ? `<span class="neu">${op}</span>` : ''}<div class="ibox" style="font-size:38px">🎟️</div><h4>Battle Pass</h4><p>Saison ${seasonName()} · Stufe ${bpLv()} / ${BP_N}</p><div class="bpbar sm"><i style="width:${bpLv() >= BP_N ? 100 : (S.bp.pts % BP_PER) / BP_PER * 100}%"></i></div></button>
-      <button class="card gm xcard" data-x="reactor" style="position:relative">${erLeft() ? '' : '<span class="neu">!</span>'}<div class="ibox" style="font-size:38px">⚡</div><h4>Energie-Reaktor</h4><p>${erLeft() ? `Kühlt ab · noch ${Math.ceil(erLeft() / 60000)} Min.` : 'Sehr schwer – bis zu +3 Energie!'}</p></button>
+      <button class="card gm xcard" data-x="reactor" style="position:relative">${erLeft() ? '' : '<span class="neu">!</span>'}<div class="ibox" style="font-size:38px">⚡</div><h4>Energie-Code</h4><p>${erLeft() ? `Lädt · noch ${Math.ceil(erLeft() / 60000)} Min.` : 'Farbfolge merken – bis zu +3 Energie!'}</p></button>
       <button class="card gm xcard" data-x="cal" style="position:relative">${cs.ready ? '<span class="neu">!</span>' : ''}<div class="ibox" style="font-size:38px">📆</div><h4>Login-Kalender</h4><p>${cs.ready ? `Tag ${cs.day} wartet auf dich!` : `Heute abgeholt · Tag ${cs.day} / 7`}</p></button>
     </div>`);
     $$('[data-x]', el).forEach(b => b.onclick = () => { SND.click(); const x = b.dataset.x; if (x === 'cal') openCal(); else if (x === 'reactor') openReactor(); else go(x); });

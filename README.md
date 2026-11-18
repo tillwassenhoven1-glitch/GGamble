@@ -7,7 +7,7 @@ Eine Spielhalle im Browser – nur mit Spielgeld: Automaten mit Freispielen und 
 👉 **https://tillwassenhoven1-glitch.github.io/GGamble/**
 
 Keine Installation, keine Werbung, keine Käufe, kein echtes Geld – läuft auf Handy, iPad und PC. 🎮
-Version 0.2.6 · Open Beta
+Version 0.2.7 · Open Beta
 
 ## 🔐 Konto
 
@@ -35,7 +35,7 @@ Version 0.2.6 · Open Beta
 - 🖼️ **Profilbilder** für alle sichtbar
 - ✏️ **Namen ändern** (Einstellungen, 1× pro Woche)
 - 🎟️ **Battle Pass**: Missionen, +1 Stufe pro Level-Up, Punkte für große Gewinne
-- ⚡ **Energie-Reaktor** – sehr schweres Minispiel (alle 5 Min.), bis zu +3 Energie
+- ⚡ **Energie-Code** – schweres Merk-Minispiel (alle 5 Min.), bis zu +3 Energie
 - 🏙️ **Meine Straße in 3D** – deine gekauften Läden stehen in einer 3D-Straße mit Leuten, Autos und Tag/Nacht
 - 🔁 **Auto-Spin** – eigene Anzahl (z. B. 3), Stopp bei Gewinn, Guthaben oder Freispielen
 - 🚀 **Crash** – der Multiplikator steigt, steig aus, bevor die Rakete explodiert (mit Auto-Aussteigen)
