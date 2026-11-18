@@ -911,7 +911,7 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 /* ===== core.js ===== */
 'use strict';
 const VERSION = '0.2.1 Open Beta';
-const FORCE_V = 5; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
+const FORCE_V = 6; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
 const WARTUNG = false; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
 /* ================= Helfer ================= */
 const $ = (s, r = document) => r.querySelector(s);
@@ -2486,15 +2486,16 @@ function startGame(id) {
   const G = GAMES[id], cost = G.cost || 1; regenEnergy();
   if (S.energy < cost) { toast(`Keine Energie mehr – alle 5 Minuten gibt's 1 neue (+1 in ${energyIn()}).`, 'bad'); SND.err(); return; }
   S.energy -= cost; if (S.energy < 10 && S.enTs > Date.now()) S.enTs = Date.now(); save();
-  const o = document.createElement('div'); o.className = 'game-ov';
+  const o = document.createElement('div'); o.className = 'game-ov'; o.dataset.run = '1';
+  S.gameRun = { id, cost, ts: Date.now() }; save();
   o.innerHTML = `<div class="gh"><button class="pill circbtn" style="margin:0;width:54px;height:54px" id="gX">${icon('x')}</button><b>${G.n}</b><span class="chip">${icon('battery')} ${S.energy}</span></div><div class="gbody"></div>`;
   document.body.appendChild(o);
   let ended = false; const cleanup = [];
   const body = $('.gbody', o);
-  const close = () => { cleanup.forEach(f => f()); o.style.transition = 'opacity .3s'; o.style.opacity = 0; setTimeout(() => o.remove(), 300); if (curPage === 'spiele') go('spiele', true); };
+  const close = () => { delete o.dataset.run; S.gameRun = null; save(); cleanup.forEach(f => f()); o.style.transition = 'opacity .3s'; o.style.opacity = 0; setTimeout(() => o.remove(), 300); if (curPage === 'spiele') go('spiele', true); };
   $('#gX', o).onclick = () => { ended = true; close(); };
   const done = (score, max, extra) => {
-    if (ended) return; ended = true; cleanup.forEach(f => f());
+    if (ended) return; ended = true; cleanup.forEach(f => f()); delete o.dataset.run; S.gameRun = null;
     let html;
     if (id === 'lab') {
       S.st.brews++; S.brewBest = Math.max(S.brewBest, score);
@@ -3444,6 +3445,8 @@ function startApp(key) {
     setTimeout(() => { try { cloudLast = ''; cloudPush(true); lbLast = ''; pushScore(true); } catch (e) { } }, 2500);
     setTimeout(() => sheet(`<h2>🔄 Neustart!</h2><p class="hint" style="font-size:18px">Alle Konten wurden zurückgesetzt – jeder startet wieder mit ${fmt(500)}. Die Spielhalle hat neue, fairere Regeln: All-In heißt jetzt „Max“ und setzt höchstens deinen Level-Höchsteinsatz, Level steigen langsamer und die Börse hat höchstens Hebel 1:20.<br><br>Name, Passwort, Profilbild und Clan bleiben. Viel Glück! 🍀</p><button class="btn white w" data-close>Los geht's</button>`, { center: true }), 600);
   }
+  if (S.gameRun && S.updReload && Date.now() - (S.gameRun.ts || 0) < 15 * 60000) { S.energy = (S.energy || 0) + (S.gameRun.cost || 1); setTimeout(() => toast(`⚡ Energie zurück – dein Minispiel wurde durch ein Update unterbrochen.`, 'good', 4000), 1500); }
+  S.gameRun = null; S.updReload = 0;
   S.st = Object.assign(newState('').st, S.st); S.bx = Object.assign(newState('').bx, S.bx); S.set = Object.assign({ snd: true, vib: true }, S.set);
   const away = Date.now() - (all[key].ts || Date.now());
   if (S.potAct) S.potAct.left = Math.min(S.potAct.left, POT_R[S.potAct.m] || 4);
@@ -3484,6 +3487,8 @@ function checkUpdate() {
     if (!t) return;
     const fv = +((/const FORCE_V = (\d+)/.exec(t) || [])[1] || 0);
     if (busy && !(fv > FORCE_V)) return;
+    if (document.querySelector('.game-ov[data-run]')) return; // Minispiel läuft (Energie schon bezahlt) → nach dem Spiel
+    try { if (S) { S.updReload = 1; } } catch (e) { }
     const h = codeHash(new DOMParser().parseFromString(t, 'text/html'));
     if (h === MY_HASH) return;
     // Schutz gegen Endlosschleife: höchstens 3 Neuladungen pro Minute
