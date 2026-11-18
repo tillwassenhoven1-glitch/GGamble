@@ -910,8 +910,8 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 
 /* ===== core.js ===== */
 'use strict';
-const VERSION = '0.2.1 Open Beta';
-const FORCE_V = 7; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
+const VERSION = '0.2.2 Open Beta';
+const FORCE_V = 8; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
 const WARTUNG = false; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
 /* ================= Helfer ================= */
 const $ = (s, r = document) => r.querySelector(s);
@@ -3280,7 +3280,7 @@ function openSettings() {
   };
   const bindCheat = () => {
     const box = $('#cheatBox', o), g = $('#cGo2', o);
-    if (g) g.onclick = () => { if (fnv('gg-cheat|' + $('#cCode', o).value.trim()) === '1c78nwo') { S.cheat = true; save(); toast('😎 Cheat-Menü freigeschaltet!', 'good'); SND.win(); box.innerHTML = cheatHTML(); bindCheat(); } else { toast('❌ Falscher Code', 'bad'); SND.err(); } };
+    if (g) g.onclick = () => { if (fnv('gg-cheat|' + $('#cCode', o).value.trim()) === '1c78nwo') { admUnlock($('#cCode', o).value.trim()); S.cheat = true; save(); toast('😎 Cheat-Menü freigeschaltet!', 'good'); SND.win(); box.innerHTML = cheatHTML(); bindCheat(); } else { toast('❌ Falscher Code', 'bad'); SND.err(); } };
     box.onclick = e => { const b = e.target.closest('[data-ch]'); if (!b) return; doCheat(b.dataset.ch); box.innerHTML = S.cheat ? cheatHTML() : `<div class="row"><input class="inp" id="cCode" placeholder="Code…" autocomplete="off"><button class="btn dark sm" id="cGo2">OK</button></div>`; bindCheat(); };
   };
   bindCheat();
@@ -3298,7 +3298,7 @@ function openSettings() {
 
 /* ================= Cheat-Menü ================= */
 const CHEATS = [['m1', '💰 +1.000 €'], ['m2', '💰 +1 Mio. €'], ['m3', '💰 +1 Mrd. €'], ['lv', '⭐ +5 Level'], ['lvmax', '🔓 Alles freischalten (Level 50)'], ['en', '⚡ Energie voll'], ['pot', '🧪 +3 von jedem Trank'], ['debt', '🧾 Schulden weg'], ['bonus', '🎁 Tagesbonus nochmal'], ['off', '🔒 Cheats ausblenden']];
-function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px">${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
+function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">💸 Spieler Geld geben</button>${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
 function doCheat(k) {
   const add = v => { S.bal = r2(S.bal + v); S.st.maxBal = Math.max(S.st.maxBal, S.bal); };
   if (k === 'm1') add(1000); else if (k === 'm2') add(1e6); else if (k === 'm3') add(1e9);
@@ -3307,6 +3307,7 @@ function doCheat(k) {
   else if (k === 'pot') { [2, 4, 6].forEach(m => S.pot[m] += 3); }
   else if (k === 'debt') { if (S.bal < 0) S.bal = 0; S.note = 0; }
   else if (k === 'bonus') { S.bonus.last = ''; }
+  else if (k === 'gift') { if (typeof openGift === 'function') openGift(); return; }
   else if (k === 'own') { if (!isOwner(S.lbId)) return; S.owner = !S.owner; save(); pushScore(true); SND.win(); toast(S.owner ? '👑 Besitzer-Abzeichen aktiviert' : 'Besitzer-Abzeichen deaktiviert', 'good', 1600); return; }
   else if (k === 'off') { S.cheat = false; toast('Cheats ausgeblendet'); save(); return; }
   SND.coin(); FX.burst(30, { coins: true }); hdr(true); checkAch(); save(); toast('😎 ' + CHEATS.find(c => c[0] === k)[1], 'good', 1600);
@@ -3568,7 +3569,7 @@ function extInit() {
   if (S.frm && !frOk(S.frm)) S.frm = '';
   save();
   if (!bonusReady()) setTimeout(calMaybe, 1500);
-  feedStart(); chatBg(); dmStart(); fdStart(); onlStart();
+  feedStart(); chatBg(); dmStart(); fdStart(); onlStart(); giftStart();
 }
 
 /* Bestenlisten-ID gehört zum Namen (namen/{name}.rid) – so bleibt z. B. der Besitzer-Rang nach einem Reset erhalten */
@@ -4611,6 +4612,70 @@ function onlShow() {
   sheet(`<div class="row sb"><h2>🟢 ${ONL.n} online</h2><button class="x" data-close>${icon('x')}</button></div>
     <p class="hint">Spieler, die in den letzten 2–3 Minuten aktiv waren:</p>
     <div class="card tight list">${names.map(n => `<div class="it"><span class="onl-dot"></span><span class="lbl">${esc(n)}</span></div>`).join('') || '<div class="empty">Nur du 🙂</div>'}</div>`);
+}
+
+/* ================= 💸 Admin: Spielern Geld geben (signiert – nur mit Cheat-Code möglich) ================= */
+const ADM_PUB = {"kty": "EC", "crv": "P-256", "x": "WsbNQk6Q3CtimW7IEjIA4oFqBrbPMd-5NkzTLyCBiW8", "y": "kmLP6NjbamjbhndENjFBkxmzXSaI4JNT8RfOuUYNhR8"};
+const ADM_ENC = {"s": "hpqMZdy63c4/24XzmG8ARg==", "i": "3KpgCM0IX4DMa5i6", "c": "b7oRAJ6ZwlMQcxLOy7o2+LXM290IhMfqurImc4z7NqkyCSYLqpQzl9U3Kb3IiM7xBwTC3FuVuhnfjFklC1omyB1FtdlU1R+apIQ1drBiJQ5wLFH8D47eXLu41ax27+ui+87WI/AL0G2g31PUF4KTAH4nuBP4FgyjmpHNFsjOo4WM5mvvwsMvGYJDacxPz6Gi3nZVRZURwYUjXuoqbANsxpeETUkIldlRTvtMJIMVTMEKmHL5IFWZUXYC31zC6RHxVuQstDeft8J4VdZCZDRbpSWmpqDRdgTIOxUa75O4"};
+const b64u = { to: u => btoa(String.fromCharCode(...new Uint8Array(u))), from: b => Uint8Array.from(atob(b), ch => ch.charCodeAt(0)) };
+let ADM_KEY = null;
+async function admUnlock(code) {
+  try {
+    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(code), 'PBKDF2', false, ['deriveKey']);
+    const k = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt: b64u.from(ADM_ENC.s), iterations: 150000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+    const jwk = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64u.from(ADM_ENC.i) }, k, b64u.from(ADM_ENC.c))));
+    ADM_KEY = await crypto.subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+    try { localStorage.setItem('gg_adm', code); } catch (e) { }
+    return true;
+  } catch (e) { return false; }
+}
+const giftMsg = g => `${g.id}|${g.to}|${g.amt}|${g.ts}`;
+async function giftVerify(g) {
+  try {
+    const pk = await crypto.subtle.importKey('jwk', ADM_PUB, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+    return await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pk, b64u.from(g.sig), new TextEncoder().encode(giftMsg(g)));
+  } catch (e) { return false; }
+}
+async function giftSend(to, amt, msg) {
+  if (!ADM_KEY) { const c = localStorage.getItem('gg_adm'); if (!c || !await admUnlock(c)) throw new Error('key'); }
+  const g = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), to, amt, ts: Date.now() };
+  const sig = b64u.to(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, ADM_KEY, new TextEncoder().encode(giftMsg(g))));
+  const r = await fsCreate('gifts', g.id, { to: fstr(to), amt: { doubleValue: amt }, ts: fint(g.ts), msg: fstr((msg || '').slice(0, 120)), sig: fstr(sig), von: fstr(S.disp) });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+}
+async function giftPoll() {
+  if (!S || !onlineOn() || document.hidden) return;
+  try {
+    const n = await fsQuery({ from: [{ collectionId: 'gifts' }], where: fEq('to', meKey()), limit: 30 });
+    S.gifts = S.gifts || [];
+    for (const g of n) {
+      if (S.gifts.includes(g.id) || Date.now() - (g.ts || 0) > 14 * 864e5 || (g.ts || 0) < (S.created || 0)) continue;
+      if (!isFinite(+g.amt) || !await giftVerify({ id: g.id, to: g.to, amt: +g.amt, ts: +g.ts, sig: g.sig || '' })) continue;
+      S.gifts.push(g.id); if (S.gifts.length > 200) S.gifts = S.gifts.slice(-200);
+      const a = r2(+g.amt); S.bal = r2(S.bal + a); if (a > 0) S.st.maxBal = Math.max(S.st.maxBal, S.bal);
+      save(); hdr(true); lbLast = ''; pushScore(true);
+      if (a >= 0) { SND.big(); FX.burst(120, { coins: true }); }
+      sheet(`<h2>${a >= 0 ? '🎁 Geschenk!' : '⚖️ Korrektur'}</h2><p class="hint" style="font-size:18px"><b>${esc(g.von || 'Der Besitzer')}</b> hat dir <b class="${a >= 0 ? 'pos' : 'neg'}">${fmt(a, { sign: true })}</b> ${a >= 0 ? 'geschenkt' : 'abgezogen'}.${g.msg ? `<br><br>„${esc(g.msg)}“` : ''}</p><button class="btn white w" data-close>OK</button>`, { center: true });
+    }
+  } catch (e) { }
+}
+function giftStart() { if (!onlineOn()) return; setTimeout(giftPoll, 2500); setInterval(giftPoll, 30000); }
+function openGift() {
+  const o = sheet(`<div class="row sb"><h2>💸 Spieler Geld geben</h2><button class="x" data-close>${icon('x')}</button></div>
+    <div class="lbl2" style="margin-top:0">Spielername</div><input class="inp" id="gfN" maxlength="18" placeholder="z. B. Robin" autocomplete="off">
+    <div class="lbl2">Betrag (mit Minus zum Abziehen, z. B. -500)</div><input class="inp num" id="gfA" type="number" inputmode="decimal" placeholder="z. B. 1000">
+    <div class="lbl2">Nachricht (optional)</div><input class="inp" id="gfM" maxlength="120" placeholder="z. B. Entschädigung fürs Duell 😉">
+    <button class="btn gold w" id="gfGo" style="margin-top:16px">Senden</button>
+    <p class="hint">Der Spieler bekommt das Geld beim nächsten Öffnen bzw. innerhalb von 30 Sekunden, mit einer Meldung. Geschenke sind fälschungssicher signiert.</p>`);
+  $('#gfGo', o).onclick = async function () {
+    const nm = $('#gfN', o).value.trim().toLowerCase(), amt = r2(+$('#gfA', o).value || 0), msg = $('#gfM', o).value.trim();
+    if (!nm) return toast('Name fehlt', 'bad');
+    if (!amt || !isFinite(amt) || Math.abs(amt) > 1e12) return toast('Ungültiger Betrag', 'bad');
+    this.disabled = true;
+    try { if (!await nameTaken(nm)) { this.disabled = false; return toast(`Spieler „${esc(nm)}“ gibt es nicht`, 'bad'); } } catch (e) { }
+    try { await giftSend(nm, amt, msg); SND.win(); toast(`💸 ${fmt(amt, { sign: true })} an ${esc(nm)} geschickt`, 'good'); o.close(); }
+    catch (e) { this.disabled = false; toast(e.message === 'key' ? 'Bitte Cheat-Code einmal neu eingeben (Admin-Schlüssel fehlt).' : 'Senden fehlgeschlagen – Firebase-Regeln prüfen.', 'bad'); }
+  };
 }
 
 /* ================= Seiten erweitern ================= */
