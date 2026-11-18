@@ -131,7 +131,11 @@ service cloud.firestore {
                     && request.resource.data.txt is string && request.resource.data.txt.size() <= 120;
       allow update, delete: if false;
     }
-    match /lbsperre/{id} { allow read: if true; allow create: if request.resource.data.keys().hasOnly(['n','h','ts','sig']) && request.resource.data.n is string; allow update, delete: if false; }
+    match /lbsperre/{id} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['n','h','ts','sig']) && request.resource.data.n is string;
+      allow update, delete: if false;
+    }
   }
 }
 ```
