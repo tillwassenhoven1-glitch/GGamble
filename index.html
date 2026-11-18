@@ -3356,7 +3356,7 @@ function openSettings() {
 
 /* ================= Cheat-Menü ================= */
 const CHEATS = [['m1', '💰 +1.000 €'], ['m2', '💰 +1 Mio. €'], ['m3', '💰 +1 Mrd. €'], ['lv1', '⭐ +1 Level'], ['bp1', '🎟️ +1 Battle-Pass-Stufe'], ['lv', '⭐ +5 Level'], ['lvmax', '🔓 Alles freischalten (Level 50)'], ['en', '⚡ Energie voll'], ['pot', '🧪 +3 von jedem Trank'], ['debt', '🧾 Schulden weg'], ['bonus', '🎁 Tagesbonus nochmal'], ['off', '🔒 Cheats ausblenden']];
-function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben</button><button class="btn white xs" data-ch="lbh">🙈 Bestenliste-Sperre</button>${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
+function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben</button><button class="btn white xs" data-ch="lbh">🙈 Bestenliste-Sperre</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button>${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
 function doCheat(k) {
   const add = v => { S.bal = r2(S.bal + v); S.st.maxBal = Math.max(S.st.maxBal, S.bal); };
   if (k === 'm1') add(1000); else if (k === 'm2') add(1e6); else if (k === 'm3') add(1e9);
@@ -3369,6 +3369,7 @@ function doCheat(k) {
   else if (k === 'bonus') { S.bonus.last = ''; }
   else if (k === 'gift') { if (typeof openGift === 'function') openGift(); return; }
   else if (k === 'lbh') { if (typeof openLbh === 'function') openLbh(); return; }
+  else if (k === 'bc') { if (typeof openBc === 'function') openBc(); return; }
   else if (k === 'own') { if (!isOwner(S.lbId)) return; S.owner = !S.owner; save(); pushScore(true); SND.win(); toast(S.owner ? '👑 Besitzer-Abzeichen aktiviert' : 'Besitzer-Abzeichen deaktiviert', 'good', 1600); return; }
   else if (k === 'off') { S.cheat = false; toast('Cheats ausgeblendet'); save(); return; }
   SND.coin(); FX.burst(30, { coins: true }); hdr(true); checkAch(); save(); toast('😎 ' + CHEATS.find(c => c[0] === k)[1], 'good', 1600);
@@ -4900,7 +4901,7 @@ function banCheck() {
   const t = document.getElementById('banT'); if (t) t.textContent = `${m}:${String(sec).padStart(2, '0')}`;
 }
 setInterval(() => { if (S) banCheck(); }, 1000);
-function giftStart() { if (!onlineOn()) return; setTimeout(giftPoll, 2500); setInterval(giftPoll, 30000); }
+function giftStart() { if (!onlineOn()) return; setTimeout(giftPoll, 2500); setInterval(giftPoll, 30000); setTimeout(() => typeof bcPoll === 'function' && bcPoll(), 3500); setInterval(() => typeof bcPoll === 'function' && bcPoll(), 20000); document.addEventListener('visibilitychange', () => { if (!document.hidden && typeof bcPoll === 'function') setTimeout(bcPoll, 800); }); }
 function openGift() {
   const o = sheet(`<div class="row sb"><h2>🎁 Spielern etwas geben</h2><button class="x" data-close>${icon('x')}</button></div>
     <div class="lbl2" style="margin-top:0">Spielername</div><input class="inp" id="gfN" maxlength="18" placeholder="z. B. Robin" autocomplete="off">
@@ -5024,6 +5025,50 @@ function phStart() {
   if (!onlineOn()) return;
   setTimeout(phUpload, 3000); setTimeout(phLoad, 1500); setInterval(phLoad, 180000); setInterval(phUpload, 60000);
   new MutationObserver(() => { clearTimeout(PH.mo); PH.mo = setTimeout(phPatch, 60); }).observe(document.body, { childList: true, subtree: true });
+}
+
+/* ================= 📢 Admin-Ansage an alle (signiert, groß auf dem Bildschirm) ================= */
+async function bcSend(txt) {
+  if (!ADM_KEY) { const c = localStorage.getItem('gg_adm'); if (!c || !await admUnlock(c)) throw new Error('key'); }
+  const ts = Date.now(), g = { id: ts.toString(36) + Math.random().toString(36).slice(2, 7), to: '*|' + padTs(ts), amt: 0, ts, k: 'bc', x: txt };
+  const sig = b64u.to(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, ADM_KEY, new TextEncoder().encode(giftMsg(g))));
+  const r = await fsCreate('gifts', g.id, { to: fstr(g.to), amt: { doubleValue: 0 }, ts: fint(ts), msg: fstr(''), sig: fstr(sig), von: fstr(S.disp.slice(0, 24)), k: fstr('bc'), x: fstr(txt) });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+}
+function bcShow(txt, von) {
+  const old = document.getElementById('bcOv'); if (old) old.remove();
+  document.body.insertAdjacentHTML('beforeend', `<div id="bcOv" style="position:fixed;inset:0;z-index:9997;background:rgba(5,5,6,.93);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;gap:18px;color:#fff;animation:pop .5s var(--spring)">
+    <div style="font-size:70px">📢</div><div style="color:#ffd84d;font-weight:800;letter-spacing:2px;font-size:18px">NACHRICHT VOM BESITZER</div>
+    <div style="font-size:clamp(30px,8vw,64px);font-weight:900;line-height:1.15;max-width:900px;word-break:break-word">${esc(txt)}</div>
+    <div style="color:#a8a8b0;font-size:17px">– ${esc(von || 'Der Besitzer')}</div>
+    <button class="btn white" id="bcOk" style="min-width:200px;font-size:22px;margin-top:10px">OK 👍</button></div>`);
+  SND.big(); vib([80, 40, 80]); document.getElementById('bcOk').onclick = () => document.getElementById('bcOv').remove();
+}
+async function bcPoll() {
+  if (!S || !onlineOn() || document.hidden) return;
+  try {
+    const n = await fsQuery({ from: [{ collectionId: 'gifts' }], where: rangeQ('to', '*', Date.now() - 6 * 36e5), limit: 20 });
+    S.gifts = S.gifts || []; let last = null;
+    for (const g of n.sort((a, b) => (a.ts || 0) - (b.ts || 0))) {
+      if (S.gifts.includes(g.id) || g.k !== 'bc') continue;
+      if (!await giftVerify({ id: g.id, to: g.to, amt: +g.amt || 0, ts: +g.ts, sig: g.sig || '', k: 'bc', x: g.x || '' })) continue;
+      S.gifts.push(g.id); if (S.gifts.length > 200) S.gifts = S.gifts.slice(-200); last = g;
+    }
+    if (last) { save(); bcShow(last.x, last.von); }
+  } catch (e) { }
+}
+function openBc() {
+  const o = sheet(`<div class="row sb"><h2>📢 Nachricht an alle</h2><button class="x" data-close>${icon('x')}</button></div>
+    <p class="hint" style="margin-top:0">Erscheint bei allen Spielern groß auf dem Bildschirm (innerhalb von ~20 Sek., wer offline ist: beim nächsten Öffnen innerhalb von 6 Std.).</p>
+    <textarea class="inp" id="bcT" maxlength="200" style="height:120px" placeholder="z. B. Heute Abend Wartung um 20 Uhr!"></textarea>
+    <div class="two" style="margin-top:12px"><button class="btn dark" id="bcP">👀 Vorschau</button><button class="btn gold" id="bcGo">📢 Senden</button></div>`);
+  $('#bcP', o).onclick = () => { const t = $('#bcT', o).value.trim(); if (t) bcShow(t, S.disp); };
+  $('#bcGo', o).onclick = async function () {
+    const t = $('#bcT', o).value.trim(); if (t.length < 2) return toast('Nachricht zu kurz', 'bad');
+    this.disabled = true;
+    try { await bcSend(t); SND.win(); toast('📢 Nachricht an alle gesendet', 'good'); o.close(); }
+    catch (e) { this.disabled = false; toast(e.message === 'key' ? 'Bitte Cheat-Code einmal neu eingeben (Admin-Schlüssel fehlt).' : 'Senden fehlgeschlagen – Firebase-Regeln prüfen.', 'bad'); }
+  };
 }
 
 /* ================= ⚡ Energie-Reaktor: sehr schweres Minispiel, das Energie gibt ================= */
