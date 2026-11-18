@@ -5103,6 +5103,7 @@ function openBc() {
    Ehrliche Chancen, aber nur 60 % Auszahlungsquote → wer viel reinsteckt, verliert auf Dauer viel. */
 const TR_RTP = .5, TR_T = [2, 5, 10, 100], TR_CD = 60000; // 50 % Quote, 1 Runde pro Minute
 function openTresor() {
+  return toast('💎 Der Tresor ist geschlossen.', 'bad'); // entfernt
   if (S.bal < 1000) { toast(`💎 Der Tresor ist nur für High Roller – ab ${fmt(1000)} Guthaben.`, 'bad'); SND.err(); return; }
   let tgt = 5, pct = .25;
   const o = sheet(`<div class="row sb"><h2>💎 Der Tresor</h2><button class="x" data-close>${icon('x')}</button></div>
@@ -5202,7 +5203,6 @@ PAGES.crash = renderCrash; PAGES.pass = renderPass; PAGES.clan = renderClan; PAG
       <button class="card gm xcard" data-x="crash" style="position:relative"><span class="neu">NEU</span><div class="ibox" style="font-size:38px">🚀</div><h4>Crash</h4><p>Steig aus, bevor die Rakete explodiert!</p></button>
       <button class="card gm xcard" data-x="pass" style="position:relative">${op ? `<span class="neu">${op}</span>` : ''}<div class="ibox" style="font-size:38px">🎟️</div><h4>Battle Pass</h4><p>Saison ${seasonName()} · Stufe ${bpLv()} / ${BP_N}</p><div class="bpbar sm"><i style="width:${bpLv() >= BP_N ? 100 : (S.bp.pts % BP_PER) / BP_PER * 100}%"></i></div></button>
       <button class="card gm xcard" data-x="reactor" style="position:relative">${erLeft() ? '' : '<span class="neu">!</span>'}<div class="ibox" style="font-size:38px">⚡</div><h4>Energie-Code</h4><p>${erLeft() ? `Lädt · noch ${Math.ceil(erLeft() / 60000)} Min.` : 'Farbfolge merken – bis zu +3 Energie!'}</p></button>
-      <button class="card gm xcard" data-x="tresor" style="position:relative"><span class="neu">HIGH ROLLER</span><div class="ibox" style="font-size:38px">💎</div><h4>Der Tresor</h4><p>Setz viel – knack bis zu ×100</p></button>
       <button class="card gm xcard" data-x="cal" style="position:relative">${cs.ready ? '<span class="neu">!</span>' : ''}<div class="ibox" style="font-size:38px">📆</div><h4>Login-Kalender</h4><p>${cs.ready ? `Tag ${cs.day} wartet auf dich!` : `Heute abgeholt · Tag ${cs.day} / 7`}</p></button>
     </div>`);
     $$('[data-x]', el).forEach(b => b.onclick = () => { SND.click(); const x = b.dataset.x; if (x === 'cal') openCal(); else if (x === 'reactor') openReactor(); else if (x === 'tresor') openTresor(); else go(x); });
