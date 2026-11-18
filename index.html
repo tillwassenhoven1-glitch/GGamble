@@ -1218,7 +1218,7 @@ function bet(a, game) {
   S.bal = r2(S.bal - a); touchToday(); S.today.v = r2(S.today.v - a);
   S.st.wagered += a; S.st.rounds++; S.st.net = r2(S.st.net - a);
   if (S.note > 0) { const rp = r2(Math.min(S.note, Math.max(.01, a * .1))); S.bal = r2(S.bal - rp); S.note = r2(S.note - rp); S.st.noteSpin = r2((S.st.noteSpin || 0) + rp); if (S.note <= 0.004) { S.note = 0; setTimeout(() => { toast('Schuldschein komplett abbezahlt! 🎉', 'good'); FX.burst(80); SND.win(); }, 500); } }
-  addXP(Math.min(a, 15 + S.level * 15)); bpAdd(Math.min(1, a / Math.max(1, maxStake() * .1))); wkAdd(-a);
+  addXP(Math.min(a, 15 + S.level * 15)); bpAdd(Math.min(1, a / Math.max(1, base() * .25))); wkAdd(-a);
   taskProg('wager', a); taskProg('rounds', 1);
   hdr(); checkAch(); save(); return true;
 }
@@ -3585,9 +3585,9 @@ function giveRw([t, v]) {
 /* ================= Battle Pass ================= */
 const BP_PER = 60, BP_N = 30;
 const BP_R = [
-  ['m', 2], ['p', 2], ['m', 3], ['e', 3], ['m', 5], ['p', 2], ['m', 6], ['p', 4], ['m', 8], ['f', 'gold'],
-  ['m', 10], ['e', 5], ['m', 12], ['p', 4], ['t', 'saison'], ['m', 15], ['p', 6], ['m', 18], ['e', 10], ['f', 'neon'],
-  ['m', 22], ['p', 4], ['m', 26], ['p', 6], ['m', 30], ['e', 10], ['m', 40], ['p', 6], ['m', 60], ['ft', 'feuer|legende'],
+  ['m', 0.8], ['p', 2], ['m', 1.2], ['e', 3], ['m', 2], ['p', 2], ['m', 2.4], ['p', 4], ['m', 3.2], ['f', 'gold'],
+  ['m', 4], ['e', 5], ['m', 4.8], ['p', 4], ['t', 'saison'], ['m', 6], ['p', 6], ['m', 7.2], ['e', 10], ['f', 'neon'],
+  ['m', 8.8], ['p', 4], ['m', 10.4], ['p', 6], ['m', 12], ['e', 10], ['m', 16], ['p', 6], ['m', 24], ['ft', 'feuer|legende'],
 ];
 const bpLv = () => Math.min(BP_N, Math.floor((S.bp ? S.bp.pts : 0) / BP_PER));
 const bpOpen = () => { let n = 0; for (let i = 0; i < bpLv(); i++) if (!S.bp.got.includes(i)) n++; return n; };
@@ -3604,7 +3604,7 @@ function bpClaim(i) {
 function renderPass(el) {
   const lv = bpLv(), pts = S.bp.pts, inLv = lv >= BP_N ? BP_PER : pts % BP_PER, open = bpOpen();
   el.innerHTML = `<button class="btn dark sm" id="back">${icon('left')} Minispiele</button>
-    <h1 class="t" style="margin-top:16px">Battle Pass</h1><p class="sub">Saison ${seasonName()} · ${seasonLeft()} · 1 Punkt pro Runde ab ${fmt(Math.max(1, maxStake() * .1))} Einsatz (kleiner = anteilig), Login-Kalender +20</p>
+    <h1 class="t" style="margin-top:16px">Battle Pass</h1><p class="sub">Saison ${seasonName()} · ${seasonLeft()} · 1 Punkt pro Runde ab ${fmt(Math.max(1, base() * .25))} Einsatz (kleiner = anteilig), Login-Kalender +20</p>
     <div class="card"><div class="row sb"><b style="font-size:26px">Stufe ${lv} / ${BP_N}</b><span class="chip gold num">${NF0.format(Math.floor(pts))} Punkte</span></div>
       <div class="bpbar"><i style="width:${lv >= BP_N ? 100 : inLv / BP_PER * 100}%"></i></div>
       <p class="hint">${lv >= BP_N ? 'Alles geschafft – stark! 🔥' : `Noch ${Math.ceil(BP_PER - inLv)} Punkte bis Stufe ${lv + 1}`}</p>
