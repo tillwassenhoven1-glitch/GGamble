@@ -911,7 +911,7 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 /* ===== core.js ===== */
 'use strict';
 const VERSION = '0.2.1 Open Beta';
-const FORCE_V = 6; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
+const FORCE_V = 7; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
 const WARTUNG = false; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
 /* ================= Helfer ================= */
 const $ = (s, r = document) => r.querySelector(s);
@@ -2869,6 +2869,12 @@ async function camTest() {
   $('.filters', o).onclick = e => { const b = e.target.closest('[data-f]'); if (!b) return; S.set.filter = b.dataset.f; save(); v.style.filter = FILTERS[b.dataset.f]; $$('.filters button', o).forEach(x => x.classList.toggle('on', x === b)); broadcast({ t: 'filt', f: b.dataset.f }); };
 }
 function stopCam() { if (T.stream) { T.stream.getTracks().forEach(t => t.stop()); T.stream = null; } }
+// STUN + öffentliche TURN-Server, damit auch Handy-Netz ↔ WLAN klappt
+const PEER_CFG = { config: { iceServers: [
+  { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }] } };
 function loadPeer() {
   if (window.Peer) return Promise.resolve();
   return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js'; s.onload = res; s.onerror = () => rej(new Error('PeerJS konnte nicht geladen werden')); document.head.appendChild(s); });
@@ -2889,7 +2895,7 @@ async function joinRoom(id) {
   };
   // Als Gastgeber versuchen (ID frei?)
   const tryHost = hid => new Promise(res => {
-    const p = new Peer(hid); let done = false;
+    const p = new Peer(hid, PEER_CFG); let done = false;
     const fin = r => { if (done) return; done = true; res(r); };
     p.on('open', () => fin({ p }));
     p.on('error', e => { try { p.destroy(); } catch (x) { } fin({ err: e.type }); });
@@ -2897,7 +2903,7 @@ async function joinRoom(id) {
   });
   // Als Gast zu einem Gastgeber verbinden – antwortet er nicht (z. B. „Geister-Gastgeber“ nach Neuladen), nächster Platz
   let G = null;
-  const guestPeer = () => G ? Promise.resolve(G) : new Promise((res, rej) => { const g = new Peer(); g.on('open', () => { G = g; setup(g, false); res(g); }); g.on('error', e => { if (!G) rej(e); }); setTimeout(() => !G && rej(new Error('timeout')), 9000); });
+  const guestPeer = () => G ? Promise.resolve(G) : new Promise((res, rej) => { const g = new Peer(undefined, PEER_CFG); g.on('open', () => { G = g; setup(g, false); res(g); }); g.on('error', e => { if (!G) rej(e); }); setTimeout(() => !G && rej(new Error('timeout')), 9000); });
   const tryGuest = (g, hid) => new Promise(res => {
     const c = g.connect(hid, { reliable: true }); let done = false;
     const fin = ok => { if (done) return; done = true; if (!ok) { try { c.close(); } catch (e) { } } res(ok); };
@@ -2905,7 +2911,7 @@ async function joinRoom(id) {
     const onErr = e => { if (e && e.type === 'peer-unavailable' && String(e.message || '').includes(hid)) fin(false); };
     g.on('error', onErr);
     wireConn(c, true);
-    setTimeout(() => { g.off && g.off('error', onErr); fin(false); }, 6000);
+    setTimeout(() => { g.off && g.off('error', onErr); fin(false); }, 20000);
   });
   for (let i = 0; i < 4 && T.room === id; i++) {
     const hid = base + (i ? '-' + i : '');
@@ -3027,7 +3033,7 @@ async function leaveRoom() {
 }
 /* ================= Minenfeld-Duell (im Treff) ================= */
 const DUEL_N = 25, DUEL_B = 5;
-const duelMax = () => Math.max(1, Math.floor(maxStake() * 5));
+const duelMax = () => Math.max(1, Math.floor(Math.min(maxStake(), Math.max(0, S.bal) * .25))); // höchstens Level-Höchsteinsatz und 25 % vom Guthaben
 function duelSend(p, m) { const c = T.conns[p]; try { c && c.open && c.send(m); } catch (e) { } }
 function duelPick() {
   const ps = Object.keys(T.names); if (!ps.length) { toast('Niemand im Raum zum Herausfordern.'); return; }
