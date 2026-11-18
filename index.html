@@ -3625,8 +3625,11 @@ const seasonLeft = () => { const n = new Date(Date.now()), e = new Date(n.getFul
 /* ---------- Firestore-Helfer ---------- */
 const fstr = s => ({ stringValue: String(s) }), fint = n => ({ integerValue: String(Math.round(n)) });
 const fval = v => v === undefined || v === null ? undefined : v.stringValue !== undefined ? v.stringValue : v.integerValue !== undefined ? +v.integerValue : v.doubleValue !== undefined ? +v.doubleValue : v.booleanValue;
+let FS_QUOTA = 0; // HTTP 429 = Firebase-Tageskontingent voll → 10 Min. Pause statt weiter anzufragen
 async function fsQuery(q) {
+  if (Date.now() - FS_QUOTA < 600000) throw new Error('HTTP 429');
   const r = await fetch(`${FS()}:runQuery?key=${ONLINE.apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ structuredQuery: q }) });
+  if (r.status === 429) FS_QUOTA = Date.now();
   if (!r.ok) throw new Error('HTTP ' + r.status);
   return (await r.json()).filter(x => x.document).map(x => { const f = x.document.fields || {}, o = { id: x.document.name.split('/').pop() }; for (const k in f) o[k] = fval(f[k]); return o; });
 }
@@ -4204,7 +4207,7 @@ async function renderRang2(el) {
   if (onlineOn()) {
     pushScore(true);
     try { await new Promise(r => setTimeout(r, 400)); all = await rgFetch(); }
-    catch (e) { info = `⚠️ Online-Bestenliste gerade nicht erreichbar (${esc(String(e && e.message || e).slice(0, 60))}) – das hier sind nur die Konten auf diesem Gerät.`; }
+    catch (e) { info = String(e && e.message).includes('429') ? '⚠️ Online-Bestenliste gerade überlastet (Firebase-Tageslimit erreicht) – ab ca. 9 Uhr morgens geht sie wieder. Das hier sind nur die Konten auf diesem Gerät.' : `⚠️ Online-Bestenliste gerade nicht erreichbar (${esc(String(e && e.message || e).slice(0, 60))}) – das hier sind nur die Konten auf diesem Gerät.`; }
   } else info = 'ℹ️ Die Online-Bestenliste ist nicht eingerichtet – du siehst nur die Konten auf diesem Gerät.';
   if (!all) { persist(); all = localAll().filter(r => !r.me && (r.since || 0) >= RESET_TS); }
   // mich selbst immer mit den aktuellen Werten
