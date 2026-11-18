@@ -668,6 +668,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .tttg{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:330px;margin:6px auto}.tttg button{aspect-ratio:1;border-radius:20px;background:#151517;border:1px solid var(--line2);font-size:46px;display:grid;place-items:center}.tttg button.win{background:rgba(47,211,107,.2);border-color:#2fd36b}
 .fdcard{width:110px;height:150px;margin:4px auto 14px;border-radius:16px;background:linear-gradient(160deg,#fff,#e9e6dd);color:#b8281e;display:grid;place-items:center;font-size:62px;font-weight:900;box-shadow:0 10px 26px rgba(0,0,0,.4)}
 .fdreact{height:170px;border-radius:24px;display:grid;place-items:center;font-size:28px;font-weight:900;color:#fff;cursor:pointer;user-select:none}.fdreact.red{background:#c4271b}.fdreact.green{background:#2fd36b;color:#062}
+.ersvg{width:min(78vw,300px);height:auto}
 .fdgg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px}.fdgg .btn{padding:14px 8px;font-size:16px}
 .fdsc{display:flex;align-items:center;justify-content:center;gap:22px;margin:6px 0 10px}.fdsc div{text-align:center}.fdsc small{display:block;color:var(--mut);font-size:13px}.fdsc b{font-size:46px}.fdsc span{font-size:34px;color:var(--mut)}
 .fdhist{display:flex;flex-direction:column;gap:6px}.fdr{display:grid;grid-template-columns:70px 1fr 26px 1fr 80px;align-items:center;gap:6px;padding:8px 12px;border-radius:14px;background:#151517;font-size:20px;text-align:center}
@@ -913,7 +914,7 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 
 /* ===== core.js ===== */
 'use strict';
-const VERSION = '0.2.3 Open Beta';
+const VERSION = '0.2.4 Open Beta';
 const FORCE_V = 12; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
 const WARTUNG = false; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
 /* ================= Helfer ================= */
@@ -3329,7 +3330,7 @@ function openSettings() {
 
 /* ================= Cheat-Menü ================= */
 const CHEATS = [['m1', '💰 +1.000 €'], ['m2', '💰 +1 Mio. €'], ['m3', '💰 +1 Mrd. €'], ['lv1', '⭐ +1 Level'], ['bp1', '🎟️ +1 Battle-Pass-Stufe'], ['lv', '⭐ +5 Level'], ['lvmax', '🔓 Alles freischalten (Level 50)'], ['en', '⚡ Energie voll'], ['pot', '🧪 +3 von jedem Trank'], ['debt', '🧾 Schulden weg'], ['bonus', '🎁 Tagesbonus nochmal'], ['off', '🔒 Cheats ausblenden']];
-function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben</button>${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
+function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben</button><button class="btn white xs" data-ch="lbh">🙈 Bestenliste-Sperre</button>${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
 function doCheat(k) {
   const add = v => { S.bal = r2(S.bal + v); S.st.maxBal = Math.max(S.st.maxBal, S.bal); };
   if (k === 'm1') add(1000); else if (k === 'm2') add(1e6); else if (k === 'm3') add(1e9);
@@ -3341,6 +3342,7 @@ function doCheat(k) {
   else if (k === 'debt') { if (S.bal < 0) S.bal = 0; S.note = 0; }
   else if (k === 'bonus') { S.bonus.last = ''; }
   else if (k === 'gift') { if (typeof openGift === 'function') openGift(); return; }
+  else if (k === 'lbh') { if (typeof openLbh === 'function') openLbh(); return; }
   else if (k === 'own') { if (!isOwner(S.lbId)) return; S.owner = !S.owner; save(); pushScore(true); SND.win(); toast(S.owner ? '👑 Besitzer-Abzeichen aktiviert' : 'Besitzer-Abzeichen deaktiviert', 'good', 1600); return; }
   else if (k === 'off') { S.cheat = false; toast('Cheats ausgeblendet'); save(); return; }
   SND.coin(); FX.burst(30, { coins: true }); hdr(true); checkAch(); save(); toast('😎 ' + CHEATS.find(c => c[0] === k)[1], 'good', 1600);
@@ -3834,7 +3836,7 @@ function crDraw(el, m) {
 const CLAN_COST = 10000, CLAN_MAX = 20;
 let clanTab = 0;
 async function clanList() { return fsQuery({ from: [{ collectionId: 'clans' }], orderBy: [{ field: { fieldPath: 'ts' }, direction: 'DESCENDING' }], limit: 100 }); }
-async function clanMembers(tag) { return (await fsQuery({ from: [{ collectionId: 'rang' }], where: fEq('clan', tag), limit: 60 })).filter(r => (r.since || 0) >= RESET_TS).sort((a, b) => (b.bal || 0) - (a.bal || 0)); }
+async function clanMembers(tag) { if (typeof lbhLoad === 'function') await lbhLoad(); return (await fsQuery({ from: [{ collectionId: 'rang' }], where: fEq('clan', tag), limit: 60 })).filter(r => (r.since || 0) >= RESET_TS && (r.id === S.lbId || (typeof lbhHas === 'function' ? !lbhHas(r.name) : true))).sort((a, b) => (b.bal || 0) - (a.bal || 0)); }
 async function clanTop() {
   const all = await fsQuery({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'clan' }, op: 'GREATER_THAN', value: fstr('') } }, limit: 500 });
   const g = {}; all.forEach(r => { const t = r.clan; if (!t || (r.since || 0) < RESET_TS) return; (g[t] = g[t] || { tag: t, sum: 0, n: 0 }); g[t].sum += r.bal || 0; g[t].n++; });
@@ -4000,8 +4002,8 @@ async function renderWoche(el) {
   if (!onlineOn()) { B.innerHTML = '<div class="empty">Braucht die Online-Verbindung.</div>'; return; }
   pushScore(true);
   try {
-    await new Promise(r => setTimeout(r, 500));
-    const rows = (await fsQuery({ from: [{ collectionId: 'rang' }], where: fEq('wkk', S.wk.k), limit: 300 })).filter(r => (r.since || 0) >= RESET_TS).sort((a, b) => (b.wk || 0) - (a.wk || 0)).slice(0, 20);
+    await new Promise(r => setTimeout(r, 500)); if (typeof lbhLoad === 'function') await lbhLoad();
+    const rows = (await fsQuery({ from: [{ collectionId: 'rang' }], where: fEq('wkk', S.wk.k), limit: 300 })).filter(r => (r.since || 0) >= RESET_TS && (r.id === S.lbId || (typeof lbhHas === 'function' ? !lbhHas(r.name) : true))).sort((a, b) => (b.wk || 0) - (a.wk || 0)).slice(0, 20);
     if (!B.isConnected) return;
     const mi = rows.findIndex(r => r.id === S.lbId);
     B.innerHTML = `<div class="card myrank" style="margin-bottom:14px"><div class="mr-n num">${mi >= 0 ? '#' + (mi + 1) : '–'}</div>${avaHTML({ ...S })}<div class="who"><b>Dein Wochen-Plus</b><small>${mi >= 0 ? 'Platz ' + (mi + 1) + ' diese Woche' : 'Spiel eine Runde, um dabei zu sein'}</small></div><span class="w num ${S.wk.v < 0 ? 'neg' : 'pos'}">${fmt(S.wk.v, { sign: true })}</span></div>
@@ -4065,7 +4067,8 @@ function perVal(d, p, tracked) {
   return tracked === undefined || tracked === null ? null : (+tracked || 0);
 }
 async function rgFetch() {
-  const docs = await fsQuery({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'since' }, op: 'GREATER_THAN_OR_EQUAL', value: fint(RESET_TS) } }, limit: 1000 });
+  if (typeof lbhLoad === 'function') await lbhLoad();
+  const docs = (await fsQuery({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'since' }, op: 'GREATER_THAN_OR_EQUAL', value: fint(RESET_TS) } }, limit: 1000 })).filter(r => r.id === S.lbId || (typeof lbhHas === 'function' ? !lbhHas(r.name) : true));
   return docs.map(d => ({ k: d.id, name: d.name || '?', disp: d.disp || d.name || '?', bal: d.bal || 0, lvl: d.level || 1, color: d.color || 0, ts: d.ts || 0, me: d.id === S.lbId,
     big: d.big ?? null, net: d.net ?? null, bxp: d.bxp ?? null, wag: d.wag ?? null, since: d.since ?? null, best: d.best || '', ach: d.ach ?? null, own: !!d.own, tit: d.tit || '', frm: d.frm || '', clan: d.clan || '', hist: d.hist || '',
     dy: perVal(d, 'dy', d.dk === dayKey() ? d.dv : undefined), wk: perVal(d, 'wk', d.wkk === weekKey() ? d.wk : undefined), mo: perVal(d, 'mo', d.mk === monKey() ? d.mv : undefined) }));
@@ -4842,6 +4845,98 @@ function openGift() {
   };
 }
 
+/* ================= 🙈 Bestenliste-Sperre: Admin kann Konten aus allen Bestenlisten ausblenden (signiert) ================= */
+let LBH = { set: new Set(), t: 0 };
+const lbhMsg = d => `lbh|${d.id}|${d.n}|${d.h}|${d.ts}`;
+function lbhHas(name) { return LBH.set.has(String(name || '').toLowerCase()); }
+async function lbhLoad(force) {
+  if (!onlineOn() || (!force && Date.now() - LBH.t < 60000)) return LBH.set;
+  try {
+    const docs = await fsQuery({ from: [{ collectionId: 'lbsperre' }], limit: 500 });
+    const pk = await crypto.subtle.importKey('jwk', ADM_PUB, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+    const best = {};
+    for (const d of docs) {
+      const g = { id: d.id, n: String(d.n || '').toLowerCase(), h: +d.h ? 1 : 0, ts: +d.ts || 0 };
+      if (!g.n || (best[g.n] && best[g.n].ts >= g.ts)) continue;
+      try { if (await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pk, b64u.from(d.sig || ''), new TextEncoder().encode(lbhMsg(g)))) best[g.n] = g; } catch (e) { }
+    }
+    LBH.set = new Set(Object.values(best).filter(g => g.h).map(g => g.n)); LBH.t = Date.now();
+  } catch (e) { }
+  return LBH.set;
+}
+async function lbhSet(name, h) {
+  if (!ADM_KEY) { const c = localStorage.getItem('gg_adm'); if (!c || !await admUnlock(c)) throw new Error('key'); }
+  const g = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), n: name.toLowerCase(), h: h ? 1 : 0, ts: Date.now() };
+  const sig = b64u.to(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, ADM_KEY, new TextEncoder().encode(lbhMsg(g))));
+  const r = await fsCreate('lbsperre', g.id, { n: fstr(g.n), h: fint(g.h), ts: fint(g.ts), sig: fstr(sig) });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  if (h) LBH.set.add(g.n); else LBH.set.delete(g.n); lbLast = '';
+}
+function openLbh() {
+  const o = sheet(`<div class="row sb"><h2>🙈 Bestenliste-Sperre</h2><button class="x" data-close>${icon('x')}</button></div>
+    <p class="hint" style="margin-top:0">Gesperrte Konten werden für alle aus der Bestenliste, Wochen-Liste und Clan-Liste ausgeblendet. Spielen können sie weiter.</p>
+    <div class="lbl2">Spielername</div><input class="inp" id="lhN" maxlength="18" placeholder="z. B. Robin" autocomplete="off">
+    <div style="display:flex;gap:8px;margin-top:12px"><button class="btn gold" style="flex:1" id="lhH">🙈 Ausblenden</button><button class="btn dark" style="flex:1" id="lhS">👀 Wieder zeigen</button></div>
+    <div class="lbl2">Aktuell ausgeblendet</div><div id="lhL" class="card tight list" style="background:#151517"><div class="empty">Lade …</div></div>`);
+  const draw = async f => {
+    const L = $('#lhL', o); if (!L) return; const set = await lbhLoad(f); if (!L.isConnected) return;
+    L.innerHTML = set.size ? [...set].sort().map(n => `<div class="it"><div style="flex:1"><b>@${esc(n)}</b></div><button class="btn dark xs" data-u="${esc(n)}">👀 Zeigen</button></div>`).join('') : '<div class="empty">Niemand ausgeblendet</div>';
+  };
+  const act = async (nm, h, btn) => {
+    nm = String(nm || '').trim().toLowerCase(); if (!nm) return toast('Name fehlt', 'bad');
+    if (btn) btn.disabled = true;
+    try {
+      if (h) { try { if (!await nameTaken(nm)) { if (btn) btn.disabled = false; return toast(`Spieler „${esc(nm)}“ gibt es nicht`, 'bad'); } } catch (e) { } }
+      await lbhSet(nm, h); SND.win(); toast(h ? `🙈 @${esc(nm)} ist jetzt aus der Bestenliste ausgeblendet` : `👀 @${esc(nm)} wird wieder angezeigt`, 'good'); draw(true);
+    } catch (e) { toast(e.message === 'key' ? 'Bitte Cheat-Code einmal neu eingeben (Admin-Schlüssel fehlt).' : 'Fehlgeschlagen – Firebase-Regeln prüfen (lbsperre).', 'bad'); }
+    if (btn) btn.disabled = false;
+  };
+  $('#lhH', o).onclick = function () { act($('#lhN', o).value, true, this); };
+  $('#lhS', o).onclick = function () { act($('#lhN', o).value, false, this); };
+  $('#lhL', o).onclick = e => { const b = e.target.closest('[data-u]'); if (b) act(b.dataset.u, false, b); };
+  draw(true);
+}
+
+/* ================= ⚡ Energie-Reaktor: sehr schweres Minispiel, das Energie gibt ================= */
+const ER_CD = 10 * 60000; // alle 10 Minuten ein Versuch
+function erLeft() { return Math.max(0, (S.erT || 0) + ER_CD - Date.now()); }
+function openReactor() {
+  const left = erLeft();
+  if (left > 0) { toast(`⚡ Reaktor kühlt ab – nächster Versuch in ${Math.ceil(left / 60000)} Min.`, 'bad'); SND.err(); return; }
+  S.erT = Date.now(); save();
+  const o = document.createElement('div'); o.className = 'game-ov'; o.dataset.run = '1';
+  o.innerHTML = `<div class="gh"><button class="pill circbtn" style="margin:0;width:54px;height:54px" id="erX">${icon('x')}</button><b>⚡ Energie-Reaktor</b><span class="chip">${icon('battery')} ${S.energy}</span></div>
+    <div class="gbody"><div class="lab" style="gap:18px">
+      <div class="lpips" id="erP">${Array.from({ length: 5 }, () => '<i></i>').join('')}</div>
+      <svg viewBox="0 0 220 220" class="ersvg" id="erS"><circle cx="110" cy="110" r="92" fill="none" stroke="#232327" stroke-width="18"/>
+        <path id="erZ" fill="none" stroke="#3cbf63" stroke-width="18" stroke-linecap="round"/>
+        <line id="erN" x1="110" y1="110" x2="110" y2="14" stroke="#fff" stroke-width="5" stroke-linecap="round"/><circle cx="110" cy="110" r="9" fill="#fff"/></svg>
+      <p class="lhelp" id="erH">Stopp den Zeiger <b style="color:#3cbf63">5× hintereinander</b> im grünen Bereich.<br>Jeder Treffer: schneller und kleiner. Ein Fehler = vorbei.<br>5/5 → <b>+3 ⚡</b> · 4/5 → <b>+1 ⚡</b></p>
+      <button class="btn white w" id="erGo" style="font-size:24px">STOPP</button></div></div>`;
+  document.body.appendChild(o);
+  let ang = 0, spd = 3.4, hits = 0, done = false, zone = { a: 0, w: 26 }, raf = 0, last = performance.now();
+  const arc = (a, w) => { const r = 92, s0 = (a - w / 2 - 90) * Math.PI / 180, s1 = (a + w / 2 - 90) * Math.PI / 180; return `M${110 + r * Math.cos(s0)},${110 + r * Math.sin(s0)} A${r},${r} 0 0 1 ${110 + r * Math.cos(s1)},${110 + r * Math.sin(s1)}`; };
+  const newZone = () => { zone = { a: (ang + 120 + Math.random() * 180) % 360, w: Math.max(8, 26 - hits * 4.5) }; $('#erZ', o).setAttribute('d', arc(zone.a, zone.w)); };
+  newZone();
+  const loop = t => { if (done) return; const dt = Math.min(50, t - last); last = t; ang = (ang + spd * dt / 16.7) % 360; $('#erN', o).setAttribute('transform', `rotate(${ang} 110 110)`); raf = requestAnimationFrame(loop); };
+  raf = requestAnimationFrame(loop);
+  const finish = () => {
+    done = true; cancelAnimationFrame(raf); delete o.dataset.run;
+    const gain = hits >= 5 ? 3 : hits >= 4 ? 1 : 0;
+    if (gain) { S.energy = (S.energy || 0) + gain; save(); hdr(true); SND.big(); FX.burst(90, { cols: ['#ffe066', '#7cf0a2', '#fff'] }); } else SND.lose();
+    $('.gbody', o).innerHTML = `<div class="result"><h2>${gain ? `+${gain} ⚡ Energie!` : 'Reaktor überhitzt 💥'}</h2><p>${hits} / 5 Treffer${gain ? '' : ' – du brauchst mindestens 4.'}<br>Nächster Versuch in 10 Minuten.</p><button class="btn white" id="erEnd" style="width:min(90vw,420px)">Fertig</button></div>`;
+    $('#erEnd', o).onclick = close;
+  };
+  const close = () => { done = true; cancelAnimationFrame(raf); delete o.dataset.run; o.style.transition = 'opacity .3s'; o.style.opacity = 0; setTimeout(() => o.remove(), 300); if (curPage === 'spiele') go('spiele', true); };
+  $('#erX', o).onclick = close;
+  $('#erGo', o).onclick = () => {
+    if (done) return;
+    const d = Math.abs(((ang - zone.a + 540) % 360) - 180);
+    if (d <= zone.w / 2) { hits++; $$('#erP i', o)[hits - 1].classList.add('on'); SND.coin(hits); vib(15); if (hits >= 5) return finish(); spd *= 1.32; newZone(); }
+    else { vib([60, 40, 60]); finish(); }
+  };
+}
+
 /* ================= Seiten erweitern ================= */
 { const Im = PAGES.imperium; PAGES.imperium = el => { Im(el); const c = $('.card', el); if (c) { c.insertAdjacentHTML('afterend', '<button class="btn gold w" id="toCity" style="margin-bottom:14px;font-size:20px">🏙️ Meine Straße in 3D ansehen</button>'); $('#toCity', el).onclick = () => { SND.click(); openCity(); }; } }; }
 PAGES.crash = renderCrash; PAGES.pass = renderPass; PAGES.clan = renderClan; PAGES.freunde = renderFreunde;
@@ -4853,9 +4948,10 @@ PAGES.crash = renderCrash; PAGES.pass = renderPass; PAGES.clan = renderClan; PAG
     sub.insertAdjacentHTML('afterend', `<div class="xg">
       <button class="card gm xcard" data-x="crash" style="position:relative"><span class="neu">NEU</span><div class="ibox" style="font-size:38px">🚀</div><h4>Crash</h4><p>Steig aus, bevor die Rakete explodiert!</p></button>
       <button class="card gm xcard" data-x="pass" style="position:relative">${op ? `<span class="neu">${op}</span>` : ''}<div class="ibox" style="font-size:38px">🎟️</div><h4>Battle Pass</h4><p>Saison ${seasonName()} · Stufe ${bpLv()} / ${BP_N}</p><div class="bpbar sm"><i style="width:${bpLv() >= BP_N ? 100 : (S.bp.pts % BP_PER) / BP_PER * 100}%"></i></div></button>
+      <button class="card gm xcard" data-x="reactor" style="position:relative">${erLeft() ? '' : '<span class="neu">!</span>'}<div class="ibox" style="font-size:38px">⚡</div><h4>Energie-Reaktor</h4><p>${erLeft() ? `Kühlt ab · noch ${Math.ceil(erLeft() / 60000)} Min.` : 'Sehr schwer – bis zu +3 Energie!'}</p></button>
       <button class="card gm xcard" data-x="cal" style="position:relative">${cs.ready ? '<span class="neu">!</span>' : ''}<div class="ibox" style="font-size:38px">📆</div><h4>Login-Kalender</h4><p>${cs.ready ? `Tag ${cs.day} wartet auf dich!` : `Heute abgeholt · Tag ${cs.day} / 7`}</p></button>
     </div>`);
-    $$('[data-x]', el).forEach(b => b.onclick = () => { SND.click(); const x = b.dataset.x; if (x === 'cal') openCal(); else go(x); });
+    $$('[data-x]', el).forEach(b => b.onclick = () => { SND.click(); const x = b.dataset.x; if (x === 'cal') openCal(); else if (x === 'reactor') openReactor(); else go(x); });
   };
   PAGES.rang = renderRang2; PAGES.woche = el => { rgTab = 2; renderRang2(el); };
   const Pr = PAGES.profil; PAGES.profil = el => {
