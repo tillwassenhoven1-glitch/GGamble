@@ -1253,12 +1253,12 @@ function canPay(a) {
 /* Battle-Pass: voller Punkt ab diesem Einsatz (höchstens 5 €, damit auch kleine Konten mitkommen) */
 const bpMin = () => Math.min(5, Math.max(1, base() * .25));
 /* Einsatz abbuchen (Glücksspiel) */
-function bet(a, game) {
+function bet(a, game, noXp) {
   if (!canPay(a)) return false;
   S.bal = r2(S.bal - a); touchToday(); S.today.v = r2(S.today.v - a);
   S.st.wagered += a; S.st.rounds++; S.st.net = r2(S.st.net - a);
   if (S.note > 0) { const rp = r2(Math.min(S.note, Math.max(.01, a * .1))); S.bal = r2(S.bal - rp); S.note = r2(S.note - rp); S.st.noteSpin = r2((S.st.noteSpin || 0) + rp); if (S.note <= 0.004) { S.note = 0; setTimeout(() => { toast('Schuldschein komplett abbezahlt! 🎉', 'good'); FX.burst(80); SND.win(); }, 500); } }
-  addXP(Math.min(a, 15 + S.level * 15)); bpAdd(Math.min(1, a / bpMin())); wkAdd(-a);
+  if (!noXp) { addXP(Math.min(a, 15 + S.level * 15)); bpAdd(Math.min(1, a / bpMin())); } wkAdd(-a);
   taskProg('wager', a); taskProg('rounds', 1);
   hdr(); checkAch(); save(); return true;
 }
@@ -3895,7 +3895,7 @@ function crStart(el) {
   if (st > mx) { toast(`Höchstens ${fmt(mx)} auf deinem Level`, 'bad'); SND.err(); return; }
   if (au && au < 1.01) { toast('Auto-Aussteigen muss über 1,00× liegen', 'bad'); return; }
   CR.stake = st; CR.auto = au || '';
-  if (!bet(st, 'Crash')) return;
+  if (!bet(st, 'Crash', true)) return; // XP gibt's erst am Ende – je nach Risiko
   CR.run = { stake: st, cp: crashPoint(), auto: au, t0: performance.now(), done: false, el };
   SND.click(); vib(10); crTick();
 }
@@ -3911,6 +3911,8 @@ function crTick() {
 function crCash() { const run = CR.run; if (!run || run.done) return; const m = crMult(run); if (m >= run.cp) return crEnd(run, 'boom', run.cp); crEnd(run, 'cash', m); }
 function crEnd(run, how, m) {
   run.done = true; run.res = how; run.m = m;
+  // XP + Battle Pass nach Risiko: bei 1,01× fast nichts, ab 2× voll (sonst wäre Crash eine XP-Farm)
+  { const f = how === 'cash' ? clamp(m - 1, 0, 1) : 1; addXP(Math.round(Math.min(run.stake, 15 + S.level * 15) * f)); bpAdd(Math.min(1, run.stake / bpMin()) * f); }
   CR.hist.unshift(run.cp); CR.hist.length = Math.min(CR.hist.length, 12);
   const vis = run.el && run.el.isConnected;
   if (how === 'cash') {
@@ -5090,6 +5092,46 @@ function openBc() {
   };
 }
 
+/* ================= 💎 Der Tresor: Hochrisiko-Spiel für reiche Spieler (Geld-Senke) =================
+   Ehrliche Chancen, aber nur 60 % Auszahlungsquote → wer viel reinsteckt, verliert auf Dauer viel. */
+const TR_RTP = .6, TR_T = [2, 5, 10, 100];
+function openTresor() {
+  if (S.bal < 1000) { toast(`💎 Der Tresor ist nur für High Roller – ab ${fmt(1000)} Guthaben.`, 'bad'); SND.err(); return; }
+  let tgt = 5, pct = .25;
+  const o = sheet(`<div class="row sb"><h2>💎 Der Tresor</h2><button class="x" data-close>${icon('x')}</button></div>
+    <div id="trV" style="font-size:96px;text-align:center;margin:6px 0;transition:transform 1.6s cubic-bezier(.2,.8,.2,1)">🔐</div>
+    <div class="lbl2" style="margin-top:0">Wie viel setzt du?</div>
+    <div class="filters" id="trP">${[[.1, '10 %'], [.25, '25 %'], [.5, '50 %'], [1, 'ALLES']].map(([v, n]) => `<button data-p="${v}" class="${v === pct ? 'on' : ''}">${n}</button>`).join('')}</div>
+    <div class="lbl2">Welchen Tresor knackst du?</div>
+    <div class="filters" id="trT">${TR_T.map(t => `<button data-t="${t}" class="${t === tgt ? 'on' : ''}">×${t}</button>`).join('')}</div>
+    <div class="card tight" style="background:#151517;margin-top:12px;padding:14px 18px"><div class="row sb" style="font-size:18px"><span style="color:var(--mut)">Einsatz</span><b class="num" id="trS"></b></div>
+      <div class="row sb" style="font-size:18px;margin-top:6px"><span style="color:var(--mut)">Möglicher Gewinn</span><b class="num pos" id="trW"></b></div>
+      <div class="row sb" style="font-size:18px;margin-top:6px"><span style="color:var(--mut)">Chance</span><b class="num" id="trC"></b></div></div>
+    <button class="btn gold w" id="trGo" style="margin-top:14px;font-size:22px">💎 Tresor knacken</button>
+    <p class="hint">Nur für Mutige: Die Chancen sind klein, und im Schnitt gewinnt der Tresor. Die Chance steht oben – ehrlich.</p>`);
+  const stake = () => r2(Math.max(0, S.bal) * pct);
+  const upd = () => { $('#trS', o).textContent = fmt(stake()); $('#trW', o).textContent = fmt(r2(stake() * tgt)); $('#trC', o).textContent = `${NF2.format(TR_RTP / tgt * 100).replace(/,?0+$/, '')} %`; };
+  upd();
+  $('#trP', o).onclick = e => { const b = e.target.closest('[data-p]'); if (!b) return; pct = +b.dataset.p; $$('#trP button', o).forEach(x => x.classList.toggle('on', x === b)); SND.click(); upd(); };
+  $('#trT', o).onclick = e => { const b = e.target.closest('[data-t]'); if (!b) return; tgt = +b.dataset.t; $$('#trT button', o).forEach(x => x.classList.toggle('on', x === b)); SND.click(); upd(); };
+  $('#trGo', o).onclick = async function () {
+    const st = stake(); if (st < 1) return toast('Zu wenig Guthaben', 'bad');
+    if (S.bal < 1000) { o.close(); return toast(`💎 Erst ab ${fmt(1000)} Guthaben.`, 'bad'); }
+    if (pct >= 1 && !await confirmBox('💎 Wirklich ALLES setzen?', `Du setzt <b>${fmt(st)}</b>. Chance auf ×${tgt}: ${NF2.format(TR_RTP / tgt * 100).replace(/,?0+$/, '')} %.`, 'Alles setzen', true)) return;
+    if (!bet(st, 'Tresor')) return;
+    this.disabled = true; $$('#trP button,#trT button', o).forEach(b => b.disabled = true); hdr(true);
+    const v = $('#trV', o); v.style.transform = 'rotate(720deg) scale(1.15)'; SND.tick();
+    const tk = setInterval(() => SND.tick(), 160);
+    const win = Math.random() < TR_RTP / tgt;
+    await new Promise(r => setTimeout(r, 1700)); clearInterval(tk);
+    v.style.transition = 'none'; v.style.transform = ''; v.textContent = win ? '💰' : '💥';
+    if (win) { const w = r2(st * tgt); payout(w, 'Tresor', st); SND.big(); FX.burst(140, { coins: true }); toast(`💎 TRESOR GEKNACKT! +${fmt(w)}`, 'good', 4500); }
+    else { SND.lose(); vib([80, 40, 80]); toast(`💥 Alarm! Der Tresor bleibt zu – ${fmt(st)} weg.`, 'bad', 3500); }
+    hdr(true); save();
+    setTimeout(() => { if (!o.isConnected) return; v.style.transition = 'transform 1.6s cubic-bezier(.2,.8,.2,1)'; v.textContent = '🔐'; this.disabled = false; $$('#trP button,#trT button', o).forEach(b => b.disabled = false); upd(); if (S.bal < 1000) { o.close(); toast(`💎 Unter ${fmt(1000)} – der Tresor schließt.`); } }, 1600);
+  };
+}
+
 /* ================= ⚡ Energie-Reaktor: sehr schweres Minispiel, das Energie gibt ================= */
 const ER_CD = 5 * 60000; // alle 5 Minuten ein Versuch
 function erLeft() { return Math.max(0, (S.erT || 0) + ER_CD - Date.now()); }
@@ -5152,9 +5194,10 @@ PAGES.crash = renderCrash; PAGES.pass = renderPass; PAGES.clan = renderClan; PAG
       <button class="card gm xcard" data-x="crash" style="position:relative"><span class="neu">NEU</span><div class="ibox" style="font-size:38px">🚀</div><h4>Crash</h4><p>Steig aus, bevor die Rakete explodiert!</p></button>
       <button class="card gm xcard" data-x="pass" style="position:relative">${op ? `<span class="neu">${op}</span>` : ''}<div class="ibox" style="font-size:38px">🎟️</div><h4>Battle Pass</h4><p>Saison ${seasonName()} · Stufe ${bpLv()} / ${BP_N}</p><div class="bpbar sm"><i style="width:${bpLv() >= BP_N ? 100 : (S.bp.pts % BP_PER) / BP_PER * 100}%"></i></div></button>
       <button class="card gm xcard" data-x="reactor" style="position:relative">${erLeft() ? '' : '<span class="neu">!</span>'}<div class="ibox" style="font-size:38px">⚡</div><h4>Energie-Code</h4><p>${erLeft() ? `Lädt · noch ${Math.ceil(erLeft() / 60000)} Min.` : 'Farbfolge merken – bis zu +3 Energie!'}</p></button>
+      <button class="card gm xcard" data-x="tresor" style="position:relative"><span class="neu">HIGH ROLLER</span><div class="ibox" style="font-size:38px">💎</div><h4>Der Tresor</h4><p>Setz viel – knack bis zu ×100</p></button>
       <button class="card gm xcard" data-x="cal" style="position:relative">${cs.ready ? '<span class="neu">!</span>' : ''}<div class="ibox" style="font-size:38px">📆</div><h4>Login-Kalender</h4><p>${cs.ready ? `Tag ${cs.day} wartet auf dich!` : `Heute abgeholt · Tag ${cs.day} / 7`}</p></button>
     </div>`);
-    $$('[data-x]', el).forEach(b => b.onclick = () => { SND.click(); const x = b.dataset.x; if (x === 'cal') openCal(); else if (x === 'reactor') openReactor(); else go(x); });
+    $$('[data-x]', el).forEach(b => b.onclick = () => { SND.click(); const x = b.dataset.x; if (x === 'cal') openCal(); else if (x === 'reactor') openReactor(); else if (x === 'tresor') openTresor(); else go(x); });
   };
   PAGES.rang = renderRang2; PAGES.woche = el => { rgTab = 2; renderRang2(el); };
   const Pr = PAGES.profil; PAGES.profil = el => {
