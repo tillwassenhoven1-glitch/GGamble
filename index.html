@@ -919,7 +919,7 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 
 /* ===== core.js ===== */
 'use strict';
-const VERSION = '0.2.4 Open Beta';
+const VERSION = '0.2.5 Open Beta';
 const FORCE_V = 12; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
 const WARTUNG = false; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
 /* ================= Helfer ================= */
@@ -1268,6 +1268,10 @@ function payout(a, game, stake) {
   S.bal = r2(S.bal + got); touchToday(); S.today.v = r2(S.today.v + got); S.st.net = r2(S.st.net + got);
   if (a > S.st.biggest) { S.st.biggest = r2(a); S.st.bestGame = game; }
   if (stake) S.st.maxMult = Math.max(S.st.maxMult, a / stake);
+  if (stake > 0 && typeof bpAdd === 'function') { // 🎟️ Große Gewinne geben Battle-Pass-Punkte (anteilig bei kleinem Einsatz)
+    const m = a / stake, bp = m >= 500 ? 100 : m >= 100 ? 60 : m >= 50 ? 30 : m >= 10 ? 10 : 0, pts = Math.round(bp * Math.min(1, stake / Math.max(1, base() * .25)));
+    if (pts > 0) { bpAdd(pts); whenFree(() => setTimeout(() => toast(`🎟️ Großer Gewinn (${NF0.format(m)}×): +${pts} Battle-Pass-Punkte`, 'good', 3000), 1200)); }
+  }
   if (cut > 0) setTimeout(() => toast(`Inkasso Krause kassiert ${fmt(cut)} (40 %)`), 900);
   wkAdd(got); afterMoney(); feedWin(a, game, stake); return got;
 }
@@ -1279,9 +1283,9 @@ function earn(a, why) {
 }
 function afterMoney() { S.st.maxBal = Math.max(S.st.maxBal, S.bal); hdr(true); checkAch(); save(); }
 function addXP(x) {
-  S.xp += x; let up = false;
+  S.xp += x; let up = false; const lv0 = S.level;
   while (S.xp >= xpNeed(S.level)) { S.xp -= xpNeed(S.level); S.level++; up = true; }
-  if (up) { const lv = S.level; whenFree(() => setTimeout(() => { toast(`Level ${lv} erreicht! Neue Spiele &amp; höhere Belohnungen 🎉`, 'good'); FX.burst(80); SND.win(); }, 300)); checkAch(); }
+  if (up) { const lv = S.level, n = lv - lv0; if (typeof bpAdd === 'function') bpAdd(n * BP_PER); whenFree(() => setTimeout(() => { toast(`Level ${lv} erreicht! +${n} Battle-Pass-Stufe${n > 1 ? 'n' : ''} 🎟️ 🎉`, 'good'); FX.burst(80); SND.win(); }, 300)); checkAch(); }
 }
 function applyInterest() {
   const now = Date.now(), h = (now - S.lastInt) / 36e5;
@@ -3302,6 +3306,7 @@ function openSettings() {
       <div class="it"><span class="lbl">Sound</span><button class="tog ${S.set.snd !== false ? 'on' : ''}" data-t="snd"></button></div>
       <div class="it"><span class="lbl">Vibration</span><button class="tog ${S.set.vib !== false ? 'on' : ''}" data-t="vib"></button></div>
     </div>
+    <div class="lbl2">✏️ Namen ändern (Login-Name, 1× pro Woche)</div><input class="inp" id="rnN" maxlength="18" placeholder="Neuer Name" autocomplete="off"><div class="row" style="margin-top:8px"><input class="inp" type="password" id="rnP" placeholder="Dein Passwort"><button class="btn dark sm" id="rnGo">OK</button></div>
     <div class="lbl2">Passwort ändern</div><div class="row"><input class="inp" type="password" id="nPw" placeholder="Neues Passwort"><button class="btn dark sm" id="sPw">OK</button></div>
     <div class="lbl2">Spielstand-Code (zum Übertragen auf ein anderes Gerät)</div>
     <div class="two"><button class="btn dark sm" id="exp">Code kopieren</button><button class="btn dark sm" id="imp">Code laden</button></div>
@@ -3310,6 +3315,7 @@ function openSettings() {
     <button class="btn dark w" id="rst" style="margin-top:22px">🔄 Konto zurücksetzen</button>
     <div class="two" style="margin-top:10px"><button class="btn dark" id="out">${icon('out')} Abmelden</button><button class="btn red" id="del">Konto löschen</button></div>`);
   $$('[data-t]', o).forEach(b => b.onclick = () => { const k = b.dataset.t; S.set[k] = S.set[k] === false; b.classList.toggle('on', S.set[k] !== false); save(); SND.click(); });
+  $('#rnGo', o).onclick = async function () { this.disabled = true; try { await renameAcc($('#rnN', o).value, $('#rnP', o).value); } finally { this.disabled = false; } };
   $('#sPw', o).onclick = async () => { const p = $('#nPw', o).value; if (p.length < 4) { toast('Mindestens 4 Zeichen', 'bad'); return; } const all = Accounts.all(), a = all[ACC]; a.salt = Math.random().toString(36).slice(2); a.hash = await Accounts.hash(p, a.salt); const old = a.cid; a.cid = await cloudId(ACC, p); Accounts.put(all); persist(); if (onlineOn()) { cloudLast = ''; cloudPush(true); if (old && old !== a.cid) fetch(fsDoc('konten/' + old), { method: 'DELETE' }).catch(() => { }); } $('#nPw', o).value = ''; toast('Passwort geändert ✓', 'good'); };
   $('#exp', o).onclick = async () => { persist(); const code = codeMake({ ...S, photo: '' }); try { await navigator.clipboard.writeText(code); toast('Spielstand-Code kopiert 📋', 'good'); } catch (e) { sheet(`<h2>Dein Code</h2><textarea class="inp" style="height:200px;font-size:12px" readonly>${code}</textarea>`, { center: true }); } };
   $('#imp', o).onclick = () => {
@@ -3624,6 +3630,44 @@ async function idRestore() {
     const rid = (await r.json())?.fields?.rid?.stringValue || '';
     if (rid && S.lbId !== rid) { S.lbId = rid; save(); lbLast = ''; pushScore(true); hdr(true); if (curPage === 'profil') go('profil', true); }
   } catch (e) { }
+}
+/* ✏️ Login-Namen ändern: neues Konto-Dokument + neuer Name, alter Bestenlisten-Eintrag wird ausgeblendet */
+const REN_CD = 7 * 864e5; let renOldCid = '';
+async function renameAcc(name, pw) {
+  name = String(name || '').trim(); const key = name.toLowerCase(), old = ACC, all = Accounts.all(), a = all[old];
+  const bad = t => { toast(t, 'bad'); SND.err(); };
+  if (!a) return bad('Konto nicht gefunden');
+  if (name.length < 2) return bad('Name: mindestens 2 Zeichen');
+  if (!/^[\p{L}\p{N} _.\-]+$/u.test(name)) return bad('Name: nur Buchstaben, Zahlen, Leerzeichen, _ . -');
+  if (key === old) { if (name === S.name) return bad('Das ist schon dein Name'); }
+  else if (all[key]) return bad('Den Namen gibt es schon');
+  if (await Accounts.hash(pw, a.salt) !== a.hash) return bad('Falsches Passwort');
+  const left = (S.renT || 0) + REN_CD - Date.now(); if (left > 0) return bad(`Du kannst deinen Namen erst in ${Math.ceil(left / 864e5)} Tag(en) wieder ändern`);
+  if (isOwner(S.lbId)) return bad('Das Besitzer-Konto kann nicht umbenannt werden');
+  if (key !== old && onlineOn()) {
+    if (typeof lbhLoad === 'function' && (await lbhLoad(true)).has(old)) return bad('Namensänderung ist gerade nicht möglich');
+    let t = true; try { t = await nameTaken(key); } catch (e) { return bad('Keine Verbindung – bitte später nochmal'); }
+    if (t) return bad('Den Namen hat schon jemand');
+  }
+  if (!await confirmBox(`Name in „${esc(name)}“ ändern?`, key !== old ? `Du meldest dich danach mit <b>${esc(name)}</b> an. Freunde müssen dich neu hinzufügen. Der alte Name bleibt gesperrt.` : 'Nur die Schreibweise ändert sich.', 'Ändern')) return;
+  const oldDisp = S.disp, oldName = S.name, oldRid = S.lbId;
+  S.name = name; if (!oldDisp || oldDisp.toLowerCase() === oldName.toLowerCase()) S.disp = name; S.renT = Date.now(); a.name = name;
+  if (key !== old) {
+    const rid = newRid(key); renOldCid = a.cid;
+    if (onlineOn()) {
+      const r = await claimName(key, rid).catch(() => null);
+      // alten Bestenlisten-Eintrag ausblenden (zählt nur ab RESET_TS)
+      if (oldRid) fetch(`${FS()}/rang/${oldRid}?key=${ONLINE.apiKey}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: { name: fstr(oldName), disp: fstr(oldDisp || oldName), bal: { doubleValue: 0 }, since: fint(0), ts: fint(Date.now()) } }) }).catch(() => { });
+      a.cid = await cloudId(key, pw);
+    }
+    S.lbId = rid; delete all[old]; all[key] = a; ACC = key; try { localStorage.setItem(SES_KEY, key); } catch (e) { }
+  }
+  a.save = S; Accounts.put(all); persist(); cloudLast = '';
+  if (onlineOn() && key !== old) { // erst neues Konto-Dokument sichern, dann das alte löschen
+    const oc = renOldCid; try { const r = await cloudPut(a.cid, a, S); if (r.ok) { cloudLast = JSON.stringify(S); cloudMine = Date.now(); if (oc && oc !== a.cid) fetch(fsDoc('konten/' + oc), { method: 'DELETE' }).catch(() => { }); } } catch (e) { }
+  } else cloudPush(true);
+  lbLast = ''; pushScore(true);
+  SND.win(); toast(`✏️ Du heißt jetzt ${esc(name)}`, 'good', 3500); hdr(true); setTimeout(() => location.reload(), 1500);
 }
 /* ================= Belohnungen (Battle Pass + Kalender) ================= */
 function rwTxt([t, v]) {
@@ -4930,7 +4974,7 @@ function openLbh() {
 }
 
 /* ================= ⚡ Energie-Reaktor: sehr schweres Minispiel, das Energie gibt ================= */
-const ER_CD = 10 * 60000; // alle 10 Minuten ein Versuch
+const ER_CD = 5 * 60000; // alle 5 Minuten ein Versuch
 function erLeft() { return Math.max(0, (S.erT || 0) + ER_CD - Date.now()); }
 function openReactor() {
   const left = erLeft();
@@ -4946,9 +4990,9 @@ function openReactor() {
       <p class="lhelp" id="erH">Stopp den Zeiger <b style="color:#3cbf63">5× hintereinander</b> im grünen Bereich.<br>Jeder Treffer: schneller und kleiner. Ein Fehler = vorbei.<br>5/5 → <b>+3 ⚡</b> · 4/5 → <b>+1 ⚡</b></p>
       <button class="btn white w" id="erGo" style="font-size:24px">STOPP</button></div></div>`;
   document.body.appendChild(o);
-  let ang = 0, spd = 3.4, hits = 0, done = false, zone = { a: 0, w: 26 }, raf = 0, last = performance.now();
+  let ang = 0, spd = 3.9, hits = 0, done = false, zone = { a: 0, w: 26 }, raf = 0, last = performance.now();
   const arc = (a, w) => { const r = 92, s0 = (a - w / 2 - 90) * Math.PI / 180, s1 = (a + w / 2 - 90) * Math.PI / 180; return `M${110 + r * Math.cos(s0)},${110 + r * Math.sin(s0)} A${r},${r} 0 0 1 ${110 + r * Math.cos(s1)},${110 + r * Math.sin(s1)}`; };
-  const newZone = () => { zone = { a: (ang + 120 + Math.random() * 180) % 360, w: Math.max(8, 26 - hits * 4.5) }; $('#erZ', o).setAttribute('d', arc(zone.a, zone.w)); };
+  const newZone = () => { zone = { a: (ang + 120 + Math.random() * 180) % 360, w: Math.max(6, 22 - hits * 4) }; $('#erZ', o).setAttribute('d', arc(zone.a, zone.w)); };
   newZone();
   const loop = t => { if (done) return; const dt = Math.min(50, t - last); last = t; ang = (ang + spd * dt / 16.7) % 360; $('#erN', o).setAttribute('transform', `rotate(${ang} 110 110)`); raf = requestAnimationFrame(loop); };
   raf = requestAnimationFrame(loop);
@@ -4964,7 +5008,7 @@ function openReactor() {
   $('#erGo', o).onclick = () => {
     if (done) return;
     const d = Math.abs(((ang - zone.a + 540) % 360) - 180);
-    if (d <= zone.w / 2) { hits++; $$('#erP i', o)[hits - 1].classList.add('on'); SND.coin(hits); vib(15); if (hits >= 5) return finish(); spd *= 1.32; newZone(); }
+    if (d <= zone.w / 2) { hits++; $$('#erP i', o)[hits - 1].classList.add('on'); SND.coin(hits); vib(15); if (hits >= 5) return finish(); spd *= 1.36; newZone(); }
     else { vib([60, 40, 60]); finish(); }
   };
 }
