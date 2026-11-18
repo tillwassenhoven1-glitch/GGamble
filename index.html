@@ -1211,13 +1211,15 @@ function flushHold() { const q = HOLD; HOLD = []; q.forEach((fn, i) => setTimeou
 
 /* ================= Geld / Level ================= */
 const DISPO = 180;
+// Dispo gibt's nur ohne offenen Schuldschein und nicht in den ersten 24 Std. nach einer Insolvenz (sonst: endlos Gratis-Kredit)
+const dispoNow = () => (S && (S.note > 0 || Date.now() - (S.insTs || 0) < 864e5)) ? 0 : DISPO;
 const isLocked = () => S.bal < -DISPO;
 const base = () => r2(40 * Math.pow(1.13, S.level));
 const xpNeed = l => Math.round(200 * Math.pow(l, 1.8)); // doppelt so viel XP pro Level wie früher
 function touchToday() { if (S.today.d !== dayKey()) S.today = { d: dayKey(), v: 0 }; }
 function canPay(a) {
   if (isLocked()) { toast('Dein Konto ist gesperrt – hol dir Geld in den Minispielen oder verkauf die Schulden.', 'bad'); SND.err(); return false; }
-  if (S.bal - a < -DISPO - 1e-9) { toast(`Nicht genug Guthaben – Dispo nur bis ${fmt(-DISPO)}.`, 'bad'); SND.err(); return false; }
+  if (S.bal - a < -dispoNow() - 1e-9) { toast(dispoNow() ? `Nicht genug Guthaben – Dispo nur bis ${fmt(-DISPO)}.` : (S.note > 0 ? 'Nicht genug Guthaben – mit offenem Schuldschein gibt es keinen Dispo.' : 'Nicht genug Guthaben – nach einer Insolvenz gibt es 24 Std. keinen Dispo.'), 'bad'); SND.err(); return false; }
   return true;
 }
 /* Einsatz abbuchen (Glücksspiel) */
@@ -3329,7 +3331,7 @@ function renderKonto(el) {
     <div class="card"><small style="color:#b0b0b6;font-size:18px">Kontostand</small><div class="num ${neg ? 'neg' : ''}" style="font-size:clamp(44px,14vw,72px);font-weight:800;letter-spacing:-2px;margin:6px 0 14px">${fmt(S.bal)}</div>
       <div class="row" style="flex-wrap:wrap;gap:10px">${lk ? '<span class="chip red">Gesperrt</span>' : neg ? '<span class="chip red">Im Dispo</span>' : '<span class="chip gold">Im Plus</span>'}<span class="chip num">Dispo bis ${fmt(-DISPO)}</span></div>
       <div class="bar" style="margin:22px 0 16px;height:8px"><i style="width:${pct}%;background:${neg ? 'var(--red)' : 'var(--green)'}"></i></div>
-      <p class="hint" style="font-size:18px">Du darfst bis ${fmt(-DISPO)} ins Minus spielen (0,5 % Zinsen pro Stunde). Darunter wird gesperrt – dann in den Minispielen Geld zurückholen oder die Schulden ans Inkasso verkaufen.</p></div>
+      <p class="hint" style="font-size:18px">Du darfst bis ${fmt(-DISPO)} ins Minus spielen (0,5 % Zinsen pro Stunde)${dispoNow() ? '' : ' – <b>gerade gesperrt</b> (offener Schuldschein oder Insolvenz in den letzten 24 Std.)'}. Darunter wird gesperrt – dann in den Minispielen Geld zurückholen oder die Schulden ans Inkasso verkaufen.</p></div>
     <div class="sec">Schulden</div><div class="card" id="debt"></div>
     <div class="sec" id="bxSec">Handelskonto (Börse)</div>
     <div class="card"><div class="row sb"><span style="font-size:20px">Guthaben Börse</span><b class="num" style="font-size:22px">${fmt(S.bx.bal)}</b></div>
@@ -3358,9 +3360,11 @@ function renderKonto(el) {
     hdr(true); save(); go('konto', true);
   };
   const ins = $('#dIns', el); if (ins) ins.onclick = async () => {
+    const wait = 7 * 864e5 - (Date.now() - (S.insTs || 0));
+    if (wait > 0) { toast(`Insolvenz geht nur 1× pro Woche – wieder in ${Math.ceil(wait / 864e5)} Tag(en).`, 'bad'); SND.err(); return; }
     if (!await confirmBox('Privatinsolvenz?', 'Alle Schulden und der Schuldschein werden gelöscht und dein Konto startet bei 0 €. Dafür verlierst du <b>alle Geschäfte, dein Handelskonto, alle Glückstränke</b> und die Hälfte deiner Level.', 'Insolvenz anmelden', true)) return;
     Object.assign(S, { bal: 0, note: 0, shops: {}, pot: { 2: 0, 4: 0, 6: 0 }, potAct: null, level: Math.max(1, Math.floor(S.level / 2)), xp: 0 });
-    S.bx = Object.assign(S.bx, { bal: 0, pos: [], ord: [] }); S.st.insolv++; S.shopTs = Date.now();
+    S.bx = Object.assign(S.bx, { bal: 0, pos: [], ord: [] }); S.st.insolv++; S.shopTs = Date.now(); S.insTs = Date.now();
     toast('Privatinsolvenz durch – Neustart bei 0 €.'); hdr(true); save(); go('konto', true);
   };
   const amt = () => r2(+$('#bxAmt', el).value || 0);
