@@ -265,6 +265,7 @@ p.sub{color:var(--mut);font-size:17px;margin:6px 4px 18px;line-height:1.35}
 .side{display:flex;gap:10px;margin-top:12px}
 .side button{flex:1;justify-content:center;padding:10px 14px;border-radius:999px;background:#2a2a2e;border:1px solid var(--line2);font-weight:700;font-size:14px;display:flex;align-items:center;gap:6px;white-space:nowrap}
 .side button.on{background:linear-gradient(180deg,#6a3ab0,#3d1a72);border-color:#a370ff;box-shadow:0 0 14px rgba(160,100,255,.5)}
+.side button.auto.on{background:linear-gradient(180deg,#2f8ae0,#10479b);border-color:#5cb0ff;box-shadow:0 0 14px rgba(80,160,255,.5)}
 .side button.allin.on{background:linear-gradient(180deg,#e0552f,#9b2410);border-color:#ff8a5c}
 #spinBtn{margin-top:14px;font-size:22px;padding:18px}
 #spinBtn.spinning{opacity:.75}
@@ -1117,7 +1118,9 @@ async function cloudGet(cid) {
 async function nameTaken(key) { const r = await fetch(fsDoc('namen/' + encodeURIComponent(key)), { cache: 'no-store' }); if (r.status === 404) return false; if (!r.ok) throw new Error('HTTP ' + r.status); return true; }
 const newRid = key => (key.replace(/[^a-z0-9]/g, '') || 'x').slice(0, 12) + '-' + Math.random().toString(36).slice(2, 10);
 function claimName(key, rid) { return fetch(`${FS()}/namen?documentId=${encodeURIComponent(key)}&key=${ONLINE.apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: { t: { integerValue: String(Date.now()) }, rid: { stringValue: rid || '' } } }) }).then(() => loadOwner()).catch(() => { }); }
+const isOldSave = sv => !sv || sv.ep !== RESET_EP || (sv.created || 0) < RESET_TS; // Spielstand von vor dem Neustart
 function cloudPut(cid, a, sv) {
+  if (isOldSave(sv)) return Promise.resolve({ ok: true, status: 200, skipped: true }); // alte Stände nie mehr hochladen
   const data = JSON.stringify({ name: a.name, created: a.created, save: sv }), body = JSON.stringify({ fields: { data: { stringValue: data }, ts: { integerValue: String(Date.now()) } } });
   return fetch(fsDoc('konten/' + cid), { method: 'PATCH', keepalive: body.length < 60000, headers: { 'Content-Type': 'application/json' }, body });
 }
@@ -1443,11 +1446,11 @@ function openMachine(i) {
       <div class="g"><small>Guthaben</small><b id="mBal" class="num"></b><em id="mHere" class="num">±0,00 € hier</em><em id="mNote" class="num neg" style="display:block"></em></div>
       <div class="stake"><button class="rb" id="sMinus">−</button><div class="sv"><small>Einsatz</small><b id="mStake" class="num"></b></div><button class="rb" id="sPlus">+</button></div>
     </div>
-    <div class="side"><button id="mLuck">${icon('spark')} Glück</button><button class="allin" id="mAll">${icon('flame')} Max</button></div>
+    <div class="side"><button id="mLuck">${icon('spark')} Glück</button><button class="allin" id="mAll">${icon('flame')} Max</button><button class="auto" id="mAuto">🔁 Auto</button></div>
     <button class="btn white w" id="spinBtn">Drehen</button>
   </div>`;
   document.body.appendChild(f);
-  MS = { m, f, busy: false, here: 0, allIn: false, fs: 0, fsWin: 0, grid: genGrid(m), auto: false };
+  MS = { m, f, busy: false, here: 0, allIn: !!S.maxOn, fs: 0, fsWin: 0, grid: genGrid(m), auto: null };
   const R = m.t === 'v' ? 5 : 3;
   const reels = $$('.reel', f);
   requestAnimationFrame(() => {
@@ -1465,16 +1468,19 @@ function openMachine(i) {
     $('#mLuck', f).classList.toggle('on', !!S.potAct); const potOff = S.potAct && (MS.allIn ? maxBtnStake() : STAKES[S.stakeI]) > potCap() + 1e-9;
     $('#mLuck', f).innerHTML = icon('spark') + (S.potAct ? ` ×${S.potAct.m} · ${S.potAct.left}${potOff ? ' ⚠️' : ''}` : ' Glück');
     $('#mAll', f).classList.toggle('on', MS.allIn);
+    $('#mAuto', f).classList.toggle('on', !!MS.auto); $('#mAuto', f).textContent = MS.auto ? `⏹ ${MS.auto.left === Infinity ? '∞' : MS.auto.left}` : '🔁 Auto';
+    if (MS.auto && !MS.busy && MS.fs === 0) $('#spinBtn', f).textContent = `Stopp · Auto ${MS.auto.left === Infinity ? '∞' : MS.auto.left}`;
     const jv = $('#jpV', f); if (jv) jv.textContent = fmt(S.jp[m.jp]);
   };
   MS.upd = upd; upd();
-  $('#sMinus', f).onclick = () => { if (MS.busy) return; MS.allIn = false; S.stakeI = Math.max(0, S.stakeI - 1); SND.click(); upd(); };
-  $('#sPlus', f).onclick = () => { if (MS.busy) return; MS.allIn = false; const n = Math.min(STAKES.length - 1, S.stakeI + 1); if (STAKES[n] > maxStake()) { let l = S.level; while (10 * Math.pow(STAKE_G, l - 1) < STAKES[n]) l++; toast(`${fmt(STAKES[n])} Einsatz gibt's ab Level ${l}`); SND.err(); return; } S.stakeI = n; SND.click(); upd(); };
-  $('#mAll', f).onclick = () => { if (MS.busy) return; MS.allIn = !MS.allIn; SND.click(); upd(); };
+  $('#sMinus', f).onclick = () => { if (MS.busy) return; MS.allIn = S.maxOn = false; S.stakeI = Math.max(0, S.stakeI - 1); SND.click(); upd(); };
+  $('#sPlus', f).onclick = () => { if (MS.busy) return; MS.allIn = S.maxOn = false; const n = Math.min(STAKES.length - 1, S.stakeI + 1); if (STAKES[n] > maxStake()) { let l = S.level; while (10 * Math.pow(STAKE_G, l - 1) < STAKES[n]) l++; toast(`${fmt(STAKES[n])} Einsatz gibt's ab Level ${l}`); SND.err(); return; } S.stakeI = n; SND.click(); upd(); };
+  $('#mAll', f).onclick = () => { if (MS.busy) return; MS.allIn = S.maxOn = !MS.allIn; save(); SND.click(); upd(); };
+  $('#mAuto', f).onclick = () => { if (MS.auto) { autoStop('Auto-Spin gestoppt'); return; } openAuto(); };
   $('#mLuck', f).onclick = () => openPotions(upd);
   $('#mInfo', f).onclick = () => machInfo(m);
   $('#mBack', f).onclick = () => { if (MS.fs > 0) { toast('Erst die Freispiele zu Ende spielen!'); return; } document.body.classList.remove('inmach'); f.classList.add('closing'); setTimeout(() => { f.remove(); MS = null; }, 300); hdr(); };
-  $('#spinBtn', f).onclick = () => doSpin();
+  $('#spinBtn', f).onclick = () => { if (MS.auto) { autoStop('Auto-Spin gestoppt'); return; } doSpin(); };
   $('#lever', f).onclick = () => doSpin(); $('#deckSpin', f).onclick = () => doSpin();
 }
 const cellH = s => `<div class="cell ${LOW.includes(s) ? 'L' : ''}" style="height:${MS.h}px">${symHTML(s)}</div>`;
@@ -1545,7 +1551,6 @@ async function doSpin() {
     flash(); SND.big(); vib([80, 40, 80]); toast(`🎉 ${free ? '+10 weitere' : '10'} FREISPIELE! Alle Gewinne ×2`, 'good', 3000);
     FX.burst(90);
   }
-  if (allIn) MS.allIn = false;
   if (free) MS.fs--;
   S.fsRun = MS.fs > 0 ? { mi: m.i, fs: MS.fs, n: MS.fsN, st: MS.fsStake, w: MS.fsWin } : null; persist();
   const fb = $('#fsB', MS.f);
@@ -1554,8 +1559,47 @@ async function doSpin() {
   MS.upd(); hdr(true); checkAch(); save();
   btn.classList.remove('spinning'); btn.textContent = MS.fs > 0 ? 'Freispiel…' : 'Drehen';
   MS.busy = false; flushHold();
+  if (MS.auto) autoNext(win, stake, !!best.ev.fs, free);
   if (MS.fs > 0) setTimeout(() => MS && doSpin(), 1300);
-  else if (free) { fb.classList.add('hidden'); const t = MS.fsWin; setTimeout(() => celebrate(t, Math.max(10, t / MS.fsStake), 'FREISPIEL GEWINN'), 400); }
+  else if (free) { fb.classList.add('hidden'); const t = MS.fsWin; setTimeout(() => celebrate(t, Math.max(10, t / MS.fsStake), 'FREISPIEL GEWINN').then(() => { if (MS && MS.auto && !MS.busy && MS.fs === 0) setTimeout(() => MS && MS.auto && !MS.busy && doSpin(), 600); }), 400); }
+}
+/* ================= Auto-Spin ================= */
+function openAuto() {
+  if (!MS || MS.busy) return;
+  const A = Object.assign({ n: 25, win: '', bal: '', fs: true, fast: false }, S.autoCfg || {});
+  const o = sheet(`<div class="row sb"><h2>🔁 Auto-Spin</h2><button class="x" data-close>${icon('x')}</button></div>
+    <div class="lbl2" style="margin-top:0">Anzahl Drehs</div>
+    <div class="fdgg" id="auN" style="grid-template-columns:repeat(5,1fr)">${[10, 25, 50, 100, 0].map(n => `<button class="btn ${A.n === n ? 'gold' : 'dark'}" data-n="${n}">${n || '∞'}</button>`).join('')}</div>
+    <div class="lbl2">Stoppen, wenn ein Gewinn größer ist als … (optional)</div><input class="inp num" id="auW" type="number" inputmode="decimal" placeholder="z. B. 100" value="${A.win}">
+    <div class="lbl2">Stoppen, wenn Guthaben unter … fällt (optional)</div><input class="inp num" id="auB" type="number" inputmode="decimal" placeholder="z. B. ${fmt(Math.max(0, Math.floor(S.bal / 2)))}" value="${A.bal}">
+    <div class="card tight list" style="background:#151517;margin-top:14px">
+      <div class="it"><span class="lbl">Bei Freispielen stoppen</span><button class="tog ${A.fs ? 'on' : ''}" id="auF"></button></div>
+      <div class="it"><span class="lbl">Schnell (kürzere Pausen)</span><button class="tog ${A.fast ? 'on' : ''}" id="auQ"></button></div></div>
+    <p class="hint">Einsatz: ${MS.allIn ? 'MAX ' + fmt(maxBtnStake()) : fmt(STAKES[S.stakeI])} pro Dreh. Stoppen geht jederzeit mit dem großen Knopf.</p>
+    <button class="btn gold w" id="auGo" style="margin-top:6px;font-size:20px">Auto-Spin starten</button>`);
+  $('#auN', o).onclick = e => { const b = e.target.closest('[data-n]'); if (!b) return; A.n = +b.dataset.n; $$('#auN button', o).forEach(x => x.className = 'btn ' + (+x.dataset.n === A.n ? 'gold' : 'dark')); SND.click(); };
+  $('#auF', o).onclick = e => { A.fs = !A.fs; e.target.classList.toggle('on', A.fs); };
+  $('#auQ', o).onclick = e => { A.fast = !A.fast; e.target.classList.toggle('on', A.fast); };
+  $('#auGo', o).onclick = () => {
+    A.win = $('#auW', o).value; A.bal = $('#auB', o).value; S.autoCfg = { ...A }; save();
+    if (!MS) return o.close();
+    MS.auto = { left: A.n || Infinity, win: +A.win || 0, bal: A.bal === '' ? null : +A.bal, fs: A.fs, fast: A.fast };
+    o.close(); SND.win(); toast(`🔁 Auto-Spin: ${A.n || '∞'} Drehs`, 'good'); MS.upd(); setTimeout(() => MS && MS.auto && doSpin(), 400);
+  };
+}
+function autoStop(msg) { if (!MS || !MS.auto) return; MS.auto = null; if (msg) toast(msg); const b = $('#spinBtn', MS.f); if (b && !MS.busy) b.textContent = MS.fs > 0 ? 'Freispiel…' : 'Drehen'; MS.upd(); }
+function autoNext(win, stake, gotFs, free) {
+  const A = MS.auto; if (!A) return;
+  if (!free) { if (A.left !== Infinity) A.left--; }
+  if (A.win && win > A.win) return autoStop(`🔁 Auto-Spin gestoppt: Gewinn ${fmt(win)} 🎉`);
+  if (gotFs && A.fs) return autoStop('🔁 Auto-Spin gestoppt: Freispiele! 🎉');
+  if (A.bal !== null && S.bal < A.bal) return autoStop(`🔁 Auto-Spin gestoppt: Guthaben unter ${fmt(A.bal)}`);
+  if (A.left <= 0) return autoStop('🔁 Auto-Spin fertig');
+  const next = MS.allIn ? maxBtnStake() : STAKES[S.stakeI];
+  if (S.bal < next || next <= 0) return autoStop('🔁 Auto-Spin gestoppt: nicht genug Guthaben');
+  MS.upd();
+  if (MS.fs > 0 || free) return; // Freispiele laufen sowieso automatisch, danach geht's weiter
+  setTimeout(() => { if (MS && MS.auto && !MS.busy && MS.fs === 0) doSpin(); }, A.fast ? 250 : 900);
 }
 /* Spannung: welche Walzen sollen länger drehen? */
 function teaseFrom(m, g) {
@@ -3232,7 +3276,7 @@ function showLogin() {
       if (on) { try { cl = await cloudGet(cid); } catch (e) { if (!a) { done(); return err('Keine Verbindung – bitte Internet prüfen.'); } } }
       if (!ok && !cl) { done(); return err(a ? 'Falsches Passwort' : 'Name oder Passwort falsch – oder das Konto ist noch nicht online gesichert. Öffne GGamble einmal auf dem alten Gerät (dort wirst du nach dem Passwort gefragt) oder nimm unten den Spielstand-Code.'); }
       if (!a || !ok) { const salt = mkSalt(); a = all[key] = Object.assign(a || {}, { name: cl.d.name || name, salt, hash: await Accounts.hash(pw, salt), created: cl.d.created || Date.now() }); }
-      if (cl && (!a.save || cl.ts > (a.ts || 0))) { a.save = cl.d.save; a.ts = cl.ts; }
+      if (cl && (!a.save || cl.ts > (a.ts || 0)) && !(isOldSave(cl.d.save) && a.save && !isOldSave(a.save))) { a.save = cl.d.save; a.ts = cl.ts; }
       const first = !a.cid; a.cid = cid; Accounts.put(all);
       if (on && first) { if (!a.save) a.save = newState(a.name); if (!a.save.lbId) a.save.lbId = newRid(key); Accounts.put(all); claimName(key, a.save.lbId); if (!cl) cloudPut(cid, a, a.save || newState(a.name)).catch(() => { }); }
     }
@@ -3308,7 +3352,7 @@ function startApp(key) {
   $('#hLock').innerHTML = icon('lock');
   hdr(); go('halle'); checkAch(); loadOwner();
   setTimeout(() => cloudLink(key), 1500); extInit();
-  if (onlineOn() && all[key].cid) cloudGet(all[key].cid).then(cl => { const cur = Accounts.all(), x = cur[key]; if (!cl || !x || !x.ts || cl.ts <= x.ts + 5000) return; x.save = cl.d.save; x.ts = cl.ts; Accounts.put(cur); S = null; toast('Neuerer Spielstand von anderem Gerät geladen ☁️', 'good'); setTimeout(() => location.reload(), 900); }).catch(() => { });
+  if (onlineOn() && all[key].cid) cloudGet(all[key].cid).then(cl => { const cur = Accounts.all(), x = cur[key]; if (!cl || !x || !x.ts || cl.ts <= x.ts + 5000) return; if (isOldSave(cl.d.save) && !isOldSave(x.save)) { cloudLast = ''; cloudPush(true); return; } x.save = cl.d.save; x.ts = cl.ts; Accounts.put(cur); S = null; toast('Neuerer Spielstand von anderem Gerät geladen ☁️', 'good'); setTimeout(() => location.reload(), 900); }).catch(() => { });
   const pend = shopPending(); if (pend > 1 && away > 6e4) setTimeout(() => toast(`Deine Geschäfte haben ${fmt(pend)} verdient – im Imperium einsammeln 🏪`, 'good', 4500), 1600);
   if (S.fsRun && MACH[S.fsRun.mi] && S.fsRun.fs > 0) setTimeout(resumeFreeSpins, 1200);
   else if (bonusReady()) setTimeout(() => S && openBonus(), 900);
@@ -3393,6 +3437,7 @@ function extInit() {
   S.cal = S.cal || { last: '', day: 0 };
   if (S.bx && S.bx.lev > 20) S.bx.lev = 20;
   wkAdd(0); if (!S.lbId && typeof lbId === 'function') lbId();
+  idRestore();
   if (S.tit && !titOk(S.tit)) S.tit = '';
   if (S.frm && !frOk(S.frm)) S.frm = '';
   save();
@@ -3400,6 +3445,16 @@ function extInit() {
   feedStart(); chatBg(); dmStart(); fdStart();
 }
 
+/* Bestenlisten-ID gehört zum Namen (namen/{name}.rid) – so bleibt z. B. der Besitzer-Rang nach einem Reset erhalten */
+async function idRestore() {
+  if (!onlineOn() || !S || !ACC) return;
+  const a = Accounts.all()[ACC]; if (!a || !a.cid) return;
+  try {
+    const r = await fetch(fsDoc('namen/' + encodeURIComponent(ACC)), { cache: 'no-store' }); if (!r.ok) return;
+    const rid = (await r.json())?.fields?.rid?.stringValue || '';
+    if (rid && S.lbId !== rid) { S.lbId = rid; save(); lbLast = ''; pushScore(true); hdr(true); if (curPage === 'profil') go('profil', true); }
+  } catch (e) { }
+}
 /* ================= Belohnungen (Battle Pass + Kalender) ================= */
 function rwTxt([t, v]) {
   if (t === 'm') return fmt(r2(v * base()));
