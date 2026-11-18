@@ -660,6 +660,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .vgrid .vwait{position:absolute;inset:0;display:grid;place-items:center;color:var(--mut);font-size:13px;font-weight:700;background:#151517}
 .dturn{text-align:center;font-weight:800;font-size:18px;padding:12px;border-radius:16px;background:#1d1d20;margin:14px 0}
 .dturn.me{background:linear-gradient(180deg,#3a2d08,#1d1d20);color:var(--gold2);box-shadow:0 0 20px rgba(232,196,90,.25)}
+.hchart{padding:16px 16px 12px}.hsvg{display:block;width:100%;height:130px;margin-top:10px}.hax small{color:var(--mut);font-size:11px}
 .fdgg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px}.fdgg .btn{padding:14px 8px;font-size:16px}
 .fdsc{display:flex;align-items:center;justify-content:center;gap:22px;margin:6px 0 10px}.fdsc div{text-align:center}.fdsc small{display:block;color:var(--mut);font-size:13px}.fdsc b{font-size:46px}.fdsc span{font-size:34px;color:var(--mut)}
 .fdhist{display:flex;flex-direction:column;gap:6px}.fdr{display:grid;grid-template-columns:70px 1fr 26px 1fr 80px;align-items:center;gap:6px;padding:8px 12px;border-radius:14px;background:#151517;font-size:20px;text-align:center}
@@ -3912,6 +3913,7 @@ function feedDraw() {
 const monKey = () => { const d = new Date(Date.now()); return d.getFullYear() + '-' + (d.getMonth() + 1); };
 function wkAdd(v) {
   if (!S) return;
+  histRec();
   const ks = { dy: dayKey(), wk: weekKey(), mo: monKey() };
   for (const [f, k] of Object.entries(ks)) { if (!S[f] || S[f].k !== k) S[f] = { k, v: 0 }; S[f].v = r2(S[f].v + v); }
 }
@@ -3936,18 +3938,63 @@ async function renderWoche(el) {
 /* ================= Bestenliste (neu): Vermögen + Gewinn heute/Woche/Monat ================= */
 let rgTab = 0, rgMore = false;
 const RG_TABS = [['Vermögen', 'bal'], ['Heute', 'dy'], ['Woche', 'wk'], ['Monat', 'mo']];
+/* 📈 Verlauf: Guthaben über die Zeit (für das Rot/Grün-Diagramm) */
+function histRec() {
+  if (!S) return; S.ph = S.ph || []; const now = Date.now(), last = S.ph[S.ph.length - 1];
+  if (last && now - last[0] < 120000) { last[1] = S.bal; return; } // max. 1 Punkt alle 2 Min.
+  S.ph.push([now, S.bal]);
+  if (S.ph.length > 1500) { // ältere Punkte ausdünnen
+    const cut = now - 3 * 864e5, old = S.ph.filter(p => p[0] < cut), recent = S.ph.filter(p => p[0] >= cut), thin = [];
+    old.forEach(p => { const l = thin[thin.length - 1]; if (!l || p[0] - l[0] > 36e5) thin.push(p); else l[1] = p[1]; });
+    S.ph = [...thin, ...recent];
+  }
+}
+function histChart(p) {
+  const now = Date.now(), start = p === 'bal' ? (S.created || now - 864e5) : perStart(p);
+  const base = p === 'bal' || (S.created || 0) >= start ? START_BAL : null;
+  const pts = (S.ph || []).filter(x => x[0] >= start && x[0] <= now).map(x => [x[0], x[1]]);
+  const endV = S.bal;
+  // Startwert: letzter Punkt vor dem Zeitraum, sonst Startgeld bzw. erster Punkt
+  const before = (S.ph || []).filter(x => x[0] < start).pop();
+  const startBal = base !== null ? base : before ? before[1] : pts.length ? pts[0][1] : endV;
+  const arr = [[start, startBal], ...pts, [now, endV]].map(([t, b]) => [t, r2(b - startBal)]);
+  const vals = arr.map(a => a[1]), mx = Math.max(0, ...vals), mn = Math.min(0, ...vals), rng = (mx - mn) || 1;
+  const W = 300, H = 120, X = t => (t - start) / Math.max(1, now - start) * W, Y = v => 8 + (mx - v) / rng * (H - 16), z = Y(0);
+  const line = arr.map((a, i) => `${i ? 'L' : 'M'}${X(a[0]).toFixed(1)},${Y(a[1]).toFixed(1)}`).join(' ');
+  const area = `${line} L${W},${z.toFixed(1)} L0,${z.toFixed(1)} Z`, id = 'hc' + Math.random().toString(36).slice(2, 7), last = vals[vals.length - 1];
+  const lbl = { bal: 'seit Start', dy: 'heute', wk: 'diese Woche', mo: 'diesen Monat' }[p];
+  const fmtT = t => p === 'dy' ? new Date(t).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : new Date(t).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+  return `<div class="card hchart"><div class="row sb"><b>📈 Dein Verlauf <small style="color:var(--mut);font-weight:600">${lbl}</small></b><span class="num ${last < 0 ? 'neg' : last > 0 ? 'pos' : ''}" style="font-weight:900">${fmt(last, { sign: true })}</span></div>
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="hsvg">
+      <defs><clipPath id="${id}u"><rect x="0" y="0" width="${W}" height="${z}"/></clipPath><clipPath id="${id}d"><rect x="0" y="${z}" width="${W}" height="${H - z}"/></clipPath>
+        <linearGradient id="${id}g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3fd06a" stop-opacity=".45"/><stop offset="1" stop-color="#3fd06a" stop-opacity=".05"/></linearGradient>
+        <linearGradient id="${id}r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff5a52" stop-opacity=".05"/><stop offset="1" stop-color="#ff5a52" stop-opacity=".45"/></linearGradient></defs>
+      <line x1="0" x2="${W}" y1="${z}" y2="${z}" stroke="rgba(255,255,255,.25)" stroke-dasharray="4 4" stroke-width="1" vector-effect="non-scaling-stroke"/>
+      <path d="${area}" fill="url(#${id}g)" clip-path="url(#${id}u)"/><path d="${area}" fill="url(#${id}r)" clip-path="url(#${id}d)"/>
+      <path d="${line}" fill="none" stroke="#3fd06a" stroke-width="2.5" clip-path="url(#${id}u)" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+      <path d="${line}" fill="none" stroke="#ff5a52" stroke-width="2.5" clip-path="url(#${id}d)" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+    </svg>
+    <div class="row sb hax"><small>${fmtT(start)}</small><small>höchster: <b class="pos">${fmt(mx, { sign: true })}</b> · tiefster: <b class="neg">${fmt(mn, { sign: true })}</b></small><small>jetzt</small></div></div>`;
+}
+/* Zeitraum-Gewinne: Hat das Konto erst in diesem Zeitraum angefangen, ist der Gewinn einfach Guthaben − 500 € Startgeld.
+   So sind alle Spieler gleich gezählt – egal, welche Version sie wann hatten. */
+const START_BAL = 500;
+function perStart(p) { const d = new Date(Date.now()); d.setHours(0, 0, 0, 0); if (p === 'wk') d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); if (p === 'mo') d.setDate(1); return +d; }
+function perVal(d, p, tracked) {
+  if ((d.since || 0) >= perStart(p)) return r2((d.bal || 0) - START_BAL);
+  return tracked === undefined || tracked === null ? null : (+tracked || 0);
+}
 async function rgFetch() {
   const docs = await fsQuery({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'since' }, op: 'GREATER_THAN_OR_EQUAL', value: fint(RESET_TS) } }, limit: 1000 });
   return docs.map(d => ({ k: d.id, name: d.name || '?', disp: d.disp || d.name || '?', bal: d.bal || 0, lvl: d.level || 1, color: d.color || 0, ts: d.ts || 0, me: d.id === S.lbId,
     big: d.big ?? null, net: d.net ?? null, bxp: d.bxp ?? null, wag: d.wag ?? null, since: d.since ?? null, best: d.best || '', ach: d.ach ?? null, own: !!d.own, tit: d.tit || '', frm: d.frm || '', clan: d.clan || '',
-    dy: d.dk === dayKey() ? (d.dv || 0) : null, wk: d.wkk === weekKey() ? (d.wk || 0) : null,
-    // Monat: falls (noch) nicht gesendet, aber die Woche komplett in diesem Monat liegt → Wochenwert zählt
-    mo: d.mk === monKey() ? (d.mv || 0) : (d.mk === undefined && d.wkk === weekKey() && weekKey().startsWith(monKey() + '-')) ? (d.wk || 0) : null }));
+    dy: perVal(d, 'dy', d.dk === dayKey() ? d.dv : undefined), wk: perVal(d, 'wk', d.wkk === weekKey() ? d.wk : undefined), mo: perVal(d, 'mo', d.mk === monKey() ? d.mv : undefined) }));
 }
 function rgMe() {
   wkAdd(0);
   return { k: S.lbId, me: true, name: S.name, disp: S.disp, photo: S.photo, color: S.color, frm: S.frm, tit: S.tit, clan: S.clan ? S.clan.tag : '', bal: S.bal, lvl: S.level, ts: Date.now(),
-    big: S.st.biggest, net: S.st.net, bxp: S.bx.pnl, wag: S.st.wagered, since: S.created, best: S.st.bestGame, ach: Object.keys(S.ach).length, dy: S.dy.v, wk: S.wk.v, mo: S.mo.v };
+    big: S.st.biggest, net: S.st.net, bxp: S.bx.pnl, wag: S.st.wagered, since: S.created, best: S.st.bestGame, ach: Object.keys(S.ach).length,
+    dy: perVal({ since: S.created, bal: S.bal }, 'dy', S.dy.v), wk: perVal({ since: S.created, bal: S.bal }, 'wk', S.wk.v), mo: perVal({ since: S.created, bal: S.bal }, 'mo', S.mo.v) };
 }
 async function renderRang2(el) {
   el.innerHTML = `<h1 class="t">Bestenliste</h1><p class="sub">${onlineOn() ? 'Alle echten Spieler online' : 'Konten auf diesem Gerät'}</p>
@@ -3983,6 +4030,7 @@ async function renderRang2(el) {
     <div class="card tight list rl">${rows.slice(0, 10).map(row).join('') || '<div class="empty">Noch niemand dabei.</div>'}</div>
     <div class="sec">Dein Platz</div>
     <div class="card myrank" id="rgMe"><div class="mr-n num">${meI >= 0 ? '#' + (meI + 1) : '–'}</div>${avaHTML(me)}<div class="who"><b class="${nameCls(ME_O())}">${esc(S.disp)}</b><small>${meI >= 0 ? `Platz ${meI + 1} von ${N} Spieler${N === 1 ? '' : 'n'}${meI < 10 ? ' · Top 10 🔥' : ''}` : 'Spiel eine Runde, um dabei zu sein'}</small></div><span class="w num ${cls(val(me))}">${money(val(me))}</span></div>
+    ${histChart(key)}
     ${N > 10 ? `<button class="btn dark w" id="rgMoreB" style="margin-top:4px">${rgMore ? '▲ Weniger anzeigen' : `▼ Mehr anzeigen (alle ${N} Spieler)`}</button>
       <div class="card tight list rl ${rgMore ? '' : 'hidden'}" id="rgAll" style="margin-top:12px">${rows.slice(10).map((r, i) => row(r, i + 10)).join('')}</div>` : ''}
     ${info ? `<p class="hint">${info}</p>` : ''}`;
