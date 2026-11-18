@@ -914,7 +914,7 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 /* ===== core.js ===== */
 'use strict';
 const VERSION = '0.2.2 Open Beta';
-const FORCE_V = 9; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
+const FORCE_V = 10; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
 const WARTUNG = false; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
 /* ================= Helfer ================= */
 const $ = (s, r = document) => r.querySelector(s);
@@ -1219,6 +1219,7 @@ const xpNeed = l => Math.round(200 * Math.pow(l, 1.8)); // doppelt so viel XP pr
 function touchToday() { if (S.today.d !== dayKey()) S.today = { d: dayKey(), v: 0 }; }
 function canPay(a) {
   if (isLocked()) { toast('Dein Konto ist gesperrt – hol dir Geld in den Minispielen oder verkauf die Schulden.', 'bad'); SND.err(); return false; }
+  if (S.banUntil && S.banUntil > Date.now()) { banCheck(); return false; }
   if (S.bal - a < -dispoNow() - 1e-9) { toast(dispoNow() ? `Nicht genug Guthaben – Dispo nur bis ${fmt(-DISPO)}.` : (S.note > 0 ? 'Nicht genug Guthaben – mit offenem Schuldschein gibt es keinen Dispo.' : 'Nicht genug Guthaben – nach einer Insolvenz gibt es 24 Std. keinen Dispo.'), 'bad'); SND.err(); return false; }
   return true;
 }
@@ -3305,11 +3306,12 @@ function openSettings() {
 }
 
 /* ================= Cheat-Menü ================= */
-const CHEATS = [['m1', '💰 +1.000 €'], ['m2', '💰 +1 Mio. €'], ['m3', '💰 +1 Mrd. €'], ['lv', '⭐ +5 Level'], ['lvmax', '🔓 Alles freischalten (Level 50)'], ['en', '⚡ Energie voll'], ['pot', '🧪 +3 von jedem Trank'], ['debt', '🧾 Schulden weg'], ['bonus', '🎁 Tagesbonus nochmal'], ['off', '🔒 Cheats ausblenden']];
+const CHEATS = [['m1', '💰 +1.000 €'], ['m2', '💰 +1 Mio. €'], ['m3', '💰 +1 Mrd. €'], ['lv1', '⭐ +1 Level'], ['lv', '⭐ +5 Level'], ['lvmax', '🔓 Alles freischalten (Level 50)'], ['en', '⚡ Energie voll'], ['pot', '🧪 +3 von jedem Trank'], ['debt', '🧾 Schulden weg'], ['bonus', '🎁 Tagesbonus nochmal'], ['off', '🔒 Cheats ausblenden']];
 function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben</button>${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
 function doCheat(k) {
   const add = v => { S.bal = r2(S.bal + v); S.st.maxBal = Math.max(S.st.maxBal, S.bal); };
   if (k === 'm1') add(1000); else if (k === 'm2') add(1e6); else if (k === 'm3') add(1e9);
+  else if (k === 'lv1') { S.level += 1; S.xp = 0; }
   else if (k === 'lv') { S.level += 5; S.xp = 0; } else if (k === 'lvmax') { S.level = Math.max(S.level, 50); S.xp = 0; }
   else if (k === 'en') { S.energy = 10; S.enTs = Date.now(); }
   else if (k === 'pot') { [2, 4, 6].forEach(m => S.pot[m] += 3); }
@@ -4710,17 +4712,19 @@ async function admUnlock(code) {
   } catch (e) { return false; }
 }
 const giftMsg = g => g.k ? `${g.id}|${g.to}|${g.amt}|${g.ts}|${g.k}|${g.x}` : `${g.id}|${g.to}|${g.amt}|${g.ts}`;
-const GIFT_K = { m: ['💰', 'Geld'], sp: ['🎰', 'Gratis-Drehs'], en: ['⚡', 'Energie'], p2: ['🧪', 'Glückstrank ×2'], p4: ['🧪', 'Glückstrank ×4'], p6: ['🧪', 'Glückstrank ×6'], lv: ['⭐', 'Level'] };
+const GIFT_K = { m: ['💰', 'Geld'], sp: ['🎰', 'Gratis-Drehs'], en: ['⚡', 'Energie'], p2: ['🧪', 'Glückstrank ×2'], p4: ['🧪', 'Glückstrank ×4'], p6: ['🧪', 'Glückstrank ×6'], lv: ['⭐', 'Level'], ban: ['⛔', 'Sperren'] };
 function giftTxt(k, amt, x) {
   if (k === 'fk') return fmt(amt, { sign: true }); // 😜 Fake-Geschenk sieht aus wie echtes Geld
   if (k === 'sp') return `${amt} Gratis-Drehs à ${fmt(x)}`;
   if (k === 'en') return `${amt} Energie ⚡`;
   if (k === 'p2' || k === 'p4' || k === 'p6') return `${amt}× ${GIFT_K[k][1]}`;
   if (k === 'lv') return `${amt > 0 ? '+' : ''}${amt} Level`;
+  if (k === 'ban') return amt > 0 ? `Sperre für ${amt} Min.` : 'Entsperrung';
   return fmt(amt, { sign: true });
 }
 function giftApply(k, a, x) {
   if (k === 'fk') return; // Spaß – es wird nichts gutgeschrieben
+  if (k === 'ban') { S.banUntil = a > 0 ? Date.now() + Math.min(60 * 24 * 30, a) * 60000 : 0; S.banBy = ''; banCheck(); return; }
   if (k === 'sp') { const n = Math.max(1, Math.min(500, Math.round(a))), st = Math.max(.1, Math.min(1e6, +x || 1)); S.gspin = S.gspin && S.gspin.st === st ? { n: S.gspin.n + n, st } : { n: (S.gspin ? S.gspin.n : 0) + n, st }; }
   else if (k === 'en') S.energy = (S.energy || 0) + Math.max(1, Math.min(500, Math.round(a)));
   else if (k === 'p2' || k === 'p4' || k === 'p6') { const m = +k[1]; S.pot[m] = (S.pot[m] || 0) + Math.max(1, Math.min(100, Math.round(a))); }
@@ -4750,6 +4754,7 @@ async function giftPoll() {
       if (!isFinite(+g.amt) || !await giftVerify({ id: g.id, to: g.to, amt: +g.amt, ts: +g.ts, sig: g.sig || '', k: g.k || '', x: g.x || '' })) continue;
       S.gifts.push(g.id); if (S.gifts.length > 200) S.gifts = S.gifts.slice(-200);
       const a = r2(+g.amt), kd = g.k || 'm'; giftApply(kd, a, g.x);
+      if (kd === 'ban') { save(); if (a <= 0) toast('✅ Du bist wieder entsperrt!', 'good', 4000); continue; }
       if (kd === 'fk' && g.x === '1') setTimeout(() => { const ov = document.querySelector('.ov'); const rev = () => setTimeout(() => { toast('😜 Reingelegt! Das Geschenk war nur ein Spaß.', 'good', 5000); SND.click(); }, 400); if (ov) ov.addEventListener('click', rev, { once: true }); else rev(); }, 50);
       save(); hdr(true); lbLast = ''; pushScore(true);
       if (a >= 0) { SND.big(); FX.burst(120, { coins: true }); }
@@ -4757,6 +4762,22 @@ async function giftPoll() {
     }
   } catch (e) { }
 }
+/* ⛔ Sperre: Vollbild mit Countdown, solange S.banUntil in der Zukunft liegt */
+function banCheck() {
+  const left = S && S.banUntil ? S.banUntil - Date.now() : 0; let ov = document.getElementById('banOv');
+  if (left <= 0) { if (ov) { ov.remove(); toast('✅ Sperre vorbei – viel Spaß!', 'good'); } if (S && S.banUntil) { S.banUntil = 0; save(); } return; }
+  if (!ov) {
+    document.querySelectorAll('.full,.game-ov').forEach(x => x.remove()); document.body.classList.remove('inmach'); try { if (typeof MS !== 'undefined') MS = null; } catch (e) { }
+    document.body.insertAdjacentHTML('beforeend', `<div id="banOv" style="position:fixed;inset:0;z-index:9998;background:rgba(5,5,6,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;gap:14px;color:#fff">
+      <div style="font-size:72px">⛔</div><h1 style="font-size:34px;margin:0">Du bist gesperrt</h1>
+      <p style="color:#a8a8b0;font-size:18px;margin:0">Der Besitzer hat dich vorübergehend gesperrt.</p>
+      <div id="banT" class="num" style="font-size:54px;font-weight:900;color:#ff6b6b"></div></div>`);
+    ov = document.getElementById('banOv');
+  }
+  const m = Math.floor(left / 60000), sec = Math.floor(left / 1000) % 60;
+  const t = document.getElementById('banT'); if (t) t.textContent = `${m}:${String(sec).padStart(2, '0')}`;
+}
+setInterval(() => { if (S) banCheck(); }, 1000);
 function giftStart() { if (!onlineOn()) return; setTimeout(giftPoll, 2500); setInterval(giftPoll, 30000); }
 function openGift() {
   const o = sheet(`<div class="row sb"><h2>🎁 Spielern etwas geben</h2><button class="x" data-close>${icon('x')}</button></div>
@@ -4772,7 +4793,7 @@ function openGift() {
     <button class="btn gold w" id="gfGo" style="margin-top:16px">Senden</button>
     <p class="hint">Der Spieler bekommt das Geld beim nächsten Öffnen bzw. innerhalb von 30 Sekunden, mit einer Meldung. Geschenke sind fälschungssicher signiert.</p>`);
   let kind = 'm';
-  const LBL = { m: 'Betrag (mit Minus zum Abziehen, z. B. -500)', sp: 'Anzahl Gratis-Drehs', en: 'Wie viel Energie?', p2: 'Wie viele Tränke?', p4: 'Wie viele Tränke?', p6: 'Wie viele Tränke?', lv: 'Wie viele Level? (Minus zum Abziehen)' };
+  const LBL = { ban: 'Wie viele Minuten sperren? (0 = entsperren)', m: 'Betrag (mit Minus zum Abziehen, z. B. -500)', sp: 'Anzahl Gratis-Drehs', en: 'Wie viel Energie?', p2: 'Wie viele Tränke?', p4: 'Wie viele Tränke?', p6: 'Wie viele Tränke?', lv: 'Wie viele Level? (Minus zum Abziehen)' };
   $('#gfK', o).onclick = e => { const b = e.target.closest('[data-k]'); if (!b) return; kind = b.dataset.k; $$('#gfK button', o).forEach(x => x.className = 'btn ' + (x.dataset.k === kind ? 'gold' : 'dark')); $('#gfAL', o).textContent = LBL[kind]; $('#gfXW', o).classList.toggle('hidden', kind !== 'sp'); SND.click(); };
   let fake = false, reveal = false;
   $('#gfF', o).onclick = e => { fake = !fake; e.target.classList.toggle('on', fake); $('#gfFR', o).classList.toggle('hidden', !fake); $('#gfVW', o).classList.toggle('hidden', !fake); };
@@ -4780,9 +4801,10 @@ function openGift() {
   $('#gfGo', o).onclick = async function () {
     const nm = $('#gfN', o).value.trim().toLowerCase(), amt = r2(+$('#gfA', o).value || 0), msg = $('#gfM', o).value.trim(), x = kind === 'sp' ? r2(+$('#gfX', o).value || 0) : '';
     if (kind === 'sp' && !(x >= .1)) return toast('Einsatz mindestens 0,10 €', 'bad');
-    if (kind !== 'm' && kind !== 'lv' && amt <= 0) return toast('Anzahl muss größer als 0 sein', 'bad');
+    if (kind !== 'm' && kind !== 'lv' && kind !== 'ban' && amt <= 0) return toast('Anzahl muss größer als 0 sein', 'bad');
+    if (kind === 'ban' && amt < 0) return toast('Minuten dürfen nicht negativ sein', 'bad');
     if (!nm) return toast('Name fehlt', 'bad');
-    if (!amt || !isFinite(amt) || Math.abs(amt) > 1e12) return toast('Ungültiger Betrag', 'bad');
+    if ((!amt && kind !== 'ban') || !isFinite(amt) || Math.abs(amt) > 1e12) return toast('Ungültiger Betrag', 'bad');
     this.disabled = true;
     try { if (!await nameTaken(nm)) { this.disabled = false; return toast(`Spieler „${esc(nm)}“ gibt es nicht`, 'bad'); } } catch (e) { }
     if (fake && kind !== 'm') return toast('Fake geht nur bei Geld 😜', 'bad');
