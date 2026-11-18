@@ -635,15 +635,15 @@ select.inp{appearance:none;-webkit-appearance:none;background-image:linear-gradi
 @keyframes shock{to{transform:scale(18);opacity:0;border-width:1px}}
 .lab{width:100%;max-width:460px;display:flex;flex-direction:column;align-items:center;gap:22px}
 .lpips{display:flex;gap:6px;width:100%}
-.lpips i{flex:1;height:12px;border-radius:6px;background:#26262a;position:relative;transition:background .3s,box-shadow .3s}
-.lpips i.on{background:linear-gradient(90deg,#7ad07a,#4fb54f);box-shadow:0 0 10px #4fb54f}
+.lpips i{flex:1;height:10px;border-radius:999px;background:#232327;position:relative;transition:background .3s,box-shadow .3s}
+.lpips i.on{background:#4fcf72;box-shadow:0 0 6px rgba(79,207,114,.45)}
 .lpips i.mk:after{content:attr(data-x);position:absolute;top:18px;left:50%;transform:translateX(-50%);font-size:13px;font-weight:900;color:#c487f0}
 .lpips i.mk:nth-child(6):after{color:#7ad07a}.lpips i.mk:nth-child(8):after{color:#5fa0f5}
-.lbar{position:relative;width:100%;height:74px;border-radius:22px;margin-top:14px;background:linear-gradient(180deg,#2a1a3a,#140c1e);border:2px solid #4a2a6a;box-shadow:inset 0 4px 14px rgba(0,0,0,.7),0 0 30px rgba(160,90,255,.2);overflow:hidden;cursor:pointer}
-.lzone{position:absolute;top:0;bottom:0;background:linear-gradient(180deg,#9ff09f,#3fae4f);box-shadow:0 0 22px #4fb54f,inset 0 0 12px rgba(255,255,255,.5);border-radius:10px;transition:left .25s cubic-bezier(.22,1,.36,1),width .25s}
-.lneedle{position:absolute;top:-4px;bottom:-4px;width:8px;margin-left:-4px;border-radius:4px;background:#fff;box-shadow:0 0 14px #fff,0 0 4px #000}
+.lbar{position:relative;width:100%;height:58px;border-radius:999px;margin-top:14px;background:#17171b;border:1px solid rgba(255,255,255,.08);box-shadow:inset 0 2px 8px rgba(0,0,0,.55);overflow:hidden;cursor:pointer}
+.lzone{position:absolute;top:8px;bottom:8px;background:linear-gradient(180deg,#6fe08a,#3cbf63);box-shadow:0 0 12px rgba(76,200,110,.35);border-radius:999px;transition:left .25s cubic-bezier(.22,1,.36,1),width .25s}
+.lneedle{position:absolute;top:5px;bottom:5px;width:6px;margin-left:-3px;border-radius:999px;background:#fff;box-shadow:0 0 8px rgba(255,255,255,.6),0 1px 3px rgba(0,0,0,.5)}
 .lbar.ok{animation:lok .35s}.lbar.no{animation:lno .5s}
-@keyframes lok{30%{box-shadow:inset 0 4px 14px rgba(0,0,0,.7),0 0 50px #4fb54f;border-color:#7ad07a}}
+@keyframes lok{30%{box-shadow:inset 0 2px 8px rgba(0,0,0,.55),0 0 18px rgba(76,200,110,.45);border-color:rgba(111,224,138,.6)}}
 @keyframes lno{20%,60%{transform:translateX(-8px);border-color:#e8524a}40%,80%{transform:translateX(8px)}}
 .lhelp{color:var(--mut);text-align:center;font-size:17px;line-height:1.45}
 .scrz{position:relative}
@@ -781,6 +781,67 @@ body.inmach #app *{animation-play-state:paused!important}
 .chatlog.lobby{max-height:50vh;min-height:200px;overflow-y:auto;background:#111113;border-radius:18px;padding:12px 14px;border:1px solid var(--line)}
 .chatlog.lobby p{margin:0 0 8px;line-height:1.35;font-size:16px;word-wrap:break-word}.chatlog.lobby p small{color:var(--mut2);font-size:11px}.chatlog.lobby p.mine b{color:#7cff6b}
 #hChat{position:relative}#hChat.dot::after{content:'';position:absolute;top:6px;right:6px;width:12px;height:12px;border-radius:50%;background:var(--red);box-shadow:0 0 0 2px #0d0d0f}
+
+/* ===== 3D-Straße ===== */
+.city{position:fixed;inset:0;z-index:170;background:linear-gradient(180deg,#5fb4ff 0%,#a8dcff 45%,#fff1d0 72%);animation:zoomIn .4s var(--ease);overflow:hidden}
+.city.night{background:linear-gradient(180deg,#060a24 0%,#1b1f4a 55%,#3a2a55 75%)}
+.city.closing{opacity:0;transition:opacity .3s}
+.ctop{position:absolute;left:10px;right:10px;top:calc(var(--st) + 10px);z-index:20;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:26px;background:rgba(10,10,14,.72);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.12)}
+.ctop .btn{font-size:13px;line-height:1.15;padding:8px 14px}
+.chint{position:absolute;left:0;right:0;bottom:calc(var(--sb) + 8px);text-align:center;color:#fff;font-weight:700;font-size:14px;text-shadow:0 2px 6px rgba(0,0,0,.6);z-index:20;margin:0}
+.cview{position:absolute;inset:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.cview::-webkit-scrollbar{display:none}
+.cscene{position:relative;height:100%;min-height:560px;perspective:900px;perspective-origin:50% 30%}
+.sun,.moon{position:absolute;top:120px;left:70%;font-size:64px;filter:drop-shadow(0 0 30px rgba(255,220,120,.8))}
+.stars{position:absolute;inset:0 0 50% 0;background-image:radial-gradient(2px 2px at 10% 20%,#fff,transparent),radial-gradient(1.5px 1.5px at 30% 35%,#fff,transparent),radial-gradient(2px 2px at 55% 15%,#fff,transparent),radial-gradient(1.5px 1.5px at 75% 30%,#fff,transparent),radial-gradient(2px 2px at 90% 12%,#fff,transparent);background-size:600px 400px;opacity:.8}
+.cloud{position:absolute;font-size:70px;opacity:.9;animation:cdrift 60s linear infinite}.cloud.c1{top:150px;left:10%}.cloud.c2{top:210px;left:55%;font-size:50px;animation-duration:85s}
+@keyframes cdrift{to{translate:400px 0}}
+.skyline{position:absolute;left:0;right:0;bottom:200px;height:240px;opacity:.28;background:linear-gradient(#2a3550,#2a3550) 3% 100%/70px 60% no-repeat,linear-gradient(#2a3550,#2a3550) 9% 100%/50px 85% no-repeat,linear-gradient(#2a3550,#2a3550) 16% 100%/90px 45% no-repeat,linear-gradient(#2a3550,#2a3550) 24% 100%/60px 95% no-repeat,linear-gradient(#2a3550,#2a3550) 31% 100%/80px 55% no-repeat;background-repeat:repeat-x}
+.city.night .skyline{opacity:.6}
+.bldrow{position:absolute;left:0;right:0;bottom:200px;height:0;transform-style:preserve-3d;z-index:2}
+.bld{position:absolute;bottom:0;width:190px;transform-style:preserve-3d;cursor:pointer}
+.bld.built{animation:bpop .7s var(--ease)}@keyframes bpop{from{transform:scaleY(.2);opacity:0}}
+.bld .fc{position:absolute;backface-visibility:hidden}
+.bld .f{inset:0;transform:translateZ(60px);background:linear-gradient(180deg,var(--c1),var(--c2));border-radius:6px 6px 0 0;display:flex;flex-direction:column;box-shadow:inset 0 0 0 3px rgba(0,0,0,.15)}
+.bld .sl,.bld .sr{top:0;bottom:0;left:35px;width:120px;background:var(--c2);filter:brightness(.62)}
+.bld .sl{transform:rotateY(-90deg) translateZ(95px)}.bld .sr{transform:rotateY(90deg) translateZ(95px)}
+.bld .rf{left:0;width:190px;height:120px;top:-60px;transform:rotateX(90deg);background:#3a3a40;filter:brightness(1.1)}
+.wins{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:16px 16px 6px}
+.wins i{border-radius:4px;background:linear-gradient(135deg,#cfe9ff,#7fb3dd);box-shadow:inset 0 0 0 2px rgba(0,0,0,.18)}
+.city.night .wins i{background:#22304a}.city.night .wins i.lit{background:#ffd66b;box-shadow:0 0 10px #ffb84d}
+.sign{margin:0 10px;padding:6px 8px;border-radius:10px;background:#141418;color:#fff;display:flex;align-items:center;gap:6px;justify-content:center;box-shadow:0 0 0 2px rgba(255,255,255,.25);font-size:15px}
+.sign span{font-size:22px}.city.night .sign{box-shadow:0 0 14px var(--c1),0 0 0 2px var(--c1)}
+.awn{height:18px;margin:6px 6px 0;border-radius:0 0 10px 10px;background:repeating-linear-gradient(90deg,#fff 0 16px,var(--c1) 16px 32px)}
+.ground{height:70px;display:flex;align-items:flex-end;gap:8px;padding:0 10px}
+.shopwin{flex:1;height:52px;border-radius:6px 6px 0 0;background:linear-gradient(135deg,#e6f3ff,#9cc6e8);display:grid;place-items:center;font-size:24px;box-shadow:inset 0 0 0 3px rgba(0,0,0,.2)}
+.door{width:40px;height:62px;border-radius:8px 8px 0 0;background:#3b2a1e;box-shadow:inset 0 0 0 3px rgba(0,0,0,.3)}
+.city.night .shopwin{background:#ffe9a8;box-shadow:0 0 14px #ffcf66}
+.lvl{position:absolute;top:8px;right:8px;padding:2px 8px;border-radius:999px;background:rgba(0,0,0,.45);color:#fff;font-size:11px;font-weight:800}
+.inc{position:absolute;left:50%;top:-44px;transform:translateX(-50%) translateZ(60px);padding:4px 10px;border-radius:999px;background:rgba(20,40,20,.85);color:#7cff6b;font-weight:800;font-size:13px;white-space:nowrap}
+.bld.lot{height:150px}
+.lotsign{position:absolute;left:30px;right:30px;bottom:60px;padding:10px;border-radius:12px;background:#f6efe0;color:#222;text-align:center;box-shadow:0 6px 16px rgba(0,0,0,.25);display:flex;flex-direction:column;align-items:center;gap:2px;font-size:22px}
+.lotsign b{font-size:15px}.lotsign small{font-size:12px;color:#555}
+.lotsign:after{content:'';position:absolute;left:50%;bottom:-60px;width:6px;height:60px;background:#6b5a44;margin-left:-3px}
+.fence{position:absolute;left:0;right:0;bottom:0;height:34px;background:repeating-linear-gradient(90deg,#c8b48c 0 8px,transparent 8px 22px),linear-gradient(transparent 10px,#c8b48c 10px 14px,transparent 14px 24px,#c8b48c 24px 28px,transparent 28px)}
+.cpop{position:absolute;left:50%;top:30%;font-size:26px;transform:translateZ(80px);animation:cpop 1.6s ease-out forwards;pointer-events:none}
+@keyframes cpop{0%{opacity:0;translate:0 0}20%{opacity:1}100%{opacity:0;translate:0 -120px}}
+.walk{position:absolute;left:0;right:0;bottom:130px;height:72px;background:repeating-linear-gradient(90deg,#c9c3b8 0 58px,#b9b2a6 58px 60px),#c9c3b8;z-index:1}
+.city.night .walk{filter:brightness(.55)}
+.curb{position:absolute;left:0;right:0;bottom:122px;height:8px;background:#8d877c;z-index:1}
+.road{position:absolute;left:0;right:0;bottom:0;height:122px;background:#3a3b40;z-index:1}
+.city.night .road{background:#202127}
+.lane{position:absolute;left:0;right:0;top:58px;height:6px;background:repeating-linear-gradient(90deg,#f2f2f2 0 40px,transparent 40px 80px)}
+.lamps{position:absolute;left:0;right:0;bottom:200px;height:0;z-index:3}
+.lamp{position:absolute;bottom:-60px;width:6px;height:150px;background:#2c2c30;border-radius:3px}
+.lamp:after{content:'';position:absolute;top:-8px;left:-9px;width:24px;height:14px;border-radius:8px 8px 4px 4px;background:#3a3a40}
+.city.night .lamp:after{background:#ffe08a;box-shadow:0 0 30px 10px rgba(255,210,110,.55)}
+#cPpl,#cCars{position:absolute;inset:0;pointer-events:none;z-index:4}
+.ppl,.car{position:absolute;left:0;line-height:1;animation-name:pwalk,pwob;animation-timing-function:linear,ease-in-out;animation-iteration-count:infinite,infinite;animation-direction:normal,alternate}
+.ppl:not(.rev),.car:not(.rev){transform:scaleX(-1)}
+.ppl.rev,.car.rev{animation-direction:reverse,alternate}
+.car{font-size:46px;animation-name:pwalk;animation-timing-function:linear;animation-iteration-count:infinite}
+@keyframes pwalk{from{translate:-80px 0}to{translate:var(--w) 0}}
+@keyframes pwob{from{rotate:-4deg}to{rotate:4deg}}
 </style>
 </head>
 <body>
@@ -844,7 +905,7 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 
 /* ===== core.js ===== */
 'use strict';
-const VERSION = '0.1.8 Open Beta';
+const VERSION = '0.1.9 Open Beta';
 /* ================= Helfer ================= */
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1570,6 +1631,7 @@ function openAuto() {
   const o = sheet(`<div class="row sb"><h2>🔁 Auto-Spin</h2><button class="x" data-close>${icon('x')}</button></div>
     <div class="lbl2" style="margin-top:0">Anzahl Drehs</div>
     <div class="fdgg" id="auN" style="grid-template-columns:repeat(5,1fr)">${[10, 25, 50, 100, 0].map(n => `<button class="btn ${A.n === n ? 'gold' : 'dark'}" data-n="${n}">${n || '∞'}</button>`).join('')}</div>
+    <input class="inp num" id="auC" type="number" inputmode="numeric" min="1" max="9999" placeholder="… oder eigene Anzahl, z. B. 3" value="${[10, 25, 50, 100, 0].includes(A.n) ? '' : A.n}" style="margin-top:10px">
     <div class="lbl2">Stoppen, wenn ein Gewinn größer ist als … (optional)</div><input class="inp num" id="auW" type="number" inputmode="decimal" placeholder="z. B. 100" value="${A.win}">
     <div class="lbl2">Stoppen, wenn Guthaben unter … fällt (optional)</div><input class="inp num" id="auB" type="number" inputmode="decimal" placeholder="z. B. ${fmt(Math.max(0, Math.floor(S.bal / 2)))}" value="${A.bal}">
     <div class="card tight list" style="background:#151517;margin-top:14px">
@@ -1577,10 +1639,13 @@ function openAuto() {
       <div class="it"><span class="lbl">Schnell (kürzere Pausen)</span><button class="tog ${A.fast ? 'on' : ''}" id="auQ"></button></div></div>
     <p class="hint">Einsatz: ${MS.allIn ? 'MAX ' + fmt(maxBtnStake()) : fmt(STAKES[S.stakeI])} pro Dreh. Stoppen geht jederzeit mit dem großen Knopf.</p>
     <button class="btn gold w" id="auGo" style="margin-top:6px;font-size:20px">Auto-Spin starten</button>`);
-  $('#auN', o).onclick = e => { const b = e.target.closest('[data-n]'); if (!b) return; A.n = +b.dataset.n; $$('#auN button', o).forEach(x => x.className = 'btn ' + (+x.dataset.n === A.n ? 'gold' : 'dark')); SND.click(); };
+  const mark = () => $$('#auN button', o).forEach(x => x.className = 'btn ' + (+x.dataset.n === A.n && $('#auC', o).value === '' ? 'gold' : 'dark'));
+  $('#auN', o).onclick = e => { const b = e.target.closest('[data-n]'); if (!b) return; A.n = +b.dataset.n; $('#auC', o).value = ''; mark(); SND.click(); };
+  $('#auC', o).oninput = () => { const v = Math.floor(+$('#auC', o).value || 0); if (v > 0) A.n = Math.min(9999, v); mark(); };
   $('#auF', o).onclick = e => { A.fs = !A.fs; e.target.classList.toggle('on', A.fs); };
   $('#auQ', o).onclick = e => { A.fast = !A.fast; e.target.classList.toggle('on', A.fast); };
   $('#auGo', o).onclick = () => {
+    const cv = Math.floor(+$('#auC', o).value || 0); if ($('#auC', o).value !== '') { if (cv < 1) return toast('Mindestens 1 Dreh', 'bad'); A.n = Math.min(9999, cv); }
     A.win = $('#auW', o).value; A.bal = $('#auB', o).value; S.autoCfg = { ...A }; save();
     if (!MS) return o.close();
     MS.auto = { left: A.n || Infinity, win: +A.win || 0, bal: A.bal === '' ? null : +A.bal, fs: A.fs, fast: A.fast };
@@ -4284,7 +4349,92 @@ function fdStart() { if (FDX.iv || !onlineOn()) return; setTimeout(fdRecover, 30
   };
 })();
 
+/* ================= 🏙️ Meine Straße (3D) ================= */
+const CITY_COL = { kiosk: ['#e85a4f', '#b8382f'], spaeti: ['#4f8de8', '#2d5fb0'], doener: ['#e8a54f', '#b0762d'], wasch: ['#5fc8c0', '#2f8f88'], bar: ['#b06ae8', '#7a3ab0'], hotel: ['#e8d36a', '#b09d3a'], casino: ['#e84f8d', '#b02d60'], bank: ['#8a96a8', '#5a6576'] };
+const CITY_PPL = ['🚶‍♂️', '🚶‍♀️', '🚶', '🧍‍♀️', '🏃‍♂️', '👩‍🦯', '🧑‍🦽', '🚶🏽', '🚶🏻‍♀️', '🛹', '🐕', '👨‍👧'];
+const CITY_CAR = ['🚗', '🚕', '🚙', '🚌', '🛵', '🚓', '🚚'];
+const shopLocked = s => { const i = SHOPS.indexOf(s); return !(S.shops[s[0]] || 0) && i > 0 && !(S.shops[SHOPS[i - 1][0]]); };
+function bldHTML(s, i) {
+  const l = S.shops[s[0]] || 0, col = CITY_COL[s[0]] || ['#888', '#555'], x = 60 + i * 250;
+  if (!l) {
+    const lk = shopLocked(s);
+    return `<div class="bld lot" data-s="${s[0]}" style="left:${x}px">
+      <div class="lotsign">${lk ? '🔒' : '🏷️'}<b>${lk ? 'Gesperrt' : 'Zu verkaufen'}</b><small>${s[2]} ${esc(s[1])}${lk ? '' : ' · ' + fmt(shopCost(s, 0))}</small></div>
+      <div class="fence"></div></div>`;
+  }
+  const h = Math.min(330, 170 + l * 22), floors = Math.max(1, Math.floor((h - 120) / 50)), night = new Date(Date.now()).getHours() >= 19 || new Date(Date.now()).getHours() < 7;
+  const win = Array.from({ length: floors * 3 }, () => `<i class="${night && Math.random() < .7 ? 'lit' : ''}"></i>`).join('');
+  return `<div class="bld" data-s="${s[0]}" style="left:${x}px;height:${h}px;--c1:${col[0]};--c2:${col[1]}">
+    <div class="fc f"><div class="wins" style="grid-template-rows:repeat(${floors},1fr)">${win}</div>
+      <div class="sign"><span>${s[2]}</span><b>${esc(s[1])}</b></div><div class="awn"></div>
+      <div class="ground"><div class="shopwin">${s[2]}</div><div class="door"></div><div class="shopwin">${s[2]}</div></div>
+      <div class="lvl">Stufe ${l}</div></div>
+    <div class="fc sl"></div><div class="fc sr"></div><div class="fc rf"></div>
+    <div class="inc num">+${fmt(shopInc(s, l))}/h</div></div>`;
+}
+function openCity() {
+  if (document.querySelector('.city')) return;
+  const night = new Date(Date.now()).getHours() >= 19 || new Date(Date.now()).getHours() < 7;
+  const owned = SHOPS.filter(s => S.shops[s[0]]).length, W = 60 + SHOPS.length * 250 + 60;
+  const f = document.createElement('div'); f.className = 'city' + (night ? ' night' : '');
+  f.innerHTML = `<div class="ctop"><button class="x" id="cBack">${icon('left')}</button><div style="flex:1;min-width:0"><b style="font-size:22px">🏙️ Meine Straße</b><small style="display:block;color:#cfd3dc">${owned} von ${SHOPS.length} Läden · <span class="num">${fmt(shopRate())}/h</span></small></div><button class="btn gold sm" id="cCol"></button></div>
+    <div class="cview" id="cView"><div class="cscene" id="cScene" style="width:${W}px">
+      ${night ? '<div class="stars"></div><div class="moon">🌙</div>' : '<div class="sun">☀️</div><div class="cloud c1">☁️</div><div class="cloud c2">☁️</div>'}
+      <div class="skyline"></div>
+      <div class="bldrow">${SHOPS.map(bldHTML).join('')}</div>
+      <div class="walk"></div><div class="curb"></div><div class="road"><div class="lane"></div></div>
+      <div class="lamps">${Array.from({ length: SHOPS.length + 1 }, (_, i) => `<div class="lamp" style="left:${i * 250 + 20}px"></div>`).join('')}</div>
+      <div id="cPpl"></div><div id="cCars"></div>
+    </div></div>
+    <p class="chint">👆 Wischen zum Laufen · Laden antippen für Details</p>`;
+  document.body.appendChild(f); document.body.classList.add('inmach');
+  const view = $('#cView', f), scene = $('#cScene', f);
+  const upd = () => { const p = shopPending(), b = $('#cCol', f); b.innerHTML = `Einsammeln<br><span class="num">${fmt(p)}</span>`; b.disabled = p <= 0; };
+  upd();
+  const par = () => { const c = view.scrollLeft + view.clientWidth / 2; scene.style.perspectiveOrigin = `${c}px 30%`; };
+  view.addEventListener('scroll', par, { passive: true }); par();
+  // Menschen & Autos
+  const ppl = $('#cPpl', f), cars = $('#cCars', f), nP = Math.min(18, 5 + owned * 2), nC = Math.min(7, 2 + owned);
+  for (let i = 0; i < nP; i++) {
+    const dir = Math.random() < .5 ? 1 : -1, dur = 18 + Math.random() * 26, y = Math.random() * 34;
+    ppl.insertAdjacentHTML('beforeend', `<span class="ppl ${dir < 0 ? 'rev' : ''}" style="bottom:${132 + y}px;z-index:${60 - Math.round(y)};font-size:${40 - y * .15}px;animation-duration:${dur}s,.5s;animation-delay:-${Math.random() * dur}s,0s;--w:${W}px">${pick(CITY_PPL)}</span>`);
+  }
+  for (let i = 0; i < nC; i++) {
+    const dir = i % 2 ? 1 : -1, dur = 7 + Math.random() * 7;
+    cars.insertAdjacentHTML('beforeend', `<span class="car ${dir < 0 ? 'rev' : ''}" style="bottom:${dir < 0 ? 52 : 18}px;animation-duration:${dur}s;animation-delay:-${Math.random() * dur}s;--w:${W}px">${pick(CITY_CAR)}</span>`);
+  }
+  // Münzen über den Läden (Kunden kaufen ein)
+  const coinIv = setInterval(() => {
+    if (!f.isConnected) return clearInterval(coinIv);
+    const bs = $$('.bld:not(.lot)', f); if (!bs.length) return;
+    const b = pick(bs); const c = document.createElement('span'); c.className = 'cpop'; c.textContent = '💶'; b.appendChild(c); setTimeout(() => c.remove(), 1600);
+  }, 900);
+  const close = () => { clearInterval(coinIv); f.classList.add('closing'); document.body.classList.remove('inmach'); setTimeout(() => f.remove(), 300); if (curPage === 'imperium') go('imperium', true); };
+  $('#cBack', f).onclick = close;
+  $('#cCol', f).onclick = () => { collectShops(); upd(); FX.burst(60, { coins: true }); };
+  scene.onclick = e => {
+    const b = e.target.closest('[data-s]'); if (!b) return;
+    const s = SHOPS.find(x => x[0] === b.dataset.s), l = S.shops[s[0]] || 0, c = shopCost(s, l), lk = shopLocked(s);
+    SND.click();
+    const o = sheet(`<div class="row sb"><h2>${s[2]} ${esc(s[1])}</h2><button class="x" data-close>${icon('x')}</button></div>
+      ${l ? `<div class="two"><div class="stat"><small>Stufe</small><b>${l}</b></div><div class="stat"><small>Einnahmen</small><b class="pos num">${fmt(shopInc(s, l))}/h</b></div></div>
+        <p class="hint">Nächste Stufe: <b class="pos">${fmt(shopInc(s, l + 1))}/h</b> (+${fmt(r2(shopInc(s, l + 1) - shopInc(s, l)))}/h)</p>`
+      : `<p class="hint" style="font-size:17px">${lk ? `🔒 Kauf zuerst ${esc(SHOPS[SHOPS.indexOf(s) - 1][1])}.` : `Dieses Grundstück ist frei! Der Laden bringt <b class="pos">${fmt(shopInc(s, 1))}/h</b>.`}</p>`}
+      <button class="btn ${l ? 'gold' : 'white'} w" id="cBuy" ${lk ? 'disabled' : ''} style="margin-top:8px">${l ? 'Ausbauen' : 'Kaufen'} · ${fmt(c)}</button>`, { center: true });
+    $('#cBuy', o).onclick = () => {
+      if (S.bal < c) { toast(`Dafür brauchst du ${fmt(c)} Guthaben (Dispo zählt nicht).`, 'bad'); SND.err(); return; }
+      collectShops(true); S.bal = r2(S.bal - c); S.shops[s[0]] = l + 1; SND.big(); FX.burst(80);
+      toast(l ? `${s[1]} auf Stufe ${l + 1} ausgebaut! 📈` : `${s[1]} gekauft! ${s[2]}`, 'good'); hdr(true); checkAch(); save(); o.close();
+      const nb = document.createElement('div'); nb.innerHTML = bldHTML(s, SHOPS.indexOf(s)); const el = nb.firstElementChild; b.replaceWith(el); el.classList.add('built'); upd();
+      $('.ctop small', f).innerHTML = `${SHOPS.filter(x => S.shops[x[0]]).length} von ${SHOPS.length} Läden · <span class="num">${fmt(shopRate())}/h</span>`;
+    };
+  };
+  // zum ersten eigenen Laden scrollen
+  const first = SHOPS.findIndex(s => !S.shops[s[0]]); setTimeout(() => { view.scrollLeft = Math.max(0, (first < 0 ? SHOPS.length - 1 : Math.max(0, first - 1)) * 250 - 40); par(); }, 50);
+}
+
 /* ================= Seiten erweitern ================= */
+{ const Im = PAGES.imperium; PAGES.imperium = el => { Im(el); const c = $('.card', el); if (c) { c.insertAdjacentHTML('afterend', '<button class="btn gold w" id="toCity" style="margin-bottom:14px;font-size:20px">🏙️ Meine Straße in 3D ansehen</button>'); $('#toCity', el).onclick = () => { SND.click(); openCity(); }; } }; }
 PAGES.crash = renderCrash; PAGES.pass = renderPass; PAGES.clan = renderClan; PAGES.freunde = renderFreunde;
 (() => {
   const H = PAGES.halle; PAGES.halle = el => { H(el); if (onlineOn()) { const t = $('.halle-top', el); if (t) { t.insertAdjacentHTML('afterend', '<div class="card feed" id="feedBox"></div>'); feedDraw(); } } };

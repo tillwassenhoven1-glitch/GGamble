@@ -7,7 +7,7 @@ Eine Spielhalle im Browser – nur mit Spielgeld: Automaten mit Freispielen und 
 👉 **https://tillwassenhoven1-glitch.github.io/GGamble/**
 
 Keine Installation, keine Werbung, keine Käufe, kein echtes Geld – läuft auf Handy, iPad und PC. 🎮
-Version 0.1.8 · Open Beta
+Version 0.1.9 · Open Beta
 
 ## 🔐 Konto
 
@@ -31,6 +31,8 @@ Version 0.1.8 · Open Beta
 - 🏆 **Wetten** – GG Liga mit 18 Teams: alle 5 Minuten ein neuer Spieltag, Live-Ticker, Kombiwetten, Über/Unter und „Beide treffen“
 - 📊 **Börse** – läuft auch offline weiter (Stop Loss, Take Profit, Orders) – 5 erfundene Märkte (XRZ-Coin, Döner AG, Kiosk-Kette, Gold, GG/EUR) mit Kerzen-Chart, Long/Short, Hebel bis 1:20, Stop Loss, Take Profit, Limit- und Stop-Orders
 - 🎲 **Spiele** – Hütchenspiel, Kassensturz, Pfandflaschen und Inventur (10 Energie, alle 5 Min. +1 – auch offline; nur wer alle Aufgaben schafft, bekommt extra Energie), Tages- und Wochenaufgaben, das **Glückslabor** und dein **Imperium** aus 8 Geschäften, die auch offline Geld bringen
+- 🏙️ **Meine Straße in 3D** – deine gekauften Läden stehen in einer 3D-Straße mit Leuten, Autos und Tag/Nacht
+- 🔁 **Auto-Spin** – eigene Anzahl (z. B. 3), Stopp bei Gewinn, Guthaben oder Freispielen
 - 🚀 **Crash** – der Multiplikator steigt, steig aus, bevor die Rakete explodiert (mit Auto-Aussteigen)
 - 🎟️ **Battle Pass** – jeden Monat eine neue Saison mit 30 Stufen: Geld, Tränke, Energie, Rahmen und Titel
 - 📆 **Login-Kalender** – 7 Tage am Stück einloggen, am 7. Tag gibt's den großen Preis
