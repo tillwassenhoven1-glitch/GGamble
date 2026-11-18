@@ -354,7 +354,12 @@ p.sub{color:var(--mut);font-size:17px;margin:6px 4px 18px;line-height:1.35}
 .tb small{font-size:16px;letter-spacing:1px}
 .tb b{display:block;font-size:clamp(24px,7vw,34px);font-weight:800}
 .tb.s{background:linear-gradient(180deg,#d65446,#a83226)}
-.tb.b{background:linear-gradient(180deg,#4a86e8,#2457c4)}
+.tb.b{background:linear-gradient(180deg,#3cbf63,#22964a)}
+.tb small{display:block}
+.bxpro{margin-top:16px;border:1px solid var(--line);border-radius:18px;padding:12px 14px}
+.bxpro summary{cursor:pointer;color:var(--mut);font-size:16px;list-style:none}
+.bxpro summary::-webkit-details-marker{display:none}
+.bxpro[open] summary{margin-bottom:6px}
 .lotrow{display:flex;align-items:center;gap:10px}
 .lotrow .rb{width:50px;height:50px;border-radius:50%;background:#2a2a2e;font-size:26px;flex:none}
 .qch{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
@@ -2316,26 +2321,27 @@ function openPos(sym, dir, lot, sl, tp, quiet, t = Date.now()) {
 let bxUI = { lot: .1, sl: '', tp: '', ty: 'M', px: '', tab: 0 };
 function renderBoerse(el) {
   const B = S.bx;
-  el.innerHTML = `<h1 class="t">Börse</h1><p class="sub">Erfundene Märkte, echte Mechanik – Kaufen, Verkaufen, Stop Loss, Take Profit</p>
+  el.innerHTML = `<h1 class="t">Börse</h1><p class="sub">Glaubst du, der Kurs steigt? → <b>Kaufen</b>. Glaubst du, er fällt? → <b>Short</b>. Gewinn holst du dir mit ✕ bei deiner Position.</p>
    <button class="btn dark" id="bxIO" style="margin-bottom:16px">Ein-/Auszahlen</button>
    <div class="card"><div class="row sb" style="margin-bottom:14px"><h3 style="font-size:26px">Marktübersicht</h3><span style="color:var(--mut)">Bid / Ask</span></div><div class="mkts" id="mkts"></div></div>
    <div class="card"><div style="font-size:24px"><b id="symN"></b> <span style="color:var(--mut);font-size:19px" id="symI"></span></div>
      <div class="tfs" id="tfs">${Object.keys(TFS).map(k => `<button data-tf="${k}" class="${B.tf === k ? 'on' : ''}">${k}</button>`).join('')}</div>
      <canvas id="chart"></canvas></div>
    <div class="card">
-     <div class="trade"><button class="tb s" id="bSell"><small>SELL</small><b class="num" id="pBid"></b></button><button class="tb b" id="bBuy"><small>BUY</small><b class="num" id="pAsk"></b></button></div>
-     <p style="text-align:center;color:var(--mut);margin:14px 0 4px;font-size:17px" id="pSp"></p>
-     <div class="lbl2">Volumen (Lot)</div>
+     <div class="lbl2" style="margin-top:0">Wie viel? (Lot)</div>
      <div class="lotrow"><button class="rb" id="lM">−</button><input class="inp num" id="lot" inputmode="decimal" value="${bxUI.lot}"><button class="rb" id="lP">+</button></div>
      <div class="qch" id="lq">${[.01, .1, 1, 5].map(v => `<button data-v="${v}">${NF2.format(v).replace(/,?0+$/, '')}</button>`).join('')}</div>
+     <details class="bxpro"><summary>⚙️ Profi-Optionen (Stop Loss, Take Profit, Ordertyp)</summary>
      <div class="two"><div><div class="lbl2">Stop Loss</div><input class="inp num" id="sl" inputmode="decimal" placeholder="–" value="${bxUI.sl}"></div><div><div class="lbl2">Take Profit</div><input class="inp num" id="tp" inputmode="decimal" placeholder="–" value="${bxUI.tp}"></div></div>
      <div class="three"><button id="fL">Long ±</button><button id="fS">Short ±</button><button id="fC">leeren</button></div>
      <div class="lbl2">Ordertyp</div>
      <select class="inp" id="oty"><option value="M">Sofort (Markt)</option><option value="L">Limit</option><option value="S">Stop</option></select>
-     <input class="inp num hidden" id="opx" inputmode="decimal" placeholder="Auslösepreis" style="margin-top:10px" value="${bxUI.px}">
-     <div class="row sb" style="margin-top:18px;font-size:18px"><span style="color:var(--mut)">Margin nötig</span><b class="num neg" id="mgN"></b></div>
-     <div class="row sb" style="margin-top:12px;font-size:18px"><span style="color:var(--mut)">Hebel</span><select class="inp" id="lev" style="width:120px;padding:10px 14px">${[1, 5, 10, 20].map(v => `<option value="${v}" ${B.lev === v ? 'selected' : ''}>1:${v}</option>`).join('')}</select></div>
-     <p class="hint" id="effL"></p>
+     <input class="inp num hidden" id="opx" inputmode="decimal" placeholder="Auslösepreis" style="margin-top:10px" value="${bxUI.px}"></details>
+     <div class="row sb" style="margin-top:14px;font-size:18px"><span style="color:var(--mut)">Hebel</span><select class="inp" id="lev" style="width:120px;padding:10px 14px">${[1, 5, 10, 20].map(v => `<option value="${v}" ${B.lev === v ? 'selected' : ''}>1:${v}</option>`).join('')}</select></div>
+     <p class="hint" id="effL" style="margin-top:4px"></p>
+     <div class="row sb" style="margin-top:14px;font-size:22px"><span>💶 Das kostet dich</span><b class="num" id="mgN" style="color:#ffd84d"></b></div>
+     <div class="trade" style="margin-top:14px"><button class="tb b" id="bBuy"><small>📈 KAUFEN</small><b class="num" id="pAsk"></b><small style="font-size:13px;letter-spacing:0;opacity:.85">Gewinn, wenn es steigt</small></button><button class="tb s" id="bSell"><small>📉 SHORT</small><b class="num" id="pBid"></b><small style="font-size:13px;letter-spacing:0;opacity:.85">Gewinn, wenn es fällt</small></button></div>
+     <p style="text-align:center;color:var(--mut);margin:10px 0 0;font-size:15px" id="pSp"></p>
    </div>
    <div class="card">
      <div class="acct" id="acct"></div>
@@ -2353,7 +2359,7 @@ function renderBoerse(el) {
     $('#symN', el).textContent = s.n; $('#symI', el).textContent = `${sym} · Kontrakt ${NF0.format(s.cs)} · Hebel bis 1:${s.lev}`;
     $('#pBid', el).textContent = pf(sym, q.bid); $('#pAsk', el).textContent = pf(sym, q.ask); $('#pSp', el).textContent = 'Spread ' + pf(sym, q.sp);
     const lot = getLot(); $('#mgN', el).textContent = fmt(q.ask * lot * s.cs / effLev(sym));
-    $('#effL', el).textContent = `Effektiv 1:${effLev(sym)} für ${sym}`;
+    $('#effL', el).textContent = `${NF2.format(lot).replace(/,?0+$/, '')} Lot = ${NF2.format(lot * s.cs).replace(/,?0+$/, "")} Stück · Hebel effektiv 1:${effLev(sym)}`;
     const st = bxStats();
     $('#acct', el).innerHTML = [['Saldo', B.bal], ['Equity', st.eq], ['Margin', st.mg], ['Frei', st.free]].map(([n, v]) => `<div><small>${n.toUpperCase()}</small><b class="num">${NF2.format(v).replace(/,00$/, '')}</b></div>`).join('') +
       `<div style="grid-column:span 2"><small>MARGIN-LEVEL</small><b class="num">${st.lvl === null ? '–' : NF0.format(st.lvl) + ' %'}</b></div><div style="grid-column:span 2"><small>G/V OFFEN</small><b class="num ${st.pl >= 0 ? 'pos' : 'neg'}">${st.pl >= 0 ? '+' : ''}${NF2.format(st.pl).replace(/,00$/, '')}</b></div>`;
@@ -2446,7 +2452,7 @@ function ensureTasks() {
 }
 function hashStr(s) { let h = 7; for (const c of String(s)) h = Math.imul(h ^ c.charCodeAt(0), 2654435761); return h >>> 0; }
 function taskProg(k, v) {
-  if (!S) return; ensureTasks();
+  if (!S) return; ensureTasks(); if (typeof bpmProg === 'function') bpmProg(k, v);
   setTimeout(taskBonus, 0);
   [...S.tasks.day, ...S.tasks.week].forEach(t => {
     if (t.k !== k || t.done) return; t.p = Math.min(t.g, t.p + v);
@@ -3662,6 +3668,31 @@ function bpAdd(n) {
   const old = bpLv(); S.bp.pts += n; const nw = bpLv();
   if (nw > old) whenFree(() => setTimeout(() => { toast(`🎟️ Battle Pass Stufe ${nw}! Belohnung unter Spiele abholen`, 'good', 3500); SND.win(); }, 600));
 }
+/* 🎯 Battle-Pass-Missionen: täglich 3 + wöchentlich 3, geben Battle-Pass-Punkte */
+const BPM_D = [['spins', 30, 'Dreh {g}-mal am Automaten'], ['scratch', 4, 'Rubbel {g} Lose'], ['bets', 2, 'Platziere {g} Sportwetten'], ['trades', 2, 'Schließ {g} Börsen-Trades'], ['rounds', 60, 'Spiel {g} Runden'], ['wager', 0, 'Setz insgesamt {g} €'], ['shifts', 2, 'Erledige {g} Schichten']];
+const BPM_PTS = { day: 25, week: 100 };
+function bpmMk(seed, mult, pts) {
+  const r = mulberry(seed), pool = [...BPM_D].sort(() => r() - .5).slice(0, 3);
+  return pool.map(([k, g, n]) => { const goal = k === 'wager' ? Math.round(base() * 30 * mult) : g * mult; return { k, g: goal, n: n.replace('{g}', NF0.format(goal)), p: 0, pts, done: false }; });
+}
+function bpmEnsure() {
+  const d = dayKey(), w = weekKey(); if (!S.bpm) S.bpm = {};
+  if (S.bpm.d !== d) { S.bpm.d = d; S.bpm.day = bpmMk(hashStr('bpm' + d + ACC), 1, BPM_PTS.day); }
+  if (S.bpm.w !== w) { S.bpm.w = w; S.bpm.week = bpmMk(hashStr('bpmw' + w + ACC), 5, BPM_PTS.week); }
+}
+function bpmProg(k, v) {
+  bpmEnsure();
+  [...S.bpm.day, ...S.bpm.week].forEach(t => {
+    if (t.k !== k || t.done) return; t.p = Math.min(t.g, t.p + v);
+    if (t.p >= t.g) { t.done = true; bpAdd(t.pts); whenFree(() => setTimeout(() => { toast(`🎯 Mission geschafft: ${t.n} → +${t.pts} Battle-Pass-Punkte`, 'good', 4000); SND.win(); save(); }, 900)); }
+  });
+}
+function bpmHTML() {
+  bpmEnsure();
+  const L = list => list.map(t => `<div class="task ${t.done ? 'done' : ''}"><div class="row sb"><b>${t.n}</b><span class="num" style="color:var(--mut)">${NF0.format(t.p)} / ${NF0.format(t.g)}</span></div><div class="bar"><i style="width:${t.p / t.g * 100}%"></i></div><span class="chip gold">${t.done ? '✓ ' : '+'}${t.pts} BP-Punkte</span></div>`).join('');
+  return `<div class="card"><h3 style="font-size:24px">🎯 Missionen</h3><p class="hint" style="margin-top:4px">Heute · neu in ${untilMidnight()}</p>${L(S.bpm.day)}
+    <p class="hint" style="margin-top:14px">Diese Woche · neu am Montag</p>${L(S.bpm.week)}</div>`;
+}
 function bpClaim(i) {
   if (i >= bpLv() || S.bp.got.includes(i)) return null;
   S.bp.got.push(i); return giveRw(BP_R[i]);
@@ -3669,11 +3700,12 @@ function bpClaim(i) {
 function renderPass(el) {
   const lv = bpLv(), pts = S.bp.pts, inLv = lv >= BP_N ? BP_PER : pts % BP_PER, open = bpOpen();
   el.innerHTML = `<button class="btn dark sm" id="back">${icon('left')} Minispiele</button>
-    <h1 class="t" style="margin-top:16px">Battle Pass</h1><p class="sub">Saison ${seasonName()} · ${seasonLeft()} · 1 Punkt pro Runde ab ${fmt(Math.max(1, base() * .25))} Einsatz (kleiner = anteilig), Login-Kalender +20</p>
+    <h1 class="t" style="margin-top:16px">Battle Pass</h1><p class="sub">Saison ${seasonName()} · ${seasonLeft()} · 1 Punkt pro Runde ab ${fmt(Math.max(1, base() * .25))} Einsatz, Missionen +${BPM_PTS.day} / +${BPM_PTS.week}, Login-Kalender +20</p>
     <div class="card"><div class="row sb"><b style="font-size:26px">Stufe ${lv} / ${BP_N}</b><span class="chip gold num">${NF0.format(Math.floor(pts))} Punkte</span></div>
       <div class="bpbar"><i style="width:${lv >= BP_N ? 100 : inLv / BP_PER * 100}%"></i></div>
       <p class="hint">${lv >= BP_N ? 'Alles geschafft – stark! 🔥' : `Noch ${Math.ceil(BP_PER - inLv)} Punkte bis Stufe ${lv + 1}`}</p>
       ${open ? `<button class="btn gold w" id="bpAll">Alle ${open} Belohnungen abholen</button>` : ''}</div>
+    ${bpmHTML()}
     <div class="bpl">${BP_R.map((r, i) => { const got = S.bp.got.includes(i), ok = i < lv; return `<div class="bpi ${got ? 'got' : ok ? 'ok' : ''}"><span class="bpn">${i + 1}</span><span class="bpic">${rwIcon(r[0])}</span><span class="bpt">${rwTxt(r)}</span>${got ? '<span class="chip">✓</span>' : ok ? `<button class="btn gold xs" data-bp="${i}">Abholen</button>` : '<span class="chip">🔒</span>'}</div>`; }).join('')}</div>
     <p class="hint">Jeden Monat startet eine neue Saison. Rahmen und Titel bleiben für immer.</p>`;
   $('#back', el).onclick = () => go('spiele');
