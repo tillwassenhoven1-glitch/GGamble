@@ -4991,13 +4991,17 @@ async function phUpload() {
     if (r.ok) { S.phUp = sig; save(); PH.m[meKey()] = p; }
   } catch (e) { }
 }
+PH.tried = {};
 function phPatch() {
-  document.querySelectorAll('.avatar[data-n]').forEach(a => { const p = PH.m[a.dataset.n]; if (!p || a.style.backgroundImage) return; a.style.background = ''; a.style.backgroundImage = `url(${p})`; a.textContent = ''; });
+  const miss = new Set();
+  document.querySelectorAll('.avatar[data-n]').forEach(a => { const n = a.dataset.n, p = PH.m[n]; if (!p) { if (PH.t && !(PH.tried[n] > Date.now() - 300000)) miss.add(n); return; } if (a.dataset.ph === '1' || a.style.backgroundImage.includes('data:image')) return; a.dataset.ph = '1'; a.style.background = ''; a.style.backgroundImage = `url(${p})`; a.style.backgroundSize = 'cover'; a.textContent = ''; });
+  // einzeln nachladen, falls die Liste ein Bild nicht mitgeliefert hat
+  [...miss].slice(0, 25).forEach(n => { PH.tried[n] = Date.now(); fetch(fsDoc('bilder/' + encodeURIComponent(n)), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(j => { const p = j?.fields?.p?.stringValue || ''; if (p.startsWith('data:image/')) { PH.m[n] = p; phPatch(); } }).catch(() => { }); });
 }
 async function phLoad() {
   if (!onlineOn() || document.hidden) return;
   try {
-    const d = await fsQuery({ from: [{ collectionId: 'bilder' }], where: { fieldFilter: { field: { fieldPath: 'p' }, op: 'GREATER_THAN', value: fstr('') } }, limit: 400 });
+    const d = await fsQuery({ from: [{ collectionId: 'bilder' }], limit: 500 }); // ohne Filter: lange Bild-Texte sind in Firestore nicht indexiert
     d.forEach(x => { if (typeof x.p === 'string' && x.p.startsWith('data:image/')) PH.m[decodeURIComponent(x.id)] = x.p; }); PH.t = Date.now(); phPatch();
   } catch (e) { }
 }
