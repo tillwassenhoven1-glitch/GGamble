@@ -394,6 +394,7 @@ select.inp{appearance:none;-webkit-appearance:none;background-image:linear-gradi
 .pot.p2 i{background:linear-gradient(180deg,#7ad07a,#4fb54f);box-shadow:0 0 22px #4fb54f}
 .pot.p4 i{background:linear-gradient(180deg,#5fa0f5,#2e74e6);box-shadow:0 0 22px #2e74e6}
 .pot.p6 i{background:linear-gradient(180deg,#c487f0,#9a4fe0);box-shadow:0 0 22px #9a4fe0}
+.pot.p100 i{background:linear-gradient(180deg,#ff5a5a,#ffb84a,#ffe14a,#5ad86a,#4ab0ff,#b06aff);box-shadow:0 0 26px #ff7ad9}
 .pots b{display:block;font-size:26px;margin:10px 0}
 .gm{display:block;width:100%;text-align:left}
 .gm .ibox{width:76px;height:76px;border-radius:22px}
@@ -920,7 +921,7 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 
 /* ===== core.js ===== */
 'use strict';
-const VERSION = '0.2.8 Open Beta';
+const VERSION = '0.3.0 Open Beta';
 const FORCE_V = 12; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
 const WARTUNG = false; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
 /* ================= Helfer ================= */
@@ -1639,7 +1640,7 @@ function openMachine(i) {
     $('#mLuck', f).classList.toggle('on', !!S.potAct); const potOff = S.potAct && (MS.allIn ? maxBtnStake() : STAKES[S.stakeI]) > potCap() + 1e-9;
     $('#mLuck', f).innerHTML = icon('spark') + (S.potAct ? ` ×${S.potAct.m} · ${S.potAct.left}${potOff ? ' ⚠️' : ''}` : ' Glück');
     $('#mAll', f).classList.toggle('on', MS.allIn);
-    if (m.rb) { $('#mStake', f).textContent = fmt(RB_ST); $('#ledB', f).textContent = NF2.format(RB_ST); const rp = $('#rbPot', f); if (rp) { rp.textContent = MS.rb100 ? '🌈 ×100 AKTIV!' : `🌈 ×100-Trank (${S.pot100 || 0})`; rp.style.opacity = (S.pot100 || 0) > 0 || MS.rb100 ? 1 : .45; } }
+    if (m.rb) { $('#mStake', f).textContent = fmt(RB_ST); $('#ledB', f).textContent = NF2.format(RB_ST); const rp = $('#rbPot', f); if (rp) { const on = S.potAct && S.potAct.m === 100; rp.textContent = on ? `🌈 ×100 AKTIV · ${S.potAct.left}` : `🌈 ×100-Trank (${S.pot[100] || 0})`; rp.style.opacity = (S.pot[100] || 0) > 0 || on ? 1 : .45; } }
     $('#mAuto', f).classList.toggle('on', !!MS.auto); $('#mAuto', f).textContent = MS.auto ? `⏹ ${MS.auto.left === Infinity ? '∞' : MS.auto.left}` : '🔁 Auto';
     if (MS.auto && !MS.busy && MS.fs === 0) $('#spinBtn', f).textContent = `Stopp · Auto ${MS.auto.left === Infinity ? '∞' : MS.auto.left}`;
     const jv = $('#jpV', f); if (jv) jv.textContent = fmt(S.jp[m.jp]);
@@ -1648,9 +1649,10 @@ function openMachine(i) {
   if (m.rb) $('#rbHelp', f).onclick = () => { if (!MS.busy) rbHelp(m); };
   if (m.rb) { $('#sMinus', f).style.visibility = $('#sPlus', f).style.visibility = 'hidden';
     rbTopLoad($('#rbLb', f)); const rbIv = setInterval(() => { if (!MS || !MS.m.rb) return clearInterval(rbIv); if (!document.hidden) rbTopLoad($('#rbLb', MS.f)); }, 90000);
-    $('#rbPot', f).onclick = () => { if (MS.busy) return; if (MS.rb100) { MS.rb100 = false; S.pot100 = (S.pot100 || 0) + 1; save(); MS.upd(); return; }
-      if (!(S.pot100 > 0)) { toast(`🌈 Du hast keinen Glückstrank ×100. Er kann hier bei jedem Dreh mit 1 : 100.000 auftauchen!`, '', 3500); return; }
-      S.pot100--; MS.rb100 = true; save(); flash(); SND.big(); FX.burst(120, { cols: ['#ff5a5a', '#ffb84a', '#ffe14a', '#5ad86a', '#4ab0ff', '#b06aff'] }); toast('🌈 Glückstrank ×100 getrunken – der nächste Dreh wird riesig!', 'good', 3000); MS.upd(); }; }
+    $('#rbPot', f).onclick = () => { if (MS.busy) return; if (S.potAct && S.potAct.m === 100) return toast(`🌈 Der ×100-Trank wirkt noch ${S.potAct.left} Drehs!`, 'good');
+      if (S.potAct) return toast('Es wirkt schon ein anderer Glückstrank – erst aufbrauchen.', 'bad');
+      if (!(S.pot[100] > 0)) { toast(`🌈 Du hast keinen Glückstrank ×100. Er kann hier bei jedem Dreh mit 1 : 100.000 auftauchen!`, '', 3500); return; }
+      S.pot[100]--; S.potAct = { m: 100, left: POT_R[100] }; S.st.potsDrunk++; save(); flash(); SND.big(); FX.burst(160, { cols: ['#ff5a5a', '#ffb84a', '#ffe14a', '#5ad86a', '#4ab0ff', '#b06aff'] }); toast(`🌈 Glückstrank ×100 getrunken – 100-fach Glück für ${POT_R[100]} Drehs, an jedem Automaten!`, 'good', 4000); MS.upd(); }; }
   $('#sMinus', f).onclick = () => { if (MS.busy) return; MS.allIn = S.maxOn = false; S.stakeI = Math.max(0, S.stakeI - 1); SND.click(); upd(); };
   $('#sPlus', f).onclick = () => { if (MS.busy) return; MS.allIn = S.maxOn = false; const n = Math.min(STAKES.length - 1, S.stakeI + 1); if (STAKES[n] > maxStake()) { let l = S.level; while (10 * Math.pow(STAKE_G, l - 1) < STAKES[n]) l++; toast(`${fmt(STAKES[n])} Einsatz gibt's ab Level ${l}`); SND.err(); return; } S.stakeI = n; SND.click(); upd(); };
   $('#mAll', f).onclick = () => { if (MS.busy) return; MS.allIn = S.maxOn = !MS.allIn; save(); SND.click(); upd(); };
@@ -1691,8 +1693,8 @@ async function doSpin() {
   // Jackpot-Pool wächst
   if (m.t === 'j' && !free) S.jp[m.jp] = r2(S.jp[m.jp] + stake * .02);
   // Ergebnis (mit Glückstrank: bestes aus N)
-  let rolls = 1; const usePot = !m.rb && S.potAct && stake <= potCap() + 1e-9; // Trank wirkt auch in Freispielen (Gewinne gedeckelt, siehe potF)
-  const rb100 = m.rb && MS.rb100; if (rb100) MS.rb100 = false; // 🌈 Trank ×100: 99 % Riesengewinn
+  let rolls = 1; const usePot = S.potAct && (S.potAct.m === 100 || (!m.rb && stake <= potCap() + 1e-9)); // ×100 wirkt überall & bei jedem Einsatz
+  const rb100 = usePot && S.potAct.m === 100;
   if (S.potAct && !usePot && !m.rb) toast(`⚠️ Trank wirkt nicht: Einsatz über ${fmt(potCap())}. Nimm einen kleineren Einsatz oder „Max“.`, 'bad', 2600);
   if (usePot) { rolls = S.potAct.m; S.potAct.left--; S.st.potUse = (S.st.potUse || 0) + 1; }
   let best = null;
@@ -1703,7 +1705,7 @@ async function doSpin() {
     const ev = m.t === 'v' ? evalV(m, g, stake) : (() => { const e = evalC(m, g); return { tot: e.tot * stake, wins: e.wins.map(w => ({ ...w, w: w.w * stake })) }; })();
     if (!best || ev.tot > best.ev.tot) best = { g, ev };
   }
-  if (usePot) { const f = potF(m, rolls); if (f < 1) { best.ev.tot *= f; best.ev.wins = best.ev.wins.map(w => ({ ...w, w: w.w * f })); } } // Trank: bestes aus N, aber gedeckelt
+  if (usePot && !rb100) { const f = potF(m, rolls); if (f < 1) { best.ev.tot *= f; best.ev.wins = best.ev.wins.map(w => ({ ...w, w: w.w * f })); } } // Trank: bestes aus N, aber gedeckelt
   let jackpot = 0;
   if (m.t === 'j' && !free) {
     let ch = JP[m.jp].ch * rolls;
@@ -1721,9 +1723,8 @@ async function doSpin() {
   MS.grid = best.g;
   let win = best.ev.tot * (free ? 2 : 1);
   // 🧢 Gewinn-Deckel: höchstens ×100 pro Dreh, Freispiel-Serie insgesamt höchstens ×250
-  if (win > stake * WIN_CAP) { const f = stake * WIN_CAP / win; best.ev.wins = best.ev.wins.map(w => ({ ...w, w: w.w * f })); win = stake * WIN_CAP; }
+  if (!rb100 && win > stake * WIN_CAP) { const f = stake * WIN_CAP / win; best.ev.wins = best.ev.wins.map(w => ({ ...w, w: w.w * f })); win = stake * WIN_CAP; }
   if (free && MS.fsWin + win > stake * FS_CAP) win = Math.max(0, stake * FS_CAP - MS.fsWin);
-  if (rb100 && Math.random() < .99) { win = stake * 100; best.ev.wins = []; }
   const rbDrop = m.rb && !free && Math.random() < RB_CH;
   if (best.ev.wins.length) { showWins(best.ev.wins); const cb = $('.cab', MS.f); cb.classList.add('winning'); setTimeout(() => cb && cb.classList.remove('winning'), 2600); }
   win = r2(win + jackpot);
@@ -1734,7 +1735,7 @@ async function doSpin() {
     countUp($('#ledW', MS.f), 0, win, 700, v => NF2.format(v));
     await multPop(win / stake, win, teased);
     if (jackpot) { S.st.jackpots++; await celebrate(jackpot, 999, JP[m.jp].n.toUpperCase() + ' JACKPOT'); }
-    else if (!free) await celebrate(win, win / stake, rb100 && win >= stake * 100 ? '🌈 REGENBOGEN-GEWINN' : undefined);
+    else if (!free) await celebrate(win, win / stake, rb100 && win >= stake * 20 ? '🌈 REGENBOGEN-GLÜCK' : undefined);
     else { SND.win(); FX.burst(30, { coins: true }); }
   } else if (!free) { if (allIn) SND.lose(); }
   if (best.ev.fs && !free) { // 🚫 in Freispielen gibt's keine weiteren Freispiele
@@ -1744,10 +1745,10 @@ async function doSpin() {
     FX.burst(90);
   }
   if (rbDrop) {
-    S.pot100 = (S.pot100 || 0) + 1; S.st.rb100 = (S.st.rb100 || 0) + 1; save(); flash(); SND.big(); vib([100, 50, 100, 50, 200]);
+    S.pot[100] = (S.pot[100] || 0) + 1; S.st.rb100 = (S.st.rb100 || 0) + 1; save(); flash(); SND.big(); vib([100, 50, 100, 50, 200]);
     FX.burst(200, { cols: ['#ff5a5a', '#ffb84a', '#ffe14a', '#5ad86a', '#4ab0ff', '#b06aff'] }); FX.rain(160, 3000);
     await new Promise(res => { const o = sheet(`<div style="text-align:center"><div style="font-size:90px">🌈🧪</div><h2 style="font-size:34px;background:linear-gradient(90deg,#ff5a5a,#ffb84a,#ffe14a,#5ad86a,#4ab0ff,#b06aff);-webkit-background-clip:text;background-clip:text;color:transparent">GLÜCKSTRANK ×100!</h2>
-      <p class="hint" style="font-size:18px">Unfassbar – die Chance war <b>1 : 100.000</b>! Trink ihn hier am Regenbogen-Automaten: Der nächste Dreh zahlt mit 99 % Chance <b>${fmt(RB_ST * 100)}</b>.</p><button class="btn white w" data-close>Wow! 🌈</button></div>`, { center: true, onClose: res }); });
+      <p class="hint" style="font-size:18px">Unfassbar – die Chance war <b>1 : 100.000</b>! Er gibt dir <b>100-fach Glück für ${POT_R[100]} Drehs</b> – an jedem Automaten, bei jedem Einsatz, ohne Gewinn-Deckel. Trinken: bunter Knopf am Regenbogen-Automaten oder im Glückslabor.</p><button class="btn white w" data-close>Wow! 🌈</button></div>`, { center: true, onClose: res }); });
     if (typeof feedWin === 'function') try { fsCreate('feed', null, { name: fstr(S.name), disp: fstr(S.disp), txt: fstr('hat den 🌈 Glückstrank ×100 gefunden! (1 : 100.000)'), ts: fint(Date.now()), clan: fstr(myTag()) }).catch(() => { }); } catch (e) { }
   }
   if (free) MS.fs--;
@@ -2156,7 +2157,7 @@ function buyTicket(L) {
   cd.n++; if (cd.n >= 5) { cd.n = 0; cd.until = Date.now() + 30000; }
   S.st.scratches++; taskProg('scratch', 1);
   if (Math.random() < 1 / 3000) setTimeout(() => { addEnergy(1); toast('⚡ Seltener Fund auf dem Los: +1 Energie!', 'good', 4000); SND.big(); }, 1500);
-  let rolls = 1; if (S.potAct && L.p <= potCap()) { rolls = S.potAct.m; S.potAct.left--; }
+  let rolls = 1; if (S.potAct && (S.potAct.m === 100 || L.p <= potCap())) { rolls = S.potAct.m; S.potAct.left--; }
   let res = null; for (let k = 0; k < rolls; k++) { const r = genTicket(L); if (!res || r.win > res.win) res = r; }
   if (S.potAct && S.potAct.left <= 0) { S.potAct = null; toast('Dein Glückstrank ist aufgebraucht.'); }
   TK[L.id] = { res, rev: {}, done: false, nr: `${rint(1000, 9999)}-${rint(10000, 99999)}-${rint(10, 99)}` };
@@ -2575,10 +2576,10 @@ function tasksHTML(list) {
 function untilMidnight() { const n = new Date(Date.now()), m = new Date(n); m.setHours(24, 0, 0, 0); const s = (m - n) / 1000; return `${Math.floor(s / 3600)} Std. ${Math.floor(s % 3600 / 60)} Min.`; }
 
 /* ================= Glückstränke ================= */
-const POT_R = { 2: 10, 4: 6, 6: 4 };
+const POT_R = { 2: 10, 4: 6, 6: 4, 100: 10 }; // ×100 = 🌈 Regenbogen-Trank (super selten)
 const potCap = () => r2(base() * 1.5);
 function potionsHTML() {
-  return `<div class="pots">${[2, 4, 6].map(m => `<div><div class="pot p${m}"><i>×${m}</i></div><b class="num">${S.pot[m]}×</b><button class="btn dark sm w" data-drink="${m}" ${S.pot[m] < 1 || S.potAct ? 'disabled' : ''}>Trinken</button></div>`).join('')}</div>`;
+  return `<div class="pots">${[2, 4, 6, ...((S.pot[100] || 0) > 0 ? [100] : [])].map(m => `<div><div class="pot p${m}"><i>×${m}</i></div><b class="num">${S.pot[m]}×</b><button class="btn dark sm w" data-drink="${m}" ${S.pot[m] < 1 || S.potAct ? 'disabled' : ''}>Trinken</button></div>`).join('')}</div>`;
 }
 function bindPotions(root, cb) {
   root.addEventListener('click', e => {
@@ -5381,7 +5382,7 @@ function rbHelp(m) {
     <div class="card tight" style="background:#151517;padding:8px 16px;margin:8px 0">${rows}</div>
     <div class="hint" style="font-size:17px;line-height:1.5">
       <b>3. 🌈 Glückstrank ×100:</b> Bei <b>jedem</b> Dreh kann er zufällig auftauchen – Chance <b>1 : 100.000</b>. Er hat nichts mit den Symbolen zu tun.<br><br>
-      <b>4. Trank benutzen:</b> Auf den bunten Knopf <b>🌈 ×100-Trank</b> tippen und drehen → mit <b>99 %</b> Chance gewinnst du <b>${fmt(RB_ST * 100)}</b>!<br><br>
+      <b>4. Trank benutzen:</b> Auf den bunten Knopf <b>🌈 ×100-Trank</b> tippen → <b>100-fach Glück für ${POT_R[100]} Drehs</b>: Jeder Dreh wird 100× gewürfelt und du bekommst das beste Ergebnis – an <b>jedem</b> Automaten, bei <b>jedem</b> Einsatz und ohne Gewinn-Deckel. 🤯<br><br>
       ⚠️ Ehrlich gesagt: Ohne Trank zahlt der Automat im Schnitt nur ca. <b>40 %</b> zurück – hier spielt man für den Traum vom Trank. 🌈<br><br>
       🏆 Wer am meisten reinsteckt, steht bei den <b>Regenbogen-Königen</b>.</div>
     <button class="btn white w" data-close style="margin-top:12px">Los geht's 🌈</button>`);
@@ -5438,7 +5439,7 @@ async function openRbTop() {
     const mi = MACH.findIndex(m => m.rb); if (mi < 0) return;
     const m = MACH[mi], lk = isLockedM(m);
     el.insertAdjacentHTML('afterbegin', `<div class="rbAd" id="rbAd"><span class="rbN">✨ NEU</span><div class="rbT">Regenbogen-Rausch</div>
-      <div class="rbS">Der seltenste Schatz im Casino: der <b>🌈 Glückstrank ×100</b>.<br>Nur hier zu finden – und er bringt <b>${fmt(RB_ST * 100)}</b>!</div>
+      <div class="rbS">Der seltenste Schatz im Casino: der <b>🌈 Glückstrank ×100</b>.<br>Nur hier zu finden – <b>100-fach Glück</b> für ${POT_R[100]} Drehs! 🤯</div>
       <div style="display:inline-block;margin-top:10px;padding:5px 12px;border-radius:999px;background:#ffffff1a;border:1px solid #ffffff33;font-weight:800;font-size:15px">🎲 Chance pro Dreh: 1 : 100.000</div>
       <div class="rbGo">${lk ? `🔒 Ab Level ${m.lvl}` : '🎰 Jetzt drehen · 1.000 €'}</div>
       <div class="rbE">🌈<i style="left:-14px;top:-6px">✨</i><i style="right:-8px;bottom:0;animation-delay:.9s">⭐</i></div></div>`);
