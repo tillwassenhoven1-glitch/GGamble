@@ -1329,7 +1329,7 @@ function afterMoney() { S.st.maxBal = Math.max(S.st.maxBal, S.bal); hdr(true); c
 function addXP(x) {
   S.xp += x; let up = false; const lv0 = S.level;
   while (S.xp >= xpNeed(S.level)) { S.xp -= xpNeed(S.level); S.level++; up = true; }
-  if (up) { const lv = S.level, n = lv - lv0; if (typeof bpAdd === 'function') bpAdd(n * BP_PER); whenFree(() => setTimeout(() => { toast(`Level ${lv} erreicht! +${n} Battle-Pass-Stufe${n > 1 ? 'n' : ''} 🎟️ 🎉`, 'good'); FX.burst(80); SND.win(); }, 300)); checkAch(); }
+  if (up) { const lv = S.level, n = lv - lv0; if (typeof bpAdd === 'function') bpAdd(n * BP_PER / 2); whenFree(() => setTimeout(() => { toast(`Level ${lv} erreicht! +${n * 50} Battle-Pass-Punkte 🎟️ 🎉`, 'good'); FX.burst(80); SND.win(); }, 300)); checkAch(); }
 }
 function applyInterest() {
   const now = Date.now(), h = (now - S.lastInt) / 36e5;
@@ -3750,8 +3750,11 @@ async function renameAcc(name, pw) {
 }
 /* ================= Belohnungen (Battle Pass + Kalender) ================= */
 const RW_F = .75; // 💸 Wirtschaft etwas gedrosselt (0.2.6)
-function rwTxt([t, v]) {
-  if (t === 'm') return fmt(r2(v * base() * RW_F));
+/* Belohnungs-Basis: beim Battle Pass hängt sie an der Stufe (nicht nur am Spieler-Level) → kein „hochleveln & dann alles abholen“ */
+const rwBase = cap => r2(40 * Math.pow(1.13, Math.min(S.level, cap == null ? 999 : cap)));
+const bpCap = i => 5 + Math.floor(i / 2);
+function rwTxt([t, v], cap) {
+  if (t === 'm') return fmt(r2(v * rwBase(cap) * RW_F));
   if (t === 'p') return `Glückstrank ×${v}`;
   if (t === 'e') return `+${v} ⚡ Energie`;
   if (t === 'f') return `Rahmen „${frName(v)}“`;
@@ -3761,9 +3764,9 @@ function rwTxt([t, v]) {
   return '';
 }
 function rwIcon(t) { return { m: '💰', p: '🧪', e: '⚡', f: '🖼️', t: '🏷️', ft: '🔥', big: '🎁' }[t] || '🎁'; }
-function giveRw([t, v]) {
-  const txt = rwTxt([t, v]);
-  if (t === 'm') earn(r2(v * base() * RW_F), 'Belohnung');
+function giveRw([t, v], cap) {
+  const txt = rwTxt([t, v], cap);
+  if (t === 'm') earn(r2(v * rwBase(cap) * RW_F), 'Belohnung');
   else if (t === 'p') S.pot[v] = (S.pot[v] || 0) + 1;
   else if (t === 'e') addEnergy(v);
   else if (t === 'f') { if (!S.frames.includes(v)) S.frames.push(v); }
@@ -3820,7 +3823,7 @@ function bpmHTML() {
 }
 function bpClaim(i) {
   if (i >= bpLv() || S.bp.got.includes(i)) return null;
-  S.bp.got.push(i); return giveRw(BP_R[i]);
+  S.bp.got.push(i); return giveRw(BP_R[i], bpCap(i));
 }
 function renderPass(el) {
   const lv = bpLv(), pts = S.bp.pts, inLv = lv >= BP_N ? BP_PER : pts % BP_PER, open = bpOpen();
@@ -3831,7 +3834,7 @@ function renderPass(el) {
       <p class="hint">${lv >= BP_N ? 'Alles geschafft – stark! 🔥' : `Noch ${Math.ceil(BP_PER - inLv)} Punkte bis Stufe ${lv + 1}`}</p>
       ${open ? `<button class="btn gold w" id="bpAll">Alle ${open} Belohnungen abholen</button>` : ''}</div>
     ${bpmHTML()}
-    <div class="bpl">${BP_R.map((r, i) => { const got = S.bp.got.includes(i), ok = i < lv; return `<div class="bpi ${got ? 'got' : ok ? 'ok' : ''}"><span class="bpn">${i + 1}</span><span class="bpic">${rwIcon(r[0])}</span><span class="bpt">${rwTxt(r)}</span>${got ? '<span class="chip">✓</span>' : ok ? `<button class="btn gold xs" data-bp="${i}">Abholen</button>` : '<span class="chip">🔒</span>'}</div>`; }).join('')}</div>
+    <div class="bpl">${BP_R.map((r, i) => { const got = S.bp.got.includes(i), ok = i < lv; return `<div class="bpi ${got ? 'got' : ok ? 'ok' : ''}"><span class="bpn">${i + 1}</span><span class="bpic">${rwIcon(r[0])}</span><span class="bpt">${rwTxt(r, bpCap(i))}</span>${got ? '<span class="chip">✓</span>' : ok ? `<button class="btn gold xs" data-bp="${i}">Abholen</button>` : '<span class="chip">🔒</span>'}</div>`; }).join('')}</div>
     <p class="hint">Jeden Monat startet eine neue Saison. Rahmen und Titel bleiben für immer.</p>`;
   $('#back', el).onclick = () => go('spiele');
   const all = $('#bpAll', el); if (all) all.onclick = () => { const t = []; for (let i = 0; i < bpLv(); i++) { const x = bpClaim(i); if (x) t.push(x); } SND.big(); FX.burst(80, { coins: true }); toast(`🎟️ ${t.length} Belohnungen abgeholt!`, 'good'); go('pass', true); };
@@ -3897,7 +3900,7 @@ function openCal() {
   const st = calState();
   const o = sheet(`<div class="row sb"><h2>📆 Login-Kalender</h2><button class="x" data-close>${icon('x')}</button></div>
     <p class="hint" style="font-size:17px">Komm jeden Tag wieder! Wer einen Tag auslässt, fängt wieder bei Tag 1 an. Am 7. Tag gibt's den großen Preis.</p>
-    <div class="calg">${CAL.map((r, i) => { const d = i + 1, done = st.ready ? d < st.day : d <= st.day, now = st.ready && d === st.day; return `<div class="cald ${done ? 'got' : ''} ${now ? 'now' : ''} ${d === 7 ? 'big' : ''}"><small>Tag ${d}</small><span class="calic">${done ? '✅' : rwIcon(r[0])}</span><b>${rwTxt(r)}</b></div>`; }).join('')}</div>
+    <div class="calg">${CAL.map((r, i) => { const d = i + 1, done = st.ready ? d < st.day : d <= st.day, now = st.ready && d === st.day; return `<div class="cald ${done ? 'got' : ''} ${now ? 'now' : ''} ${d === 7 ? 'big' : ''}"><small>Tag ${d}</small><span class="calic">${done ? '✅' : rwIcon(r[0])}</span><b>${rwTxt(r, bpCap(i))}</b></div>`; }).join('')}</div>
     ${st.ready ? `<button class="btn gold w" id="calGo" style="margin-top:16px;font-size:20px">Tag ${st.day} abholen</button>` : `<p class="hint" style="text-align:center;font-size:17px">✅ Heute schon abgeholt – morgen geht's weiter (Tag ${(st.day % 7) + 1}).</p>`}`, { center: true });
   const b = $('#calGo', o); if (b) b.onclick = () => {
     const s2 = calState(); if (!s2.ready) return;
