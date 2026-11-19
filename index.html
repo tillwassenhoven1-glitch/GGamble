@@ -5352,6 +5352,36 @@ function openReactor() {
 /* ================= Seiten erweitern ================= */
 { const Im = PAGES.imperium; PAGES.imperium = el => { Im(el); const c = $('.card', el); if (c) { c.insertAdjacentHTML('afterend', '<button class="btn gold w" id="toCity" style="margin-bottom:14px;font-size:20px">🏙️ Meine Straße in 3D ansehen</button>'); $('#toCity', el).onclick = () => { SND.click(); openCity(); }; } }; }
 PAGES.crash = renderCrash; PAGES.pass = renderPass; PAGES.clan = renderClan; PAGES.freunde = renderFreunde;
+/* 🌈 Ankündigung oben in der Halle: Regenbogen-Rausch – antippen öffnet den Automaten */
+(function () {
+  const css = document.createElement('style');
+  css.textContent = `.rbAd{position:relative;overflow:hidden;border-radius:28px;padding:22px 96px 20px 22px;margin:0 0 18px;cursor:pointer;color:#fff;isolation:isolate;
+    background:linear-gradient(115deg,#ff3d6e,#ff9a3d,#ffe14a,#4ee06e,#3db4ff,#9a5bff,#ff3d6e);background-size:400% 100%;animation:rbMove 6s linear infinite;
+    box-shadow:0 0 0 2px #ffffff55 inset,0 14px 40px rgba(255,90,200,.35),0 0 60px rgba(120,160,255,.25);transition:transform .15s}
+  .rbAd:active{transform:scale(.98)}
+  .rbAd::before{content:'';position:absolute;inset:3px;border-radius:25px;background:linear-gradient(180deg,rgba(20,8,40,.86),rgba(30,10,55,.78));z-index:-1}
+  .rbAd::after{content:'';position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.35),transparent);transform:skewX(-20deg);animation:rbShine 3.2s ease-in-out infinite;z-index:1;pointer-events:none}
+  .rbAd .rbT{font-size:28px;font-weight:900;letter-spacing:-.5px;line-height:1.1;background:linear-gradient(90deg,#ff7a9a,#ffc46a,#fff27a,#7cf09a,#7ac8ff,#c39aff);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .rbAd .rbN{display:inline-block;font-size:12px;font-weight:900;letter-spacing:2px;color:#111;background:#fff27a;border-radius:20px;padding:4px 10px;margin-bottom:10px;animation:rbPulse 1.2s ease-in-out infinite}
+  .rbAd .rbS{font-size:16px;color:#e9e0ff;margin-top:8px;line-height:1.4}
+  .rbAd .rbGo{display:inline-flex;align-items:center;gap:8px;margin-top:14px;background:#fff;color:#2a0f3a;font-weight:900;border-radius:999px;padding:10px 18px;font-size:17px}
+  .rbAd .rbE{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:64px;filter:drop-shadow(0 6px 14px rgba(0,0,0,.4));animation:rbFloat 2.4s ease-in-out infinite}
+  .rbAd .rbE i{position:absolute;font-style:normal;font-size:22px;animation:rbSpark 1.8s ease-in-out infinite}
+  @keyframes rbMove{to{background-position:400% 0}} @keyframes rbShine{0%,55%{left:-60%}100%{left:130%}}
+  @keyframes rbPulse{50%{transform:scale(1.08)}} @keyframes rbFloat{50%{transform:translateY(-58%) rotate(-6deg)}} @keyframes rbSpark{0%,100%{opacity:0;transform:scale(.5)}50%{opacity:1;transform:scale(1)}}`;
+  document.head.appendChild(css);
+  const _h = PAGES.halle;
+  PAGES.halle = el => {
+    _h(el);
+    const mi = MACH.findIndex(m => m.rb); if (mi < 0) return;
+    const m = MACH[mi], lk = isLockedM(m);
+    el.insertAdjacentHTML('afterbegin', `<div class="rbAd" id="rbAd"><span class="rbN">✨ NEU</span><div class="rbT">Regenbogen-Rausch</div>
+      <div class="rbS">Der seltenste Schatz im Casino: der <b>🌈 Glückstrank ×100</b>.<br>Nur hier zu finden – und er bringt <b>${fmt(RB_ST * 100)}</b>!</div>
+      <div class="rbGo">${lk ? `🔒 Ab Level ${m.lvl}` : '🎰 Jetzt drehen · 1.000 €'}</div>
+      <div class="rbE">🌈<i style="left:-14px;top:-6px">✨</i><i style="right:-8px;bottom:0;animation-delay:.9s">⭐</i></div></div>`);
+    $('#rbAd', el).onclick = () => { if (isLockedM(m)) { toast(`🌈 Regenbogen-Rausch gibt's ab Level ${m.lvl}`); SND.err(); return; } SND.click(); S.lastSlot = mi; save(); openMachine(mi); };
+  };
+})();
 (() => {
   const H = PAGES.halle; PAGES.halle = el => { H(el); if (onlineOn()) { const tp = $('.halle-top', el); if (tp) { tp.insertAdjacentHTML('afterend', '<button class="onl hidden" id="onlB"></button>'); onlDraw(); $('#onlB', el).onclick = onlShow; } const t = $('.halle-top', el); if (t) { t.insertAdjacentHTML('afterend', '<div class="card feed" id="feedBox"></div>'); feedDraw(); const ob = $('#onlB', el); if (ob) $('#feedBox', el).before(ob); } } };
   const Sp = PAGES.spiele; PAGES.spiele = el => {
