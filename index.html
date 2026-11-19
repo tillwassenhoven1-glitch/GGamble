@@ -1578,8 +1578,10 @@ function openSlotList() {
 }
 
 /* ================= Automat spielen ================= */
-const STAKE_G = 1.31; // Höchsteinsatz: Level 10 ≈ 114 €, Level 20 ≈ 1.700 €, Level 30 ≈ 25.000 €
-const maxStake = () => 10 * Math.pow(STAKE_G, S.level - 1);
+const STAKE_G = 1.31; // Höchsteinsatz bis Level 10 (≈ 114 €)
+// bis Level 10 wie bisher, danach flacher (+15 % pro Level): Level 20 ≈ 460 €, Level 25 ≈ 930 €, Level 30 ≈ 1.870 €
+const WIN_CAP = 100, FS_CAP = 250;
+const maxStake = () => S.level <= 10 ? 10 * Math.pow(STAKE_G, S.level - 1) : 10 * Math.pow(STAKE_G, 9) * Math.pow(1.15, S.level - 10);
 const maxBtnStake = () => Math.max(0, Math.min(S.bal, maxStake(), S.potAct ? potCap() : Infinity)); // „Max“-Knopf: mit Trank nur bis zur Trank-Grenze
 const STAKES = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000, 500000, 1e6, 2.5e6, 1e7];
 let MS = null; // Maschinen-Session
@@ -1701,6 +1703,9 @@ async function doSpin() {
   MS.frozen = false; MS.upd();
   MS.grid = best.g;
   let win = best.ev.tot * (free ? 2 : 1);
+  // 🧢 Gewinn-Deckel: höchstens ×100 pro Dreh, Freispiel-Serie insgesamt höchstens ×250
+  if (win > stake * WIN_CAP) { const f = stake * WIN_CAP / win; best.ev.wins = best.ev.wins.map(w => ({ ...w, w: w.w * f })); win = stake * WIN_CAP; }
+  if (free && MS.fsWin + win > stake * FS_CAP) win = Math.max(0, stake * FS_CAP - MS.fsWin);
   if (best.ev.wins.length) { showWins(best.ev.wins); const cb = $('.cab', MS.f); cb.classList.add('winning'); setTimeout(() => cb && cb.classList.remove('winning'), 2600); }
   win = r2(win + jackpot);
   if (free) MS.fsWin = r2(MS.fsWin + win);
@@ -3915,7 +3920,7 @@ function openCal() {
 /* ================= Crash ================= */
 const CR = { hist: [], run: null, stake: 10, auto: '' };
 const CR_K = .00009;
-function crashPoint() { const u = Math.random(); return Math.min(1000, Math.max(1, Math.floor(.96 / (1 - u) * 100) / 100)); }
+function crashPoint() { const u = Math.random(); return Math.min(100, Math.max(1, Math.floor(.96 / (1 - u) * 100) / 100)); }
 const crFmt = m => NF2.format(m) + '×';
 const crCol = m => m < 2 ? '#e8524a' : m < 10 ? '#4cc265' : '#e8c45a';
 function renderCrash(el) {
