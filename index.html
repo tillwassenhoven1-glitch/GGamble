@@ -1735,7 +1735,7 @@ async function doSpin() {
   if (!free && !gift && S.fakeWin && !best.ev.fs) { // 🎭 Fake-Riesengewinn vom Besitzer: nur Show, kein Geld
     const fm = S.fakeWin.m, fv = r2(stake * fm); S.fakeWin = null; save(); MS.busy = true; autoStop();
     countUp($('#ledW', MS.f), 0, fv, 900, v => NF2.format(v)); await multPop(fm, fv, true); await celebrate(fv, fm);
-    MS.busy = false; setTimeout(() => { toast('😜 Reingelegt! Der Riesengewinn war nur ein Fake vom Besitzer.', 'good', 5000); SND.click(); const l = MS && $('#ledW', MS.f); if (l) l.textContent = NF2.format(win); }, 600);
+    MS.busy = false; setTimeout(() => { const l = MS && $('#ledW', MS.f); if (l) l.textContent = NF2.format(win); }, 600); // ohne Auflösung
     return;
   }
   if (MS.auto) autoNext(win, stake, !!best.ev.fs, free);
