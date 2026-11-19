@@ -32,7 +32,7 @@ Version 0.2.8 · Open Beta
 - 📊 **Börse** – läuft auch offline weiter (Stop Loss, Take Profit, Orders) – 5 erfundene Märkte (XRZ-Coin, Döner AG, Kiosk-Kette, Gold, GG/EUR) mit Kerzen-Chart, Long/Short, Hebel bis 1:20, Stop Loss, Take Profit, Limit- und Stop-Orders
 - 🎲 **Spiele** – Hütchenspiel, Kassensturz, Pfandflaschen und Inventur (10 Energie, alle 5 Min. +1 – auch offline; nur wer alle Aufgaben schafft, bekommt extra Energie), Tages- und Wochenaufgaben, das **Glückslabor** und dein **Imperium** aus 8 Geschäften, die auch offline Geld bringen
 - 🙈 **Bestenliste-Sperre** (Admin) – Konten aus allen Bestenlisten ausblenden
-- 🌈 **Regenbogen-Rausch** – 1.000 €/Dreh, mit Glück (1 : 137.000) den Glückstrank ×100 finden
+- 🌈 **Regenbogen-Rausch** – 1.000 €/Dreh, mit Glück (1 : 100.000) den Glückstrank ×100 finden
 - 🖼️ **Profilbilder** für alle sichtbar
 - ✏️ **Namen ändern** (Einstellungen, 1× pro Woche)
 - 🎟️ **Battle Pass**: Missionen, +1 Stufe pro Level-Up, Punkte für große Gewinne

@@ -1400,10 +1400,10 @@ const MACH = [
   { n: 'Book of Gold', s: '5 Walzen · Buch-Freispiele', c: '#f2c94c', c2: '#2a1a05', ic: '📖', lvl: 21, t: 'v', mx: 500, hi: ['🦅', '🗿', '🏺', '🧭'], wild: '📖', scat: '📖' },
   { n: 'Royal Crown', s: 'Mit Grand-Jackpot', c: '#ffd65a', c2: '#2a1450', ic: '👑', lvl: 24, t: 'j', jp: 'grand', top: 200, syms: ['🍒', '🔔', '💍', '💰', '👑', '7'] },
   { n: 'Black Diamond', s: '5 Walzen · High Roller', c: '#d0d0d0', c2: '#101010', ic: '🖤', lvl: 28, t: 'v', mx: 1000, hi: ['🎩', '🥂', '🏎️', '🖤'], wild: '💎', scat: '🎰' },
-  // 🌈 Regenbogen-Rausch: 1.000 € pro Dreh, sehr schlechte Quote (40 %) – aber nur hier gibt's den Glückstrank ×100 (1 : 137.000)
+  // 🌈 Regenbogen-Rausch: 1.000 € pro Dreh, sehr schlechte Quote (40 %) – aber nur hier gibt's den Glückstrank ×100 (1 : 100.000)
   { n: 'Regenbogen-Rausch', s: '1.000 € pro Dreh · 🌈 Glückstrank ×100', c: '#ff7ad9', c2: '#2a0f3a', ic: '🌈', t: 'c', top: 50, rb: 1, rtp: .4, syms: ['🍬', '🍭', '🧁', '🦄', '⭐', '🌈'] },
 ];
-const RB_ST = 1000, RB_CH = 1 / 137000; // Einsatz Regenbogen-Automat, Chance auf Trank ×100
+const RB_ST = 1000, RB_CH = 1 / 100000; // Einsatz Regenbogen-Automat, Chance auf Trank ×100 (1 : 100.000)
 const MLVL = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 50];
 MACH.forEach((m, i) => { m.i = i; m.t = m.t || 'c'; m.lvl = m.rb ? 10 : MLVL[i]; });
 const JP = { mini: { n: 'Mini', seed: 500, ch: 1 / 1500, ref: 2 }, major: { n: 'Major', seed: 5000, ch: 1 / 6000, ref: 10 }, grand: { n: 'Grand', seed: 50000, ch: 1 / 25000, ref: 50 } };
@@ -1606,7 +1606,8 @@ function openMachine(i) {
   document.body.classList.add('inmach');
   const f = document.createElement('div'); f.className = 'full';
   f.innerHTML = `<div class="machine" style="--mc:${m.c}">
-    <div class="mhead"><button class="pill circbtn" id="mBack">${icon('left')}</button><div class="pill mtitle"><b>${esc(m.n)}</b><small>${m.t === 'v' ? '10' : '5'} Linien</small></div><button class="pill circbtn" id="mInfo">${icon('info')}</button></div>
+    <div class="mhead"><button class="pill circbtn" id="mBack">${icon('left')}</button><div class="pill mtitle"><b>${esc(m.n)}</b><small>${m.t === 'v' ? '10' : '5'} Linien</small></div>${m.rb ? '<button class="pill circbtn" id="rbHelp" style="font-size:24px;font-weight:900">?</button>' : ''}<button class="pill circbtn" id="mInfo">${icon('info')}</button></div>
+    ${m.rb ? '<div style="text-align:center;margin:-4px 0 8px"><span style="display:inline-block;padding:6px 14px;border-radius:999px;background:linear-gradient(90deg,#ff5a5a33,#ffe14a33,#4ab0ff33,#b06aff33);border:1px solid #ffffff33;font-weight:800;font-size:15px">🌈 Glückstrank ×100 · Chance 1 : 100.000 pro Dreh</span></div>' : ''}
     ${m.t === 'j' ? `<div class="jpbar" style="--c:${m.c}"><span>${JP[m.jp].n}-Jackpot: <b id="jpV" class="num">${fmt(S.jp[m.jp])}</b></span></div>` : ''}
     ${cabHTML(m, 0)}
     ${m.rb ? '<div class="rblb" id="rbLb"></div>' : ''}
@@ -1644,10 +1645,11 @@ function openMachine(i) {
     const jv = $('#jpV', f); if (jv) jv.textContent = fmt(S.jp[m.jp]);
   };
   MS.upd = upd; upd();
+  if (m.rb) $('#rbHelp', f).onclick = () => { if (!MS.busy) rbHelp(m); };
   if (m.rb) { $('#sMinus', f).style.visibility = $('#sPlus', f).style.visibility = 'hidden';
     rbTopLoad($('#rbLb', f)); const rbIv = setInterval(() => { if (!MS || !MS.m.rb) return clearInterval(rbIv); if (!document.hidden) rbTopLoad($('#rbLb', MS.f)); }, 90000);
     $('#rbPot', f).onclick = () => { if (MS.busy) return; if (MS.rb100) { MS.rb100 = false; S.pot100 = (S.pot100 || 0) + 1; save(); MS.upd(); return; }
-      if (!(S.pot100 > 0)) { toast(`🌈 Du hast keinen Glückstrank ×100. Er kann hier bei jedem Dreh mit 1 : 137.000 auftauchen!`, '', 3500); return; }
+      if (!(S.pot100 > 0)) { toast(`🌈 Du hast keinen Glückstrank ×100. Er kann hier bei jedem Dreh mit 1 : 100.000 auftauchen!`, '', 3500); return; }
       S.pot100--; MS.rb100 = true; save(); flash(); SND.big(); FX.burst(120, { cols: ['#ff5a5a', '#ffb84a', '#ffe14a', '#5ad86a', '#4ab0ff', '#b06aff'] }); toast('🌈 Glückstrank ×100 getrunken – der nächste Dreh wird riesig!', 'good', 3000); MS.upd(); }; }
   $('#sMinus', f).onclick = () => { if (MS.busy) return; MS.allIn = S.maxOn = false; S.stakeI = Math.max(0, S.stakeI - 1); SND.click(); upd(); };
   $('#sPlus', f).onclick = () => { if (MS.busy) return; MS.allIn = S.maxOn = false; const n = Math.min(STAKES.length - 1, S.stakeI + 1); if (STAKES[n] > maxStake()) { let l = S.level; while (10 * Math.pow(STAKE_G, l - 1) < STAKES[n]) l++; toast(`${fmt(STAKES[n])} Einsatz gibt's ab Level ${l}`); SND.err(); return; } S.stakeI = n; SND.click(); upd(); };
@@ -1666,7 +1668,7 @@ function machInfo(m) {
     : m.cells.map((s, i) => `<div class="row sb" style="padding:8px 0;border-bottom:1px solid var(--line)"><span style="font-size:28px">${symHTML(s)}${symHTML(s)}${symHTML(s)}</span><span class="num">${r2(m.pay[i] / 5)}× Einsatz</span></div>`).reverse().join('');
   sheet(`<div class="row sb"><h2>${esc(m.n)}</h2><button class="x" data-close>${icon('x')}</button></div>
     <p class="hint">${m.t === 'v' ? `5 Walzen, 10 Gewinnlinien von links nach rechts. ${symHTML(m.wild)} ist Wild und ersetzt alle Symbole${m.scat === m.wild ? ' und ist gleichzeitig Scatter' : ''}. 3+ ${symHTML(m.scat)} irgendwo = 10 Freispiele, in den Freispielen zählt jeder Gewinn doppelt. Werte = Vielfaches des Einsatzes.` : `3 Walzen, 5 Gewinnlinien (3 Reihen + 2 Diagonalen). Werte = Gewinn pro Linie als Vielfaches des Gesamteinsatzes.`}
-    ${m.rb ? `<br><br>🌈 <b>Glückstrank ×100:</b> Er hat nichts mit den Symbolen zu tun – bei <b>jedem</b> Dreh hier taucht er zufällig mit 1 : 137.000 auf (dann kommt ein großes Regenbogen-Fenster). 🌈🌈🌈 ist der normale Hauptgewinn (×${m.top}).` : ''}${m.t === 'j' ? `<br><br>🎰 Bei jedem Dreh kannst du den <b>${JP[m.jp].n}-Jackpot</b> knacken (aktuell ${fmt(S.jp[m.jp])}). Volle Auszahlung ab ${fmt(JP[m.jp].ref)} Einsatz.` : ''}
+    ${m.rb ? `<br><br>🌈 <b>Glückstrank ×100:</b> Er hat nichts mit den Symbolen zu tun – bei <b>jedem</b> Dreh hier taucht er zufällig mit 1 : 100.000 auf (dann kommt ein großes Regenbogen-Fenster). 🌈🌈🌈 ist der normale Hauptgewinn (×${m.top}).` : ''}${m.t === 'j' ? `<br><br>🎰 Bei jedem Dreh kannst du den <b>${JP[m.jp].n}-Jackpot</b> knacken (aktuell ${fmt(S.jp[m.jp])}). Volle Auszahlung ab ${fmt(JP[m.jp].ref)} Einsatz.` : ''}
     <br><br>Mit einem Glückstrank wird jeder Dreh mehrmals gewürfelt – du bekommst das beste Ergebnis.</p>
     ${m.t === 'v' ? `<div class="row sb" style="padding:8px 0;border-bottom:1px solid var(--line)"><span style="font-size:28px">${symHTML(m.scat)}</span><span>3× 2 · 4× 10 · 5× 50 + Freispiele</span></div>` : ''}${rows}`);
 }
@@ -1745,8 +1747,8 @@ async function doSpin() {
     S.pot100 = (S.pot100 || 0) + 1; S.st.rb100 = (S.st.rb100 || 0) + 1; save(); flash(); SND.big(); vib([100, 50, 100, 50, 200]);
     FX.burst(200, { cols: ['#ff5a5a', '#ffb84a', '#ffe14a', '#5ad86a', '#4ab0ff', '#b06aff'] }); FX.rain(160, 3000);
     await new Promise(res => { const o = sheet(`<div style="text-align:center"><div style="font-size:90px">🌈🧪</div><h2 style="font-size:34px;background:linear-gradient(90deg,#ff5a5a,#ffb84a,#ffe14a,#5ad86a,#4ab0ff,#b06aff);-webkit-background-clip:text;background-clip:text;color:transparent">GLÜCKSTRANK ×100!</h2>
-      <p class="hint" style="font-size:18px">Unfassbar – die Chance war <b>1 : 137.000</b>! Trink ihn hier am Regenbogen-Automaten: Der nächste Dreh zahlt mit 99 % Chance <b>${fmt(RB_ST * 100)}</b>.</p><button class="btn white w" data-close>Wow! 🌈</button></div>`, { center: true, onClose: res }); });
-    if (typeof feedWin === 'function') try { fsCreate('feed', null, { name: fstr(S.name), disp: fstr(S.disp), txt: fstr('hat den 🌈 Glückstrank ×100 gefunden! (1 : 137.000)'), ts: fint(Date.now()), clan: fstr(myTag()) }).catch(() => { }); } catch (e) { }
+      <p class="hint" style="font-size:18px">Unfassbar – die Chance war <b>1 : 100.000</b>! Trink ihn hier am Regenbogen-Automaten: Der nächste Dreh zahlt mit 99 % Chance <b>${fmt(RB_ST * 100)}</b>.</p><button class="btn white w" data-close>Wow! 🌈</button></div>`, { center: true, onClose: res }); });
+    if (typeof feedWin === 'function') try { fsCreate('feed', null, { name: fstr(S.name), disp: fstr(S.disp), txt: fstr('hat den 🌈 Glückstrank ×100 gefunden! (1 : 100.000)'), ts: fint(Date.now()), clan: fstr(myTag()) }).catch(() => { }); } catch (e) { }
   }
   if (free) MS.fs--;
   S.fsRun = MS.fs > 0 ? { mi: m.i, fs: MS.fs, n: MS.fsN, st: MS.fsStake, w: MS.fsWin } : null; persist();
@@ -4174,7 +4176,7 @@ function rbAnnounce(who) {
     <div style="font-size:clamp(80px,22vw,160px);animation:rbFloat 2.4s ease-in-out infinite">🌈🧪</div>
     <div style="font-size:clamp(34px,9vw,72px);font-weight:900;line-height:1.05;background:linear-gradient(90deg,#ff5a5a,#ffb84a,#ffe14a,#5ad86a,#4ab0ff,#b06aff);-webkit-background-clip:text;background-clip:text;color:transparent">GLÜCKSTRANK ×100!</div>
     <div style="font-size:clamp(20px,5vw,32px);font-weight:800"><b style="color:#fff27a">${esc(who)}</b> hat ihn gerade gefunden!</div>
-    <div style="color:#d8c8ff;font-size:17px">Chance 1 : 137.000 · nur im 🌈 Regenbogen-Rausch</div>
+    <div style="color:#d8c8ff;font-size:17px">Chance 1 : 100.000 · nur im 🌈 Regenbogen-Rausch</div>
     <div style="width:min(70vw,320px);height:6px;border-radius:3px;background:#ffffff22;overflow:hidden;margin-top:10px"><i style="display:block;height:100%;background:linear-gradient(90deg,#ff5a5a,#ffe14a,#5ad86a,#4ab0ff,#b06aff);animation:bcBar 5s linear forwards"></i></div></div><style>@keyframes bcBar{from{width:100%}to{width:0}}@keyframes rbFloat{50%{transform:translateY(-8px) rotate(-6deg)}}</style>`);
   SND.big(); vib([100, 50, 100, 50, 200]); flash(); FX.burst(200, { cols: ['#ff5a5a', '#ffb84a', '#ffe14a', '#5ad86a', '#4ab0ff', '#b06aff'] }); FX.rain && FX.rain(160, 3500);
   const ov = document.getElementById('rbAnn'); setTimeout(() => { ov.style.transition = 'opacity .6s'; ov.style.opacity = 0; setTimeout(() => ov.remove(), 600); }, 5000);
@@ -5368,6 +5370,22 @@ function openReactor() {
 /* ================= Seiten erweitern ================= */
 { const Im = PAGES.imperium; PAGES.imperium = el => { Im(el); const c = $('.card', el); if (c) { c.insertAdjacentHTML('afterend', '<button class="btn gold w" id="toCity" style="margin-bottom:14px;font-size:20px">🏙️ Meine Straße in 3D ansehen</button>'); $('#toCity', el).onclick = () => { SND.click(); openCity(); }; } }; }
 PAGES.crash = renderCrash; PAGES.pass = renderPass; PAGES.clan = renderClan; PAGES.freunde = renderFreunde;
+/* ❓ So spielt & gewinnt man am Regenbogen-Rausch */
+function rbHelp(m) {
+  prep(m);
+  const rows = m.syms.map((sy, i) => `<div class="row sb" style="padding:6px 0;border-bottom:1px solid var(--line)"><span style="font-size:26px">${sy}${sy}${sy}</span><b class="num">×${NF2.format(m.pay[i]).replace(/,00$/, '')} = ${fmt(RB_ST * m.pay[i] / LINES3.length)}</b></div>`).join('');
+  sheet(`<div class="row sb"><h2>❓ So geht's</h2><button class="x" data-close>${icon('x')}</button></div>
+    <div class="hint" style="font-size:17px;line-height:1.5;margin-top:0">
+      <b>1. Drehen:</b> Jeder Dreh kostet fest <b>${fmt(RB_ST)}</b>. Gewonnen wird mit 3 gleichen Symbolen auf einer der <b>5 Linien</b> (3 waagerecht, 2 schräg).<br><br>
+      <b>2. Gewinne pro Linie</b> (Einsatz pro Linie ${fmt(RB_ST / LINES3.length)}):</div>
+    <div class="card tight" style="background:#151517;padding:8px 16px;margin:8px 0">${rows}</div>
+    <div class="hint" style="font-size:17px;line-height:1.5">
+      <b>3. 🌈 Glückstrank ×100:</b> Bei <b>jedem</b> Dreh kann er zufällig auftauchen – Chance <b>1 : 100.000</b>. Er hat nichts mit den Symbolen zu tun.<br><br>
+      <b>4. Trank benutzen:</b> Auf den bunten Knopf <b>🌈 ×100-Trank</b> tippen und drehen → mit <b>99 %</b> Chance gewinnst du <b>${fmt(RB_ST * 100)}</b>!<br><br>
+      ⚠️ Ehrlich gesagt: Ohne Trank zahlt der Automat im Schnitt nur ca. <b>40 %</b> zurück – hier spielt man für den Traum vom Trank. 🌈<br><br>
+      🏆 Wer am meisten reinsteckt, steht bei den <b>Regenbogen-Königen</b>.</div>
+    <button class="btn white w" data-close style="margin-top:12px">Los geht's 🌈</button>`);
+}
 /* 🏆 Wer hat am meisten in den Regenbogen-Rausch gesteckt? – neben dem Automaten (Tablet) bzw. darunter (Handy) */
 (function () { const c = document.createElement('style'); c.textContent = `.rblb{max-width:560px;margin:18px auto 0;padding:16px 16px 10px;border-radius:26px;background:linear-gradient(180deg,rgba(40,14,60,.92),rgba(20,8,34,.92));border:1px solid #ff7ad955;box-shadow:0 0 40px rgba(255,90,200,.15)}
   .rblb h3{margin:0 0 4px;font-size:21px;background:linear-gradient(90deg,#ff7a9a,#ffc46a,#fff27a,#7cf09a,#7ac8ff,#c39aff);-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -5421,6 +5439,7 @@ async function openRbTop() {
     const m = MACH[mi], lk = isLockedM(m);
     el.insertAdjacentHTML('afterbegin', `<div class="rbAd" id="rbAd"><span class="rbN">✨ NEU</span><div class="rbT">Regenbogen-Rausch</div>
       <div class="rbS">Der seltenste Schatz im Casino: der <b>🌈 Glückstrank ×100</b>.<br>Nur hier zu finden – und er bringt <b>${fmt(RB_ST * 100)}</b>!</div>
+      <div style="display:inline-block;margin-top:10px;padding:5px 12px;border-radius:999px;background:#ffffff1a;border:1px solid #ffffff33;font-weight:800;font-size:15px">🎲 Chance pro Dreh: 1 : 100.000</div>
       <div class="rbGo">${lk ? `🔒 Ab Level ${m.lvl}` : '🎰 Jetzt drehen · 1.000 €'}</div>
       <div class="rbE">🌈<i style="left:-14px;top:-6px">✨</i><i style="right:-8px;bottom:0;animation-delay:.9s">⭐</i></div></div>`);
     $('#rbAd', el).onclick = () => { if (isLockedM(m)) { toast(`🌈 Regenbogen-Rausch gibt's ab Level ${m.lvl}`); SND.err(); return; } SND.click(); S.lastSlot = mi; save(); openMachine(mi); };
