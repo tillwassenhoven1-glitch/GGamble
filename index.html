@@ -4969,8 +4969,11 @@ function giftReceive(g, all) {
       if (a >= 0) { SND.big(); FX.burst(120, { coins: true }); }
       sheet(`<h2>${a >= 0 ? '🎁 Geschenk!' : '⚖️ Korrektur'}</h2><p class="hint" style="font-size:18px"><b>${esc(g.von || 'Der Besitzer')}</b> hat ${all ? 'allen Spielern, die gerade online sind,' : 'dir'} <b class="${a >= 0 ? 'pos' : 'neg'}">${(GIFT_K[kd === 'fk' ? 'm' : kd] || ['🎁'])[0]} ${giftTxt(kd, a, g.x)}</b> ${a >= 0 ? 'geschenkt' : 'abgezogen'}.${kd === 'sp' ? '<br>Einfach an einem beliebigen Automaten drehen – die ersten Drehs sind gratis!' : ''}${g.msg ? `<br><br>„${esc(g.msg)}“` : ''}</p><button class="btn white w" data-close>OK</button>`, { center: true });
 }
+// Geschenke & Ansagen nie mitten in einen Dreh, Freispiele, Auto-Spin, Crash-Runde oder ein Minispiel (z. B. Glückslabor)
+function popBusy() { return (typeof tnBusy === 'function' && tnBusy()) || !!document.querySelector('.game-ov') || (typeof CR !== 'undefined' && CR && CR.run && !CR.run.done); }
 async function giftPoll() {
   if (!S || !onlineOn() || document.hidden) return;
+  if (popBusy()) { clearTimeout(giftPoll.t); giftPoll.t = setTimeout(giftPoll, 3000); return; }
   try {
     const n = await fsQuery({ from: [{ collectionId: 'gifts' }], where: fEq('to', meKey()), limit: 30 });
     S.gifts = S.gifts || [];
@@ -5142,13 +5145,14 @@ function bcShow(txt, von) {
     <div style="font-size:70px">📢</div><div style="color:#ffd84d;font-weight:800;letter-spacing:2px;font-size:18px">NACHRICHT VOM BESITZER</div>
     <div style="font-size:clamp(30px,8vw,64px);font-weight:900;line-height:1.15;max-width:900px;word-break:break-word">${esc(txt)}</div>
     <div style="color:#a8a8b0;font-size:17px">– ${esc(von || 'Der Besitzer')}</div>
-    <button class="btn white" id="bcOk" style="min-width:200px;font-size:22px;margin-top:10px">OK 👍</button></div>`);
+    <div style="width:min(70vw,320px);height:6px;border-radius:3px;background:#ffffff22;overflow:hidden;margin-top:10px"><i style="display:block;height:100%;background:#ffd84d;animation:bcBar 3s linear forwards"></i></div></div><style>@keyframes bcBar{from{width:100%}to{width:0}}</style>`);
   SND.big(); vib([80, 40, 80]);
   const ov = document.getElementById('bcOv'), hide = () => { if (!ov.isConnected || ov.dataset.h) return; ov.dataset.h = 1; ov.style.transition = 'opacity .5s'; ov.style.opacity = 0; setTimeout(() => ov.remove(), 500); };
-  document.getElementById('bcOk').onclick = hide; setTimeout(hide, 2500); // verschwindet nach 2,5 Sek. von selbst
+  setTimeout(hide, 3000); // nicht wegdrückbar – verschwindet nach 3 Sek. von selbst
 }
 async function bcPoll() {
   if (!S || !onlineOn() || document.hidden) return;
+  if (popBusy()) { clearTimeout(bcPoll.t); bcPoll.t = setTimeout(bcPoll, 3000); return; }
   try {
     const n = await fsQuery({ from: [{ collectionId: 'gifts' }], where: rangeQ('to', '*', Date.now() - 6 * 36e5), limit: 20 });
     S.gifts = S.gifts || []; let last = null;
