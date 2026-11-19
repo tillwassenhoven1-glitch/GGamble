@@ -1240,7 +1240,7 @@ function cloudPut(cid, a, sv) {
   const data = JSON.stringify({ name: a.name, created: a.created, save: sv, dev: DEV_ID }), body = JSON.stringify({ fields: { data: { stringValue: data }, ts: { integerValue: String(Date.now()) } } });
   return fetch(fsDoc('konten/' + cid), { method: 'PATCH', keepalive: body.length < 60000, headers: { 'Content-Type': 'application/json' }, body });
 }
-let cloudT = 0, cloudLast = '', cloudMine = Date.now();
+let cloudT = 0, cloudLast = '', cloudMine = Date.now(); const DIAG = { cloud: '–', rang: '–' };
 /* 📱📱 Gleiches Konto auf 2 Geräten: Vor dem Hochladen prüfen, ob ein anderes Gerät inzwischen neuer gespeichert hat → dann dessen Stand übernehmen statt ihn zu überschreiben */
 const DEV_ID = (() => { try { let d = localStorage.getItem('gg_dev'); if (!d) { d = Math.random().toString(36).slice(2, 10); localStorage.setItem('gg_dev', d); } return d; } catch (e) { return 'x' + Math.random().toString(36).slice(2, 8); } })();
 const syncBusy = () => (typeof T !== 'undefined' && T.room) || (typeof FDX !== 'undefined' && FDX.cur) || (typeof MS !== 'undefined' && MS && (MS.busy || MS.fs > 0)) || (typeof CR !== 'undefined' && CR.run && !CR.run.done) || !!document.querySelector('.game-ov[data-run]');
@@ -1265,7 +1265,7 @@ function cloudPush(now) {
     cloudT = 0; const a = Accounts.all()[ACC]; if (!a || !a.cid || !S) return; const sig = JSON.stringify(S); if (sig === cloudLast) return;
     if (!now && await cloudSync(true)) return; // anderes Gerät ist neuer → nicht überschreiben
     if (!S) return;
-    cloudPut(a.cid, a, S).then(r => { if (r.ok) { cloudLast = sig; cloudMine = Date.now(); } }).catch(() => { });
+    cloudPut(a.cid, a, S).then(r => { DIAG.cloud = (r.skipped ? 'übersprungen (alter Stand)' : r.status) + ' · ' + new Date().toLocaleTimeString(); if (r.ok) { cloudLast = sig; cloudMine = Date.now(); } }).catch(e => { DIAG.cloud = 'Fehler ' + (e.message || '') + ' · ' + new Date().toLocaleTimeString(); });
   };
   if (now) { clearTimeout(cloudT); run(); } else if (!cloudT) cloudT = setTimeout(run, 45000); // seltener speichern (Firebase-Kontingent); beim Schließen wird sofort gespeichert
 }
@@ -2845,6 +2845,7 @@ function pushScore(force) {
   const noWk = Object.assign({}, noDM); ['wk', 'wkk'].forEach(x => delete noWk[x]);
   const tiers = [withHist, withOwn, noDM, noWk, full, f];
   const attempt = i => i >= tiers.length ? Promise.resolve(lbLast = '') : send(tiers[i]).then(r => {
+    DIAG.rang = r.status + ' (Stufe ' + i + ') · ' + new Date().toLocaleTimeString();
     if (r.ok) { lbTier = i; return; }
     if (r.status === 403 || r.status === 400) return attempt(i + 1);
     lbLast = '';
@@ -3383,9 +3384,11 @@ function openSettings() {
     <div class="two"><button class="btn dark sm" id="exp">Code kopieren</button><button class="btn dark sm" id="imp">Code laden</button></div>
     <div class="lbl2">🔑 Code eingeben</div>
     <div id="cheatBox">${S.cheat ? cheatHTML() : `<div class="row"><input class="inp" id="cCode" placeholder="Code…" autocomplete="off"><button class="btn dark sm" id="cGo2">OK</button></div>`}</div>
-    <button class="btn dark w" id="rst" style="margin-top:22px">🔄 Konto zurücksetzen</button>
+    <button class="btn dark w" id="sDiag" style="margin-top:22px">🔍 Online-Diagnose</button>
+    <button class="btn dark w" id="rst" style="margin-top:12px">🔄 Konto zurücksetzen</button>
     <div class="two" style="margin-top:10px"><button class="btn dark" id="out">${icon('out')} Abmelden</button><button class="btn red" id="del">Konto löschen</button></div>`);
   $$('[data-t]', o).forEach(b => b.onclick = () => { const k = b.dataset.t; S.set[k] = S.set[k] === false; b.classList.toggle('on', S.set[k] !== false); save(); SND.click(); });
+  $('#sDiag', o).onclick = () => openDiag();
   $('#rnGo', o).onclick = async function () { this.disabled = true; try { await renameAcc($('#rnN', o).value, $('#rnP', o).value); } finally { this.disabled = false; } };
   $('#sPw', o).onclick = async () => { const p = $('#nPw', o).value; if (p.length < 4) { toast('Mindestens 4 Zeichen', 'bad'); return; } const all = Accounts.all(), a = all[ACC]; a.salt = Math.random().toString(36).slice(2); a.hash = await Accounts.hash(p, a.salt); const old = a.cid; a.cid = await cloudId(ACC, p); Accounts.put(all); persist(); if (onlineOn()) { cloudLast = ''; cloudPush(true); if (old && old !== a.cid) fetch(fsDoc('konten/' + old), { method: 'DELETE' }).catch(() => { }); } $('#nPw', o).value = ''; toast('Passwort geändert ✓', 'good'); };
   $('#exp', o).onclick = async () => { persist(); const code = codeMake({ ...S, photo: '' }); try { await navigator.clipboard.writeText(code); toast('Spielstand-Code kopiert 📋', 'good'); } catch (e) { sheet(`<h2>Dein Code</h2><textarea class="inp" style="height:200px;font-size:12px" readonly>${code}</textarea>`, { center: true }); } };
@@ -5181,6 +5184,26 @@ function openTresor() {
     hdr(true); save();
     setTimeout(() => { if (!o.isConnected) return; v.style.transition = 'transform 1.6s cubic-bezier(.2,.8,.2,1)'; v.textContent = '🔐'; this.disabled = false; $$('#trP button,#trT button', o).forEach(b => b.disabled = false); upd(); if (S.bal < 1000) { o.close(); toast(`💎 Unter ${fmt(1000)} – der Tresor schließt.`); } }, 1600);
   };
+}
+
+/* 🔍 Online-Diagnose: zeigt, warum Bestenliste/Abgleich evtl. nicht klappen (Screenshot an Till) */
+async function openDiag() {
+  const o = sheet(`<div class="row sb"><h2>🔍 Online-Diagnose</h2><button class="x" data-close>${icon('x')}</button></div><div id="dgB" class="hint" style="font-size:16px;line-height:1.55">Prüfe …</div><button class="btn gold w" id="dgFix" style="margin-top:14px">⬆️ Jetzt hochladen & neu prüfen</button>`);
+  const L = [], ok = b => b ? '✅' : '❌', add = (k, v) => L.push(`<div class="row sb" style="gap:10px;border-bottom:1px solid var(--line);padding:6px 0"><span>${k}</span><b style="text-align:right;word-break:break-all">${v}</b></div>`);
+  const run = async () => {
+    L.length = 0; const a = Accounts.all()[ACC] || {};
+    add('Version', esc(VERSION)); add('Name', esc(S.name) + ' (@' + esc(ACC) + ')');
+    add('Bestenlisten-ID', esc(S.lbId || '–')); add('Besitzer', isOwner(S.lbId) ? '👑 ja' : 'nein');
+    add('Spielstand neu (nach Reset)', ok(!isOldSave(S)) + ` ep:${esc(String(S.ep))} · erstellt ${new Date(S.created || 0).toLocaleString()}`);
+    add('Größe Spielstand', Math.round(JSON.stringify(S).length / 1024) + ' KB'); add('Fortschritt', svProg(S));
+    add('Geräte-ID', esc(DEV_ID)); add('Letzter Upload Konto', esc(DIAG.cloud)); add('Letzter Upload Bestenliste', esc(DIAG.rang));
+    try { const cl = a.cid ? await cloudGet(a.cid) : null; add('Konto in der Cloud', cl ? `${ok(true)} Level ${cl.d.save && cl.d.save.level} · ${fmt(cl.d.save && cl.d.save.bal || 0)} · Gerät ${esc(String(cl.d.dev || '?'))}${cl.d.dev === DEV_ID ? ' (dieses)' : ''} · ${new Date(cl.ts).toLocaleTimeString()} · Fortschritt ${svProg(cl.d.save)}` : '❌ nicht gefunden'); } catch (e) { add('Konto in der Cloud', '❌ ' + esc(e.message)); }
+    try { const r = await fetch(fsDoc('rang/' + lbId()), { cache: 'no-store' }); if (!r.ok) add('Bestenlisten-Eintrag', '❌ HTTP ' + r.status); else { const f = (await r.json()).fields || {}, v = k => fval(f[k]); add('Bestenlisten-Eintrag', `${ok(true)} ${esc(String(v('name')))} · Level ${v('level')} · ${fmt(+v('bal') || 0)} · ${new Date(+v('ts') || 0).toLocaleTimeString()}`); add('Für andere sichtbar (seit Reset)', ok((+v('since') || 0) >= RESET_TS) + ' since ' + new Date(+v('since') || 0).toLocaleString()); } } catch (e) { add('Bestenlisten-Eintrag', '❌ ' + esc(e.message)); }
+    try { const set = await lbhLoad(true); add('In Bestenliste-Sperre', set.has(ACC) ? '🙈 JA (ausgeblendet)' : 'nein'); } catch (e) { }
+    const B = $('#dgB', o); if (B) B.innerHTML = L.join('');
+  };
+  $('#dgFix', o).onclick = async function () { this.disabled = true; cloudLast = ''; lbLast = ''; cloudPush(true); pushScore(true); await new Promise(r => setTimeout(r, 2500)); await run(); this.disabled = false; };
+  run();
 }
 
 /* ================= ⚡ Energie-Reaktor: sehr schweres Minispiel, das Energie gibt ================= */
