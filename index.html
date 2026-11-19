@@ -1615,7 +1615,7 @@ function openMachine(i) {
       <div class="g"><small>Guthaben</small><b id="mBal" class="num"></b><em id="mHere" class="num">±0,00 € hier</em><em id="mNote" class="num neg" style="display:block"></em></div>
       <div class="stake"><button class="rb" id="sMinus">−</button><div class="sv"><small>Einsatz</small><b id="mStake" class="num"></b></div><button class="rb" id="sPlus">+</button></div>
     </div>
-    <div class="side"><button id="mLuck" ${m.rb ? 'style="display:none"' : ''}>${icon('spark')} Glück</button><button class="allin" id="mAll" ${m.rb ? 'style="display:none"' : ''}>${icon('flame')} Max</button>${m.rb ? '<button id="rbPot" style="background:linear-gradient(90deg,#ff5a5a,#ffb84a,#ffe14a,#5ad86a,#4ab0ff,#b06aff);color:#111;font-weight:900">🌈 ×100-Trank</button>' : ''}<button class="auto" id="mAuto">🔁 Auto</button></div>
+    <div class="side"><button id="mLuck" ${m.rb ? 'style="display:none"' : ''}>${icon('spark')} Glück</button><button class="allin" id="mAll" ${m.rb ? 'style="display:none"' : ''}>${icon('flame')} Max</button>${m.rb ? '<button id="rbPot" style="background:linear-gradient(90deg,#ff5a5a,#ffb84a,#ffe14a,#5ad86a,#4ab0ff,#b06aff);color:#111;font-weight:900">🌈 ×100-Trank</button>' : ''}${m.rb ? '<button id="rbTop">🏆 Top</button>' : ''}<button class="auto" id="mAuto">🔁 Auto</button></div>
     <button class="btn white w" id="spinBtn">Drehen</button>
   </div>`;
   document.body.appendChild(f);
@@ -1644,6 +1644,7 @@ function openMachine(i) {
   };
   MS.upd = upd; upd();
   if (m.rb) { $('#sMinus', f).style.visibility = $('#sPlus', f).style.visibility = 'hidden';
+    $('#rbTop', f).onclick = () => { if (!MS.busy) openRbTop(); };
     $('#rbPot', f).onclick = () => { if (MS.busy) return; if (MS.rb100) { MS.rb100 = false; S.pot100 = (S.pot100 || 0) + 1; save(); MS.upd(); return; }
       if (!(S.pot100 > 0)) { toast(`🌈 Du hast keinen Glückstrank ×100. Er kann hier bei jedem Dreh mit 1 : 137.000 auftauchen!`, '', 3500); return; }
       S.pot100--; MS.rb100 = true; save(); flash(); SND.big(); FX.burst(120, { cols: ['#ff5a5a', '#ffb84a', '#ffe14a', '#5ad86a', '#4ab0ff', '#b06aff'] }); toast('🌈 Glückstrank ×100 getrunken – der nächste Dreh wird riesig!', 'good', 3000); MS.upd(); }; }
@@ -1680,7 +1681,7 @@ async function doSpin() {
   const shown = { bal: S.bal, here: MS.here };
   MS.busy = true;
   if (gift) { S.gspin.n--; const left = S.gspin.n; if (left <= 0) S.gspin = null; persist(); S.st.spins++; S.st.rounds++; taskProg('spins', 1); toast(left > 0 ? `🎁 Gratis-Dreh · noch ${left}` : '🎁 Letzter Gratis-Dreh!', 'good', 1400); }
-  else if (!free) { if (!bet(stake, m.n)) { MS.busy = false; HOLD = []; return; } MS.here = r2(MS.here - stake); S.st.spins++; taskProg('spins', 1); }
+  else if (!free) { if (!bet(stake, m.n)) { MS.busy = false; HOLD = []; return; } MS.here = r2(MS.here - stake); S.st.spins++; taskProg('spins', 1); if (m.rb) S.st.rbWag = r2((S.st.rbWag || 0) + stake); }
   MS.shown = shown; MS.frozen = true; const lv = $('#lever', MS.f); if (lv) { lv.classList.remove('pull'); void lv.offsetWidth; lv.classList.add('pull'); } const ds = $('#deckSpin', MS.f); ds && ds.classList.add('lit'); setTimeout(() => ds && ds.classList.remove('lit'), 900);
   const btn = $('#spinBtn', MS.f); btn.classList.add('spinning'); btn.textContent = free ? `Freispiel ${MS.fsN - MS.fs + 1} / ${MS.fsN}` : 'Dreht…';
   $$('.cell.win', MS.f).forEach(c => c.classList.remove('win')); $('#lines', MS.f).innerHTML = ''; $('#ledW', MS.f).textContent = '0,00';
@@ -2870,7 +2871,7 @@ let lbFull = true;
 let lbOwn = true, lbTier = 0;
 function pushScore(force) {
   if (!onlineOn() || !S) return;
-  const sig = [S.bal, S.level, S.disp, S.color, S.st.biggest, Object.keys(S.ach).length, S.owner ? 1 : 0, S.wk && S.wk.v, S.dy && S.dy.v, S.tit, S.frm, S.clan ? S.clan.tag : ''].join('|'); if (!force && sig === lbLast) return; lbLast = sig;
+  const sig = [S.bal, S.level, S.disp, S.color, S.st.biggest, S.st.rbWag || 0, Object.keys(S.ach).length, S.owner ? 1 : 0, S.wk && S.wk.v, S.dy && S.dy.v, S.tit, S.frm, S.clan ? S.clan.tag : ''].join('|'); if (!force && sig === lbLast) return; lbLast = sig;
   const f = { name: { stringValue: S.name }, disp: { stringValue: S.disp }, bal: { doubleValue: S.bal }, level: { integerValue: String(S.level) }, color: { integerValue: String(S.color || 0) }, ts: { integerValue: String(Date.now()) } };
   const full = Object.assign({}, f, { big: { doubleValue: S.st.biggest || 0 }, net: { doubleValue: S.st.net || 0 }, bxp: { doubleValue: S.bx.pnl || 0 }, wag: { doubleValue: S.st.wagered || 0 }, since: { integerValue: String(S.created || Date.now()) }, best: { stringValue: S.st.bestGame || '' }, ach: { integerValue: String(Object.keys(S.ach).length) } });
   const send = fields => fetch(`${FS()}/rang/${lbId()}?key=${ONLINE.apiKey}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) });
@@ -2879,7 +2880,8 @@ function pushScore(force) {
   const withHist = Object.assign({}, withOwn, { hist: { stringValue: histPack() } });
   const noDM = Object.assign({}, withOwn); ['dv', 'dk', 'mv', 'mk'].forEach(x => delete noDM[x]);
   const noWk = Object.assign({}, noDM); ['wk', 'wkk'].forEach(x => delete noWk[x]);
-  const tiers = [withHist, withOwn, noDM, noWk, full, f];
+  const withRb = Object.assign({}, withHist, { rbw: { doubleValue: S.st.rbWag || 0 } }); // 🌈 Einsatz am Regenbogen-Automaten
+  const tiers = [withRb, withHist, withOwn, noDM, noWk, full, f];
   const attempt = i => i >= tiers.length ? Promise.resolve(lbLast = '') : send(tiers[i]).then(r => {
     DIAG.rang = r.status + ' (Stufe ' + i + ') · ' + new Date().toLocaleTimeString();
     if (r.ok) { lbTier = i; return; }
@@ -5352,6 +5354,17 @@ function openReactor() {
 /* ================= Seiten erweitern ================= */
 { const Im = PAGES.imperium; PAGES.imperium = el => { Im(el); const c = $('.card', el); if (c) { c.insertAdjacentHTML('afterend', '<button class="btn gold w" id="toCity" style="margin-bottom:14px;font-size:20px">🏙️ Meine Straße in 3D ansehen</button>'); $('#toCity', el).onclick = () => { SND.click(); openCity(); }; } }; }
 PAGES.crash = renderCrash; PAGES.pass = renderPass; PAGES.clan = renderClan; PAGES.freunde = renderFreunde;
+/* 🏆 Wer hat am meisten in den Regenbogen-Rausch gesteckt? */
+async function openRbTop() {
+  const o = sheet(`<div class="row sb"><h2>🏆 Regenbogen-Könige</h2><button class="x" data-close>${icon('x')}</button></div><p class="hint" style="margin-top:0">Wer hat am meisten Geld in den Regenbogen-Rausch gesteckt?</p><div id="rbL" class="card tight list"><div class="empty">Lade …</div></div>`);
+  let rows = [];
+  try { if (typeof lbhLoad === 'function') await lbhLoad(); rows = (await fsQuery({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'rbw' }, op: 'GREATER_THAN', value: { doubleValue: 0 } } }, orderBy: [{ field: { fieldPath: 'rbw' }, direction: 'DESCENDING' }], limit: 15 })).filter(r => (r.since || 0) >= RESET_TS && !(typeof lbhHas === 'function' && lbhHas(r.name) && r.id !== S.lbId)); }
+  catch (e) { const L = $('#rbL', o); if (L) L.innerHTML = `<div class="empty">Gerade nicht erreichbar${String(e.message).includes('429') ? ' (Firebase-Tageslimit)' : ''}.</div>`; return; }
+  const me = S.st.rbWag || 0; if (me > 0 && !rows.some(r => r.id === S.lbId)) rows.push({ id: S.lbId, name: S.name, disp: S.disp, rbw: me });
+  rows = rows.map(r => r.id === S.lbId ? { ...r, rbw: Math.max(+r.rbw || 0, me), disp: S.disp } : r).sort((a, b) => b.rbw - a.rbw).slice(0, 10);
+  const L = $('#rbL', o); if (!L) return;
+  L.innerHTML = rows.length ? rows.map((r, i) => `<div class="it" style="${r.id === S.lbId ? 'background:#ffffff10' : ''}"><b style="width:34px;font-size:20px">${['🥇', '🥈', '🥉'][i] || i + 1}</b>${avaHTML({ name: r.name, disp: r.disp, color: r.color }, 'sm')}<div style="flex:1;min-width:0"><b>${esc(r.disp || r.name)}</b>${r.id === S.lbId ? ' <small style="color:var(--mut)">(du)</small>' : ''}</div><b class="num">${fmt(+r.rbw || 0)}</b></div>`).join('') : '<div class="empty">Noch hat niemand gedreht – sei der Erste! 🌈</div>';
+}
 /* 🌈 Ankündigung oben in der Halle: Regenbogen-Rausch – antippen öffnet den Automaten */
 (function () {
   const css = document.createElement('style');
