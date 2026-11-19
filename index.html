@@ -1415,7 +1415,7 @@ function prep(m) {
     const W = m.t === 'k' ? [50, 18, 13, 10, 6, 3] : [30, 24, 18, 13, 9, 6];
     const raw = m.t === 'k' ? [1.5, 10, 20, 40, 80] : [5, 8, 12, 20, 40];
     const tot = W.reduce((a, b) => a + b), p = W.map(w => w / tot);
-    const target = m.t === 'j' ? .9 : .95; // Auszahlungsquote: 95 % (Jackpot-Automaten 90 % + Jackpot)
+    const target = m.t === 'j' ? .92 : .97; // Auszahlungsquote: 97 % (Jackpot-Automaten 92 % + Jackpot)
     const topPart = p[5] ** 3 * m.top;
     const rest = raw.reduce((a, r, i) => a + p[i] ** 3 * r, 0);
     const k = (target - topPart) / rest;
@@ -1438,7 +1438,7 @@ function prep(m) {
       }
     }
     line /= N; scat /= N;
-    const k = Math.max(.2, (.95 - scat) / line); // Video-Automaten: 95 %
+    const k = Math.max(.2, (.97 - scat) / line); // Video-Automaten: 97 %
     m.pay = m.pay.map((r, i) => r.map((v, j) => (i === 8 && j === 2) ? v : Math.max(1, Math.round(v * k * 10) / 10)));
     m.pay[8][2] = Math.max(m.pay[8][2], Math.round(m.pay[7][2] * 1.6 / 10) * 10); m.mx = m.pay[8][2] / 10;
   }
@@ -1958,7 +1958,7 @@ const LOSE = [
   { id: 'sl', n: 'Schwarzes Los', p: 250000, top: 2.5e8, ic: 'eye', ty: '3', a: '#2a2a2a', b: '#6a6a6a', lvl: 30, dark: 1 },
 ];
 const TIER_M = [1, 2, 5, 10, 20, 50, 100, 250]; // höchste Stufe ×250 (vorher ×500)
-const TIER_P = [.155, .077, .029, .011, .0045, .0013, .00055, .00007];
+const TIER_P = [.168, .083, .031, .012, .0049, .0014, .0006, .000076]; // ca. 8 % mehr Gewinne als vorher
 const VB_SYM = ['🌻', '🐞', '🍄', '🌈', '🦋', '⭐', '💰', '👑', '🍀'];
 const TK = {}; // aktive Lose: id -> {res, cells, revealed}
 // Los nur, wenn es höchstens das Doppelte des Höchsteinsatzes kostet (sonst später freigeschaltet)
@@ -3933,7 +3933,7 @@ function openCal() {
 /* ================= Crash ================= */
 const CR = { hist: [], run: null, stake: 10, auto: '' };
 const CR_K = .00009;
-function crashPoint() { const u = Math.random(); return Math.min(100, Math.max(1, Math.floor(.96 / (1 - u) * 100) / 100)); }
+function crashPoint() { const u = Math.random(); return Math.min(100, Math.max(1, Math.floor(.97 / (1 - u) * 100) / 100)); }
 const crFmt = m => NF2.format(m) + '×';
 const crCol = m => m < 2 ? '#e8524a' : m < 10 ? '#4cc265' : '#e8c45a';
 function renderCrash(el) {
