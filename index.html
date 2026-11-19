@@ -4144,7 +4144,7 @@ async function feedPoll() {
   if (!S || !onlineOn()) return;
   try {
     const q = { from: [{ collectionId: 'feed' }], orderBy: [{ field: { fieldPath: 'ts' }, direction: 'DESCENDING' }], limit: 15 };
-    if (FD.last) q.where = { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(FD.last) } };
+    q.where = { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(Math.max(FD.last, Date.now() - 36e5)) } }; // nur die letzte Stunde
     const n = await fsQuery(q);
     if (n.length) {
       FD.last = Math.max(FD.last, ...n.map(x => x.ts || 0));
@@ -4155,9 +4155,9 @@ async function feedPoll() {
     FD.first = false; feedDraw();
   } catch (e) { }
 }
-function feedStart() { if (FD.iv || !onlineOn()) return; feedPoll(); FD.iv = setInterval(() => { if (!document.hidden) feedPoll(); }, 30000); }
+function feedStart() { if (FD.iv || !onlineOn()) return; feedPoll(); FD.iv = setInterval(() => { if (!document.hidden) feedPoll(); }, 30000); setInterval(feedDraw, 60000); }
 function feedDraw() {
-  const box = $('#feedBox'); if (!box) return;
+  const box = $('#feedBox'); FD.items = FD.items.filter(x => Date.now() - (x.ts || 0) < 36e5); if (!box) return; // Gewinne stehen 1 Stunde oben
   box.innerHTML = `<div class="row sb"><b style="font-size:18px">📣 Live</b><small style="color:var(--mut)">große Gewinne aller Spieler</small></div>
     ${FD.items.length ? FD.items.slice(0, 5).map(x => `<div class="fdi"><b>${tagHTML(x.clan)}${esc(x.disp)}</b> ${esc(x.txt)} <small>${ago(x.ts)}</small></div>`).join('') : '<div class="fdi" style="color:var(--mut)">Noch keine großen Gewinne – sei der Erste! 🍀</div>'}`;
 }
