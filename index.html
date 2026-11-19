@@ -920,7 +920,7 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 
 /* ===== core.js ===== */
 'use strict';
-const VERSION = '0.2.7 Open Beta';
+const VERSION = '0.2.8 Open Beta';
 const FORCE_V = 12; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
 const WARTUNG = false; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
 /* ================= Helfer ================= */
@@ -1400,9 +1400,12 @@ const MACH = [
   { n: 'Book of Gold', s: '5 Walzen · Buch-Freispiele', c: '#f2c94c', c2: '#2a1a05', ic: '📖', lvl: 21, t: 'v', mx: 500, hi: ['🦅', '🗿', '🏺', '🧭'], wild: '📖', scat: '📖' },
   { n: 'Royal Crown', s: 'Mit Grand-Jackpot', c: '#ffd65a', c2: '#2a1450', ic: '👑', lvl: 24, t: 'j', jp: 'grand', top: 200, syms: ['🍒', '🔔', '💍', '💰', '👑', '7'] },
   { n: 'Black Diamond', s: '5 Walzen · High Roller', c: '#d0d0d0', c2: '#101010', ic: '🖤', lvl: 28, t: 'v', mx: 1000, hi: ['🎩', '🥂', '🏎️', '🖤'], wild: '💎', scat: '🎰' },
+  // 🌈 Regenbogen-Rausch: 1.000 € pro Dreh, sehr schlechte Quote (40 %) – aber nur hier gibt's den Glückstrank ×100 (1 : 137.000)
+  { n: 'Regenbogen-Rausch', s: '1.000 € pro Dreh · 🌈 Glückstrank ×100', c: '#ff7ad9', c2: '#2a0f3a', ic: '🌈', t: 'c', top: 50, rb: 1, rtp: .4, syms: ['🍬', '🍭', '🧁', '🦄', '⭐', '🌈'] },
 ];
+const RB_ST = 1000, RB_CH = 1 / 137000; // Einsatz Regenbogen-Automat, Chance auf Trank ×100
 const MLVL = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 50];
-MACH.forEach((m, i) => { m.i = i; m.t = m.t || 'c'; m.lvl = MLVL[i]; });
+MACH.forEach((m, i) => { m.i = i; m.t = m.t || 'c'; m.lvl = m.rb ? 10 : MLVL[i]; });
 const JP = { mini: { n: 'Mini', seed: 500, ch: 1 / 1500, ref: 2 }, major: { n: 'Major', seed: 5000, ch: 1 / 6000, ref: 10 }, grand: { n: 'Grand', seed: 50000, ch: 1 / 25000, ref: 50 } };
 const LINES3 = [[1, 1, 1], [0, 0, 0], [2, 2, 2], [0, 1, 2], [2, 1, 0]];
 const LINES5 = [[1, 1, 1, 1, 1], [0, 0, 0, 0, 0], [2, 2, 2, 2, 2], [0, 1, 2, 1, 0], [2, 1, 0, 1, 2], [0, 0, 1, 2, 2], [2, 2, 1, 0, 0], [1, 0, 0, 0, 1], [1, 2, 2, 2, 1], [1, 0, 1, 2, 1]];
@@ -1415,7 +1418,7 @@ function prep(m) {
     const W = m.t === 'k' ? [50, 18, 13, 10, 6, 3] : [30, 24, 18, 13, 9, 6];
     const raw = m.t === 'k' ? [1.5, 10, 20, 40, 80] : [5, 8, 12, 20, 40];
     const tot = W.reduce((a, b) => a + b), p = W.map(w => w / tot);
-    const target = m.t === 'j' ? .92 : .97; // Auszahlungsquote: 97 % (Jackpot-Automaten 92 % + Jackpot)
+    const target = m.rtp || (m.t === 'j' ? .92 : .97); // Auszahlungsquote: 97 % (Jackpot-Automaten 92 % + Jackpot)
     const topPart = p[5] ** 3 * m.top;
     const rest = raw.reduce((a, r, i) => a + p[i] ** 3 * r, 0);
     const k = (target - topPart) / rest;
@@ -1612,7 +1615,7 @@ function openMachine(i) {
       <div class="g"><small>Guthaben</small><b id="mBal" class="num"></b><em id="mHere" class="num">±0,00 € hier</em><em id="mNote" class="num neg" style="display:block"></em></div>
       <div class="stake"><button class="rb" id="sMinus">−</button><div class="sv"><small>Einsatz</small><b id="mStake" class="num"></b></div><button class="rb" id="sPlus">+</button></div>
     </div>
-    <div class="side"><button id="mLuck">${icon('spark')} Glück</button><button class="allin" id="mAll">${icon('flame')} Max</button><button class="auto" id="mAuto">🔁 Auto</button></div>
+    <div class="side"><button id="mLuck" ${m.rb ? 'style="display:none"' : ''}>${icon('spark')} Glück</button><button class="allin" id="mAll" ${m.rb ? 'style="display:none"' : ''}>${icon('flame')} Max</button>${m.rb ? '<button id="rbPot" style="background:linear-gradient(90deg,#ff5a5a,#ffb84a,#ffe14a,#5ad86a,#4ab0ff,#b06aff);color:#111;font-weight:900">🌈 ×100-Trank</button>' : ''}<button class="auto" id="mAuto">🔁 Auto</button></div>
     <button class="btn white w" id="spinBtn">Drehen</button>
   </div>`;
   document.body.appendChild(f);
@@ -1634,11 +1637,16 @@ function openMachine(i) {
     $('#mLuck', f).classList.toggle('on', !!S.potAct); const potOff = S.potAct && (MS.allIn ? maxBtnStake() : STAKES[S.stakeI]) > potCap() + 1e-9;
     $('#mLuck', f).innerHTML = icon('spark') + (S.potAct ? ` ×${S.potAct.m} · ${S.potAct.left}${potOff ? ' ⚠️' : ''}` : ' Glück');
     $('#mAll', f).classList.toggle('on', MS.allIn);
+    if (m.rb) { $('#mStake', f).textContent = fmt(RB_ST); $('#ledB', f).textContent = NF2.format(RB_ST); const rp = $('#rbPot', f); if (rp) { rp.textContent = MS.rb100 ? '🌈 ×100 AKTIV!' : `🌈 ×100-Trank (${S.pot100 || 0})`; rp.style.opacity = (S.pot100 || 0) > 0 || MS.rb100 ? 1 : .45; } }
     $('#mAuto', f).classList.toggle('on', !!MS.auto); $('#mAuto', f).textContent = MS.auto ? `⏹ ${MS.auto.left === Infinity ? '∞' : MS.auto.left}` : '🔁 Auto';
     if (MS.auto && !MS.busy && MS.fs === 0) $('#spinBtn', f).textContent = `Stopp · Auto ${MS.auto.left === Infinity ? '∞' : MS.auto.left}`;
     const jv = $('#jpV', f); if (jv) jv.textContent = fmt(S.jp[m.jp]);
   };
   MS.upd = upd; upd();
+  if (m.rb) { $('#sMinus', f).style.visibility = $('#sPlus', f).style.visibility = 'hidden';
+    $('#rbPot', f).onclick = () => { if (MS.busy) return; if (MS.rb100) { MS.rb100 = false; S.pot100 = (S.pot100 || 0) + 1; save(); MS.upd(); return; }
+      if (!(S.pot100 > 0)) { toast(`🌈 Du hast keinen Glückstrank ×100. Er kann hier bei jedem Dreh mit 1 : 137.000 auftauchen!`, '', 3500); return; }
+      S.pot100--; MS.rb100 = true; save(); flash(); SND.big(); FX.burst(120, { cols: ['#ff5a5a', '#ffb84a', '#ffe14a', '#5ad86a', '#4ab0ff', '#b06aff'] }); toast('🌈 Glückstrank ×100 getrunken – der nächste Dreh wird riesig!', 'good', 3000); MS.upd(); }; }
   $('#sMinus', f).onclick = () => { if (MS.busy) return; MS.allIn = S.maxOn = false; S.stakeI = Math.max(0, S.stakeI - 1); SND.click(); upd(); };
   $('#sPlus', f).onclick = () => { if (MS.busy) return; MS.allIn = S.maxOn = false; const n = Math.min(STAKES.length - 1, S.stakeI + 1); if (STAKES[n] > maxStake()) { let l = S.level; while (10 * Math.pow(STAKE_G, l - 1) < STAKES[n]) l++; toast(`${fmt(STAKES[n])} Einsatz gibt's ab Level ${l}`); SND.err(); return; } S.stakeI = n; SND.click(); upd(); };
   $('#mAll', f).onclick = () => { if (MS.busy) return; MS.allIn = S.maxOn = !MS.allIn; save(); SND.click(); upd(); };
@@ -1663,9 +1671,9 @@ function machInfo(m) {
 async function doSpin() {
   if (!MS || MS.busy) return;
   const m = MS.m, free = MS.fs > 0;
-  let stake = free ? MS.fsStake : STAKES[S.stakeI];
-  const allIn = !free && MS.allIn;
-  const gift = !free && S.gspin && S.gspin.n > 0; // 🎁 geschenkte Gratis-Drehs
+  let stake = free ? MS.fsStake : m.rb ? RB_ST : STAKES[S.stakeI];
+  const allIn = !free && MS.allIn && !m.rb;
+  const gift = !free && !m.rb && S.gspin && S.gspin.n > 0; // 🎁 geschenkte Gratis-Drehs
   if (gift) stake = S.gspin.st;
   else if (allIn) { stake = r2(maxBtnStake()); if (stake <= 0) { toast('Max-Einsatz geht nur mit Guthaben im Plus.', 'bad'); SND.err(); return; } }
   if (free) { S.fsRun = MS.fs - 1 > 0 ? { mi: m.i, fs: MS.fs - 1, n: MS.fsN, st: MS.fsStake, w: MS.fsWin } : null; persist(); } // Freispiel gilt als verbraucht, sobald es startet
@@ -1679,8 +1687,9 @@ async function doSpin() {
   // Jackpot-Pool wächst
   if (m.t === 'j' && !free) S.jp[m.jp] = r2(S.jp[m.jp] + stake * .02);
   // Ergebnis (mit Glückstrank: bestes aus N)
-  let rolls = 1; const usePot = S.potAct && stake <= potCap() + 1e-9; // Trank wirkt auch in Freispielen (Gewinne gedeckelt, siehe potF)
-  if (S.potAct && !usePot) toast(`⚠️ Trank wirkt nicht: Einsatz über ${fmt(potCap())}. Nimm einen kleineren Einsatz oder „Max“.`, 'bad', 2600);
+  let rolls = 1; const usePot = !m.rb && S.potAct && stake <= potCap() + 1e-9; // Trank wirkt auch in Freispielen (Gewinne gedeckelt, siehe potF)
+  const rb100 = m.rb && MS.rb100; if (rb100) MS.rb100 = false; // 🌈 Trank ×100: 99 % Riesengewinn
+  if (S.potAct && !usePot && !m.rb) toast(`⚠️ Trank wirkt nicht: Einsatz über ${fmt(potCap())}. Nimm einen kleineren Einsatz oder „Max“.`, 'bad', 2600);
   if (usePot) { rolls = S.potAct.m; S.potAct.left--; S.st.potUse = (S.st.potUse || 0) + 1; }
   let best = null;
   for (let k = 0; k < rolls; k++) {
@@ -1710,6 +1719,8 @@ async function doSpin() {
   // 🧢 Gewinn-Deckel: höchstens ×100 pro Dreh, Freispiel-Serie insgesamt höchstens ×250
   if (win > stake * WIN_CAP) { const f = stake * WIN_CAP / win; best.ev.wins = best.ev.wins.map(w => ({ ...w, w: w.w * f })); win = stake * WIN_CAP; }
   if (free && MS.fsWin + win > stake * FS_CAP) win = Math.max(0, stake * FS_CAP - MS.fsWin);
+  if (rb100 && Math.random() < .99) { win = stake * 100; best.ev.wins = []; }
+  const rbDrop = m.rb && !free && Math.random() < RB_CH;
   if (best.ev.wins.length) { showWins(best.ev.wins); const cb = $('.cab', MS.f); cb.classList.add('winning'); setTimeout(() => cb && cb.classList.remove('winning'), 2600); }
   win = r2(win + jackpot);
   if (free) MS.fsWin = r2(MS.fsWin + win);
@@ -1719,7 +1730,7 @@ async function doSpin() {
     countUp($('#ledW', MS.f), 0, win, 700, v => NF2.format(v));
     await multPop(win / stake, win, teased);
     if (jackpot) { S.st.jackpots++; await celebrate(jackpot, 999, JP[m.jp].n.toUpperCase() + ' JACKPOT'); }
-    else if (!free) await celebrate(win, win / stake);
+    else if (!free) await celebrate(win, win / stake, rb100 && win >= stake * 100 ? '🌈 REGENBOGEN-GEWINN' : undefined);
     else { SND.win(); FX.burst(30, { coins: true }); }
   } else if (!free) { if (allIn) SND.lose(); }
   if (best.ev.fs && !free) { // 🚫 in Freispielen gibt's keine weiteren Freispiele
@@ -1727,6 +1738,13 @@ async function doSpin() {
     MS.fs += 10; MS.fsN += 10;
     flash(); SND.big(); vib([80, 40, 80]); toast('🎉 10 FREISPIELE! Alle Gewinne ×2', 'good', 3000);
     FX.burst(90);
+  }
+  if (rbDrop) {
+    S.pot100 = (S.pot100 || 0) + 1; S.st.rb100 = (S.st.rb100 || 0) + 1; save(); flash(); SND.big(); vib([100, 50, 100, 50, 200]);
+    FX.burst(200, { cols: ['#ff5a5a', '#ffb84a', '#ffe14a', '#5ad86a', '#4ab0ff', '#b06aff'] }); FX.rain(160, 3000);
+    await new Promise(res => { const o = sheet(`<div style="text-align:center"><div style="font-size:90px">🌈🧪</div><h2 style="font-size:34px;background:linear-gradient(90deg,#ff5a5a,#ffb84a,#ffe14a,#5ad86a,#4ab0ff,#b06aff);-webkit-background-clip:text;background-clip:text;color:transparent">GLÜCKSTRANK ×100!</h2>
+      <p class="hint" style="font-size:18px">Unfassbar – die Chance war <b>1 : 137.000</b>! Trink ihn hier am Regenbogen-Automaten: Der nächste Dreh zahlt mit 99 % Chance <b>${fmt(RB_ST * 100)}</b>.</p><button class="btn white w" data-close>Wow! 🌈</button></div>`, { center: true, onClose: res }); });
+    if (typeof feedWin === 'function') try { fsCreate('feed', null, { name: fstr(S.name), disp: fstr(S.disp), txt: fstr('hat den 🌈 Glückstrank ×100 gefunden! (1 : 137.000)'), ts: fint(Date.now()), clan: fstr(myTag()) }).catch(() => { }); } catch (e) { }
   }
   if (free) MS.fs--;
   S.fsRun = MS.fs > 0 ? { mi: m.i, fs: MS.fs, n: MS.fsN, st: MS.fsStake, w: MS.fsWin } : null; persist();
