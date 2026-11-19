@@ -1732,6 +1732,12 @@ async function doSpin() {
   MS.upd(); hdr(true); checkAch(); save();
   btn.classList.remove('spinning'); btn.textContent = MS.fs > 0 ? 'Freispiel…' : 'Drehen';
   MS.busy = false; flushHold();
+  if (!free && !gift && S.fakeWin && !best.ev.fs) { // 🎭 Fake-Riesengewinn vom Besitzer: nur Show, kein Geld
+    const fm = S.fakeWin.m, fv = r2(stake * fm); S.fakeWin = null; save(); MS.busy = true; autoStop();
+    countUp($('#ledW', MS.f), 0, fv, 900, v => NF2.format(v)); await multPop(fm, fv, true); await celebrate(fv, fm);
+    MS.busy = false; setTimeout(() => { toast('😜 Reingelegt! Der Riesengewinn war nur ein Fake vom Besitzer.', 'good', 5000); SND.click(); const l = MS && $('#ledW', MS.f); if (l) l.textContent = NF2.format(win); }, 600);
+    return;
+  }
   if (MS.auto) autoNext(win, stake, !!best.ev.fs, free);
   if (MS.fs > 0) setTimeout(() => MS && doSpin(), 1300);
   else if (free) { fb.classList.add('hidden'); const t = MS.fsWin; setTimeout(() => celebrate(t, Math.max(10, t / MS.fsStake), 'FREISPIEL GEWINN').then(() => { if (MS && MS.auto && !MS.busy && MS.fs === 0) setTimeout(() => MS && MS.auto && !MS.busy && doSpin(), 600); }), 400); }
@@ -4917,9 +4923,10 @@ async function admUnlock(code) {
   } catch (e) { return false; }
 }
 const giftMsg = g => g.k ? `${g.id}|${g.to}|${g.amt}|${g.ts}|${g.k}|${g.x}` : `${g.id}|${g.to}|${g.amt}|${g.ts}`;
-const GIFT_K = { m: ['💰', 'Geld'], sp: ['🎰', 'Gratis-Drehs'], en: ['⚡', 'Energie'], p2: ['🧪', 'Glückstrank ×2'], p4: ['🧪', 'Glückstrank ×4'], p6: ['🧪', 'Glückstrank ×6'], lv: ['⭐', 'Level'], bp: ['🎟️', 'Battle Pass'], ban: ['⛔', 'Sperren'] };
+const GIFT_K = { m: ['💰', 'Geld'], sp: ['🎰', 'Gratis-Drehs'], en: ['⚡', 'Energie'], p2: ['🧪', 'Glückstrank ×2'], p4: ['🧪', 'Glückstrank ×4'], p6: ['🧪', 'Glückstrank ×6'], lv: ['⭐', 'Level'], bp: ['🎟️', 'Battle Pass'], ban: ['⛔', 'Sperren'], fw: ['🎭', 'Fake ×100'] };
 function giftTxt(k, amt, x) {
   if (k === 'fk') return fmt(amt, { sign: true }); // 😜 Fake-Geschenk sieht aus wie echtes Geld
+  if (k === 'fw') return `Fake-Gewinn ×${amt} am nächsten Automaten`;
   if (k === 'sp') return `${amt} Gratis-Drehs à ${fmt(x)}`;
   if (k === 'en') return `${amt} Energie ⚡`;
   if (k === 'p2' || k === 'p4' || k === 'p6') return `${amt}× ${GIFT_K[k][1]}`;
@@ -4930,6 +4937,7 @@ function giftTxt(k, amt, x) {
 }
 function giftApply(k, a, x) {
   if (k === 'fk') return; // Spaß – es wird nichts gutgeschrieben
+  if (k === 'fw') { S.fakeWin = { m: Math.max(2, Math.min(10000, Math.round(a))) }; return; } // 🎭 nächster Dreh zeigt einen Fake-Riesengewinn
   if (k === 'ban') { S.banUntil = a > 0 ? Date.now() + Math.min(30 * 864e5, a * (x === 's' ? 1000 : 60000)) : 0; S.banBy = ''; banCheck(); return; }
   if (k === 'sp') { const n = Math.max(1, Math.min(500, Math.round(a))), st = Math.max(.1, Math.min(1e6, +x || 1)); S.gspin = S.gspin && S.gspin.st === st ? { n: S.gspin.n + n, st } : { n: (S.gspin ? S.gspin.n : 0) + n, st }; }
   else if (k === 'en') S.energy = (S.energy || 0) + Math.max(1, Math.min(500, Math.round(a)));
@@ -4962,6 +4970,7 @@ async function giftPoll() {
       S.gifts.push(g.id); if (S.gifts.length > 200) S.gifts = S.gifts.slice(-200);
       const a = r2(+g.amt), kd = g.k || 'm'; giftApply(kd, a, g.x);
       if (kd === 'ban') { save(); if (a <= 0) toast('✅ Du bist wieder entsperrt!', 'good', 4000); continue; }
+      if (kd === 'fw') { save(); continue; } // still – die Überraschung kommt beim nächsten Dreh
       if (kd === 'fk' && g.x === '1') setTimeout(() => { const ov = document.querySelector('.ov'); const rev = () => setTimeout(() => { toast('😜 Reingelegt! Das Geschenk war nur ein Spaß.', 'good', 5000); SND.click(); }, 400); if (ov) ov.addEventListener('click', rev, { once: true }); else rev(); }, 50);
       save(); hdr(true); lbLast = ''; pushScore(true);
       if (a >= 0) { SND.big(); FX.burst(120, { coins: true }); }
@@ -5002,8 +5011,8 @@ function openGift() {
     <button class="btn gold w" id="gfGo" style="margin-top:16px">Senden</button>
     <p class="hint">Der Spieler bekommt das Geld beim nächsten Öffnen bzw. innerhalb von 30 Sekunden, mit einer Meldung. Geschenke sind fälschungssicher signiert.</p>`);
   let kind = 'm';
-  const LBL0 = 0; const LBL = { ban: 'Wie viele Minuten sperren? (0 = entsperren)', bp: 'Wie viele Battle-Pass-Stufen? (Minus zum Abziehen)', m: 'Betrag (mit Minus zum Abziehen, z. B. -500)', sp: 'Anzahl Gratis-Drehs', en: 'Wie viel Energie?', p2: 'Wie viele Tränke?', p4: 'Wie viele Tränke?', p6: 'Wie viele Tränke?', lv: 'Wie viele Level? (Minus zum Abziehen)' };
-  $('#gfK', o).onclick = e => { const b = e.target.closest('[data-k]'); if (!b) return; kind = b.dataset.k; $$('#gfK button', o).forEach(x => x.className = 'btn ' + (x.dataset.k === kind ? 'gold' : 'dark')); $('#gfAL', o).textContent = LBL[kind]; $('#gfXW', o).classList.toggle('hidden', kind !== 'sp'); $('#gfUW', o).classList.toggle('hidden', kind !== 'ban'); SND.click(); };
+  const LBL0 = 0; const LBL = { ban: 'Wie viele Minuten sperren? (0 = entsperren)', fw: '🎭 Welchen Fake-Multiplikator zeigen? (nur Show, kein echtes Geld)', bp: 'Wie viele Battle-Pass-Stufen? (Minus zum Abziehen)', m: 'Betrag (mit Minus zum Abziehen, z. B. -500)', sp: 'Anzahl Gratis-Drehs', en: 'Wie viel Energie?', p2: 'Wie viele Tränke?', p4: 'Wie viele Tränke?', p6: 'Wie viele Tränke?', lv: 'Wie viele Level? (Minus zum Abziehen)' };
+  $('#gfK', o).onclick = e => { const b = e.target.closest('[data-k]'); if (!b) return; kind = b.dataset.k; $$('#gfK button', o).forEach(x => x.className = 'btn ' + (x.dataset.k === kind ? 'gold' : 'dark')); $('#gfAL', o).textContent = LBL[kind]; $('#gfXW', o).classList.toggle('hidden', kind !== 'sp'); $('#gfUW', o).classList.toggle('hidden', kind !== 'ban'); if (kind === 'fw' && !$('#gfA', o).value) $('#gfA', o).value = 100; SND.click(); };
   let unit = 'm';
   $('#gfU', o).onclick = e => { const b = e.target.closest('[data-u]'); if (!b) return; unit = b.dataset.u; $$('#gfU button', o).forEach(x => x.classList.toggle('on', x === b)); $('#gfAL', o).textContent = unit === 's' ? 'Wie viele Sekunden sperren? (0 = entsperren)' : LBL.ban; SND.click(); };
   let fake = false, reveal = false;
