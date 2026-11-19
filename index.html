@@ -1280,7 +1280,7 @@ function flushHold() { const q = HOLD; HOLD = []; q.forEach((fn, i) => setTimeou
 /* ================= Geld / Level ================= */
 const DISPO = 180;
 // Dispo gibt's nur ohne offenen Schuldschein und nicht in den ersten 24 Std. nach einer Insolvenz (sonst: endlos Gratis-Kredit)
-const dispoNow = () => (S && (S.note > 0 || Date.now() - (S.insTs || 0) < 864e5)) ? 0 : DISPO;
+const dispoNow = () => (S && Date.now() - (S.insTs || 0) < 864e5) ? 0 : DISPO; // Dispo auch mit Schuldschein – verkaufen geht aber nur ohne offenen Schuldschein
 const isLocked = () => S.bal < -DISPO;
 const base = () => r2(40 * Math.pow(1.13, S.level));
 const xpNeed = l => Math.round(200 * Math.pow(l, 1.8)); // doppelt so viel XP pro Level wie früher
@@ -3463,7 +3463,7 @@ function renderKonto(el) {
     <div class="card"><small style="color:#b0b0b6;font-size:18px">Kontostand</small><div class="num ${neg ? 'neg' : ''}" style="font-size:clamp(44px,14vw,72px);font-weight:800;letter-spacing:-2px;margin:6px 0 14px">${fmt(S.bal)}</div>
       <div class="row" style="flex-wrap:wrap;gap:10px">${lk ? '<span class="chip red">Gesperrt</span>' : neg ? '<span class="chip red">Im Dispo</span>' : '<span class="chip gold">Im Plus</span>'}<span class="chip num">Dispo bis ${fmt(-DISPO)}</span></div>
       <div class="bar" style="margin:22px 0 16px;height:8px"><i style="width:${pct}%;background:${neg ? 'var(--red)' : 'var(--green)'}"></i></div>
-      <p class="hint" style="font-size:18px">Du darfst bis ${fmt(-DISPO)} ins Minus spielen (0,5 % Zinsen pro Stunde)${dispoNow() ? '' : ' – <b>gerade gesperrt</b> (offener Schuldschein oder Insolvenz in den letzten 24 Std.)'}. Darunter wird gesperrt – dann in den Minispielen Geld zurückholen oder die Schulden ans Inkasso verkaufen.</p></div>
+      <p class="hint" style="font-size:18px">Du darfst bis ${fmt(-DISPO)} ins Minus spielen (0,5 % Zinsen pro Stunde)${dispoNow() ? '' : ' – <b>gerade gesperrt</b> (Insolvenz in den letzten 24 Std.)'}${S.note > 0 ? ' Mit offenem Schuldschein kannst du Schulden <b>nicht nochmal</b> verkaufen.' : ''}. Darunter wird gesperrt – dann in den Minispielen Geld zurückholen oder die Schulden ans Inkasso verkaufen.</p></div>
     <div class="sec">Schulden</div><div class="card" id="debt"></div>
     <div class="sec" id="bxSec">Handelskonto (Börse)</div>
     <div class="card"><div class="row sb"><span style="font-size:20px">Guthaben Börse</span><b class="num" style="font-size:22px">${fmt(S.bx.bal)}</b></div>
@@ -3471,7 +3471,7 @@ function renderKonto(el) {
       <input class="inp num" id="bxAmt" type="number" inputmode="decimal" placeholder="Betrag in €">
       <div style="border-top:1px solid var(--line);margin:16px -20px;"></div>
       <div class="two"><button class="btn dark" id="bxIn">Einzahlen ${icon('up')}</button><button class="btn dark" id="bxOut">Auszahlen ${icon('down')}</button></div></div>
-    <p class="hint">Geld auf dem Handelskonto kannst du an der Börse einsetzen. Auszahlen geht nur mit freier Margin.</p>`;
+    <p class="hint">Geld auf dem Handelskonto kannst du an der Börse einsetzen. Auszahlen geht nur mit freier Margin – <b>gerade auszahlbar: ${fmt(Math.max(0, Math.min(S.bx.bal, bxStats().free)))}</b>${S.bx.pos.length ? ' (schließ offene Positionen, um mehr auszuzahlen)' : ''}.</p>`;
   $('#kMini', el).onclick = () => go('spiele');
   const d = $('#debt', el); let h = '';
   if (neg) h += `<p style="font-size:19px;line-height:1.5">Du bist mit <b class="neg">${fmt(-S.bal)}</b> im Minus. Verkauf die Schulden an „Inkasso Krause“: Dein Konto steht sofort auf 0. Dafür bekommst du einen Schuldschein über 130 %. Den zahlst du automatisch ab: bei jedem Spin, Los oder jeder Wette gehen 10 % vom Einsatz extra dorthin – und 40 % jedes Gewinns.</p>
@@ -3482,6 +3482,7 @@ function renderKonto(el) {
   if (!h) h = '<p style="font-size:19px">Keine Schulden 🎉</p>';
   d.innerHTML = h;
   const sell = $('#dSell', el); if (sell) sell.onclick = () => {
+    if (S.note > 0) { toast('Erst den offenen Schuldschein abbezahlen – Inkasso Krause kauft nur einmal. 😬 Minispiele bringen Geld!', 'bad', 4500); SND.err(); return; }
     const debt = -S.bal, nn = r2(debt * 1.3); S.note = r2(S.note + nn); S.bal = 0; S.st.inkasso++;
     toast(`Schulden verkauft – Schuldschein über ${fmt(S.note)}`); SND.coin(); hdr(true); checkAch(); save(); go('konto', true);
   };
