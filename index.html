@@ -3338,7 +3338,7 @@ function go(p, keep) {
   const y = scrollY; curPage = p;
   $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.p === p || (p === 'imperium' && b.dataset.p === 'spiele')));
   const m = $('#main'); m.innerHTML = '<div class="page"></div>';
-  PAGES[p]($('.page', m));
+  PAGES[p]($('.page', m)); if (typeof pinDraw === 'function') pinDraw();
   if (keep) { $('.page', m).style.animation = 'none'; scrollTo(0, y); } else scrollTo(0, 0);
 }
 
@@ -5132,11 +5132,13 @@ function phStart() {
 }
 
 /* ================= 📢 Admin-Ansage an alle (signiert, groß auf dem Bildschirm) ================= */
-async function bcSend(txt) {
+// amt = Minuten angepinnt (0 = nicht anpinnen, -1 = angepinnte Nachricht entfernen)
+async function bcSend(txt, pin = 0) {
   if (!ADM_KEY) { const c = localStorage.getItem('gg_adm'); if (!c || !await admUnlock(c)) throw new Error('key'); }
-  const ts = Date.now(), g = { id: ts.toString(36) + Math.random().toString(36).slice(2, 7), to: '*|' + padTs(ts), amt: 0, ts, k: 'bc', x: txt };
+  const ts = Date.now(), g = { id: ts.toString(36) + Math.random().toString(36).slice(2, 7), to: '*|' + padTs(ts), amt: pin, ts, k: 'bc', x: txt };
   const sig = b64u.to(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, ADM_KEY, new TextEncoder().encode(giftMsg(g))));
-  const r = await fsCreate('gifts', g.id, { to: fstr(g.to), amt: { doubleValue: 0 }, ts: fint(ts), msg: fstr(''), sig: fstr(sig), von: fstr(S.disp.slice(0, 24)), k: fstr('bc'), x: fstr(txt) });
+  const r = await fsCreate('gifts', g.id, { to: fstr(g.to), amt: { doubleValue: pin }, ts: fint(ts), msg: fstr(''), sig: fstr(sig), von: fstr(S.disp.slice(0, 24)), k: fstr('bc'), x: fstr(txt) });
+  if (r.ok) { PIN.ok = {}; setTimeout(bcPoll, 800); }
   if (!r.ok) throw new Error('HTTP ' + r.status);
 }
 function bcShow(txt, von) {
@@ -5150,20 +5152,43 @@ function bcShow(txt, von) {
   const ov = document.getElementById('bcOv'), hide = () => { if (!ov.isConnected || ov.dataset.h) return; ov.dataset.h = 1; ov.style.transition = 'opacity .5s'; ov.style.opacity = 0; setTimeout(() => ov.remove(), 500); };
   setTimeout(hide, 3000); // nicht wegdrückbar – verschwindet nach 3 Sek. von selbst
 }
+/* 📌 Angepinnte Nachricht: steht oben auf jeder Seite, bis die Zeit abläuft oder der Besitzer sie entfernt */
+const PIN = { cur: null, ok: {} };
+function pinDraw() {
+  const p = PIN.cur && PIN.cur.until > Date.now() ? PIN.cur : null, main = document.getElementById('main');
+  let bar = document.getElementById('pinBar');
+  if (!p) { if (bar) bar.remove(); return; }
+  if (!main) return;
+  if (!bar || bar.parentNode !== main) { if (bar) bar.remove(); main.insertAdjacentHTML('afterbegin', '<div id="pinBar" class="pinbar"></div>'); bar = document.getElementById('pinBar'); }
+  bar.style.cssText = 'margin:0 0 16px;padding:14px 18px;border-radius:22px;background:linear-gradient(180deg,#3a2f12,#241d0b);border:1px solid #ffd84d66;color:#fff;font-size:17px;line-height:1.35;display:flex;gap:12px;align-items:flex-start';
+  bar.innerHTML = `<span style="font-size:22px">📌</span><div style="flex:1"><b style="color:#ffd84d;font-size:13px;letter-spacing:1.5px">ANGEPINNT VOM BESITZER</b><div style="font-weight:700;word-break:break-word">${esc(p.x)}</div></div>`;
+}
+setInterval(pinDraw, 30000);
 async function bcPoll() {
   if (!S || !onlineOn() || document.hidden) return;
   if (popBusy()) { clearTimeout(bcPoll.t); bcPoll.t = setTimeout(bcPoll, 3000); return; }
   try {
-    const n = await fsQuery({ from: [{ collectionId: 'gifts' }], where: rangeQ('to', '*', Date.now() - 6 * 36e5), limit: 20 });
+    const n = await fsQuery({ from: [{ collectionId: 'gifts' }], where: rangeQ('to', '*', Date.now() - 48 * 36e5), limit: 40 });
+    // 📌 aktuelle Anpinnung bestimmen (neueste signierte Ansage mit Zeit oder Entfernen)
+    let pin = null;
+    for (const g of [...n].filter(g => g.k === 'bc' && +g.amt !== 0).sort((a, b) => (b.ts || 0) - (a.ts || 0))) {
+      if (PIN.ok[g.id] === undefined) PIN.ok[g.id] = await giftVerify({ id: g.id, to: g.to, amt: +g.amt, ts: +g.ts, sig: g.sig || '', k: 'bc', x: g.x || '' });
+      if (!PIN.ok[g.id]) continue;
+      if (+g.amt > 0) pin = { x: g.x, until: (+g.ts) + (+g.amt) * 60000 };
+      break;
+    }
+    PIN.cur = pin; pinDraw();
     S.gifts = S.gifts || []; let last = null;
     for (const g of n.sort((a, b) => (a.ts || 0) - (b.ts || 0))) {
       if (S.gifts.includes(g.id)) continue;
+      if (g.k === 'bc' && +g.amt < 0) continue; // „Anpinnung entfernen“ ist keine Ansage
+      if (g.k === 'bc' && Date.now() - (+g.ts || 0) > 6 * 36e5) continue; // große Ansage nur bis 6 Std. danach
       if (g.k !== 'bc') { // 🎁 Geschenk an alle: nur wer innerhalb von 15 Min. online ist
         if (Date.now() - (+g.ts || 0) > 15 * 60000 || (+g.ts || 0) < (S.created || 0) || !isFinite(+g.amt)) continue;
         if (!await giftVerify({ id: g.id, to: g.to, amt: +g.amt, ts: +g.ts, sig: g.sig || '', k: g.k || '', x: g.x || '' })) continue;
         S.gifts.push(g.id); if (S.gifts.length > 200) S.gifts = S.gifts.slice(-200); giftReceive(g, true); continue;
       }
-      if (!await giftVerify({ id: g.id, to: g.to, amt: +g.amt || 0, ts: +g.ts, sig: g.sig || '', k: 'bc', x: g.x || '' })) continue;
+      if (!(PIN.ok[g.id] !== undefined ? PIN.ok[g.id] : await giftVerify({ id: g.id, to: g.to, amt: +g.amt || 0, ts: +g.ts, sig: g.sig || '', k: 'bc', x: g.x || '' }))) continue;
       S.gifts.push(g.id); if (S.gifts.length > 200) S.gifts = S.gifts.slice(-200); last = g;
     }
     if (last) { save(); bcShow(last.x, last.von); }
@@ -5173,12 +5198,18 @@ function openBc() {
   const o = sheet(`<div class="row sb"><h2>📢 Nachricht an alle</h2><button class="x" data-close>${icon('x')}</button></div>
     <p class="hint" style="margin-top:0">Erscheint bei allen Spielern groß auf dem Bildschirm (innerhalb von ~20 Sek., wer offline ist: beim nächsten Öffnen innerhalb von 6 Std.).</p>
     <textarea class="inp" id="bcT" maxlength="200" style="height:120px" placeholder="z. B. Heute Abend Wartung um 20 Uhr!"></textarea>
-    <div class="two" style="margin-top:12px"><button class="btn dark" id="bcP">👀 Vorschau</button><button class="btn gold" id="bcGo">📢 Senden</button></div>`);
+    <div class="lbl2">📌 Oben anpinnen?</div>
+    <div class="filters" id="bcPin">${[[0, 'Nein'], [10, '10 Min'], [60, '1 Std'], [360, '6 Std'], [1440, '1 Tag'], [2880, '2 Tage']].map(([v, n]) => `<button data-m="${v}" class="${v ? '' : 'on'}">${n}</button>`).join('')}</div>
+    <div class="two" style="margin-top:12px"><button class="btn dark" id="bcP">👀 Vorschau</button><button class="btn gold" id="bcGo">📢 Senden</button></div>
+    ${PIN.cur && PIN.cur.until > Date.now() ? `<div class="card tight" style="background:#151517;margin-top:14px;padding:14px 16px"><b>📌 Gerade angepinnt</b> (noch ${Math.ceil((PIN.cur.until - Date.now()) / 60000)} Min.)<div style="color:var(--mut);margin:6px 0 10px">${esc(PIN.cur.x)}</div><button class="btn dark w" id="bcUn">📌 Anpinnung entfernen</button></div>` : ''}`);
+  let pinM = 0;
+  $('#bcPin', o).onclick = e => { const b = e.target.closest('[data-m]'); if (!b) return; pinM = +b.dataset.m; $$('#bcPin button', o).forEach(x => x.classList.toggle('on', x === b)); SND.click(); };
+  const un = $('#bcUn', o); if (un) un.onclick = async function () { this.disabled = true; try { await bcSend('', -1); PIN.cur = null; pinDraw(); toast('📌 Anpinnung entfernt', 'good'); o.close(); } catch (e) { this.disabled = false; toast('Hat nicht geklappt', 'bad'); } };
   $('#bcP', o).onclick = () => { const t = $('#bcT', o).value.trim(); if (t) bcShow(t, S.disp); };
   $('#bcGo', o).onclick = async function () {
     const t = $('#bcT', o).value.trim(); if (t.length < 2) return toast('Nachricht zu kurz', 'bad');
     this.disabled = true;
-    try { await bcSend(t); SND.win(); toast('📢 Nachricht an alle gesendet', 'good'); o.close(); }
+    try { await bcSend(t, pinM); SND.win(); toast(pinM ? '📢 Nachricht gesendet & 📌 angepinnt' : '📢 Nachricht an alle gesendet', 'good'); o.close(); }
     catch (e) { this.disabled = false; toast(e.message === 'key' ? 'Bitte Cheat-Code einmal neu eingeben (Admin-Schlüssel fehlt).' : 'Senden fehlgeschlagen – Firebase-Regeln prüfen.', 'bad'); }
   };
 }
