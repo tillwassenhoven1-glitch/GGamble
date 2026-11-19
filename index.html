@@ -3992,7 +3992,7 @@ function crDraw(el, m) {
 const CLAN_COST = 10000, CLAN_MAX = 20;
 let clanTab = 0;
 async function clanList() { return fsQuery({ from: [{ collectionId: 'clans' }], orderBy: [{ field: { fieldPath: 'ts' }, direction: 'DESCENDING' }], limit: 100 }); }
-async function clanMembers(tag) { if (typeof lbhLoad === 'function') await lbhLoad(); return (await fsQuery({ from: [{ collectionId: 'rang' }], where: fEq('clan', tag), limit: 60 })).filter(r => (r.since || 0) >= RESET_TS && (r.id === S.lbId || (typeof lbhHas === 'function' ? !lbhHas(r.name) : true))).sort((a, b) => (b.bal || 0) - (a.bal || 0)); }
+async function clanMembers(tag) { if (typeof lbhLoad === 'function') await lbhLoad(); return (await fsQuery({ from: [{ collectionId: 'rang' }], where: fEq('clan', tag), limit: 60 })).filter(r => (r.since || 0) >= RESET_TS && (r.id === S.lbId || isOwner(r.id) || (typeof lbhHas === 'function' ? !lbhHas(r.name) : true))).sort((a, b) => (b.bal || 0) - (a.bal || 0)); }
 async function clanTop() {
   const all = await fsQuery({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'clan' }, op: 'GREATER_THAN', value: fstr('') } }, limit: 500 });
   const g = {}; all.forEach(r => { const t = r.clan; if (!t || (r.since || 0) < RESET_TS) return; (g[t] = g[t] || { tag: t, sum: 0, n: 0 }); g[t].sum += r.bal || 0; g[t].n++; });
@@ -4159,7 +4159,7 @@ async function renderWoche(el) {
   pushScore(true);
   try {
     await new Promise(r => setTimeout(r, 500)); if (typeof lbhLoad === 'function') await lbhLoad();
-    const rows = (await fsQuery({ from: [{ collectionId: 'rang' }], where: fEq('wkk', S.wk.k), limit: 300 })).filter(r => (r.since || 0) >= RESET_TS && (r.id === S.lbId || (typeof lbhHas === 'function' ? !lbhHas(r.name) : true))).sort((a, b) => (b.wk || 0) - (a.wk || 0)).slice(0, 20);
+    const rows = (await fsQuery({ from: [{ collectionId: 'rang' }], where: fEq('wkk', S.wk.k), limit: 300 })).filter(r => (r.since || 0) >= RESET_TS && (r.id === S.lbId || isOwner(r.id) || (typeof lbhHas === 'function' ? !lbhHas(r.name) : true))).sort((a, b) => (b.wk || 0) - (a.wk || 0)).slice(0, 20);
     if (!B.isConnected) return;
     const mi = rows.findIndex(r => r.id === S.lbId);
     B.innerHTML = `<div class="card myrank" style="margin-bottom:14px"><div class="mr-n num">${mi >= 0 ? '#' + (mi + 1) : '–'}</div>${avaHTML({ ...S })}<div class="who"><b>Dein Wochen-Plus</b><small>${mi >= 0 ? 'Platz ' + (mi + 1) + ' diese Woche' : 'Spiel eine Runde, um dabei zu sein'}</small></div><span class="w num ${S.wk.v < 0 ? 'neg' : 'pos'}">${fmt(S.wk.v, { sign: true })}</span></div>
@@ -4226,7 +4226,7 @@ let RG_C = null;
 async function rgFetch() { if (RG_C && Date.now() - RG_C.t < 45000) return RG_C.d.map(x => ({ ...x, me: x.k === S.lbId })); const d = await rgFetch0(); RG_C = { t: Date.now(), d }; return d; }
 async function rgFetch0() {
   if (typeof lbhLoad === 'function') await lbhLoad();
-  const docs = (await fsQuery({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'since' }, op: 'GREATER_THAN_OR_EQUAL', value: fint(RESET_TS) } }, limit: 1000 })).filter(r => r.id === S.lbId || (typeof lbhHas === 'function' ? !lbhHas(r.name) : true));
+  const docs = (await fsQuery({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'since' }, op: 'GREATER_THAN_OR_EQUAL', value: fint(RESET_TS) } }, limit: 1000 })).filter(r => r.id === S.lbId || isOwner(r.id) || (typeof lbhHas === 'function' ? !lbhHas(r.name) : true));
   return docs.map(d => ({ k: d.id, name: d.name || '?', disp: d.disp || d.name || '?', bal: d.bal || 0, lvl: d.level || 1, color: d.color || 0, ts: d.ts || 0, me: d.id === S.lbId,
     big: d.big ?? null, net: d.net ?? null, bxp: d.bxp ?? null, wag: d.wag ?? null, since: d.since ?? null, best: d.best || '', ach: d.ach ?? null, own: !!d.own, tit: d.tit || '', frm: d.frm || '', clan: d.clan || '', hist: d.hist || '',
     dy: perVal(d, 'dy', d.dk === dayKey() ? d.dv : undefined), wk: perVal(d, 'wk', d.wkk === weekKey() ? d.wk : undefined), mo: perVal(d, 'mo', d.mk === monKey() ? d.mv : undefined) }));
@@ -5049,6 +5049,7 @@ function openLbh() {
   };
   const act = async (nm, h, btn) => {
     nm = String(nm || '').trim().toLowerCase(); if (!nm) return toast('Name fehlt', 'bad');
+    if (h && nm === meKey()) return toast('Dich selbst kannst du nicht ausblenden 🙂', 'bad');
     if (btn) btn.disabled = true;
     try {
       if (h) { try { if (!await nameTaken(nm)) { if (btn) btn.disabled = false; return toast(`Spieler „${esc(nm)}“ gibt es nicht`, 'bad'); } } catch (e) { } }
