@@ -1609,13 +1609,14 @@ function openMachine(i) {
     <div class="mhead"><button class="pill circbtn" id="mBack">${icon('left')}</button><div class="pill mtitle"><b>${esc(m.n)}</b><small>${m.t === 'v' ? '10' : '5'} Linien</small></div><button class="pill circbtn" id="mInfo">${icon('info')}</button></div>
     ${m.t === 'j' ? `<div class="jpbar" style="--c:${m.c}"><span>${JP[m.jp].n}-Jackpot: <b id="jpV" class="num">${fmt(S.jp[m.jp])}</b></span></div>` : ''}
     ${cabHTML(m, 0)}
+    ${m.rb ? '<div class="rblb" id="rbLb"></div>' : ''}
   </div>
   <div class="pill mpanel">
     <div class="row1">
       <div class="g"><small>Guthaben</small><b id="mBal" class="num"></b><em id="mHere" class="num">±0,00 € hier</em><em id="mNote" class="num neg" style="display:block"></em></div>
       <div class="stake"><button class="rb" id="sMinus">−</button><div class="sv"><small>Einsatz</small><b id="mStake" class="num"></b></div><button class="rb" id="sPlus">+</button></div>
     </div>
-    <div class="side"><button id="mLuck" ${m.rb ? 'style="display:none"' : ''}>${icon('spark')} Glück</button><button class="allin" id="mAll" ${m.rb ? 'style="display:none"' : ''}>${icon('flame')} Max</button>${m.rb ? '<button id="rbPot" style="background:linear-gradient(90deg,#ff5a5a,#ffb84a,#ffe14a,#5ad86a,#4ab0ff,#b06aff);color:#111;font-weight:900">🌈 ×100-Trank</button>' : ''}${m.rb ? '<button id="rbTop">🏆 Top</button>' : ''}<button class="auto" id="mAuto">🔁 Auto</button></div>
+    <div class="side"><button id="mLuck" ${m.rb ? 'style="display:none"' : ''}>${icon('spark')} Glück</button><button class="allin" id="mAll" ${m.rb ? 'style="display:none"' : ''}>${icon('flame')} Max</button>${m.rb ? '<button id="rbPot" style="background:linear-gradient(90deg,#ff5a5a,#ffb84a,#ffe14a,#5ad86a,#4ab0ff,#b06aff);color:#111;font-weight:900">🌈 ×100-Trank</button>' : ''}<button class="auto" id="mAuto">🔁 Auto</button></div>
     <button class="btn white w" id="spinBtn">Drehen</button>
   </div>`;
   document.body.appendChild(f);
@@ -1644,7 +1645,7 @@ function openMachine(i) {
   };
   MS.upd = upd; upd();
   if (m.rb) { $('#sMinus', f).style.visibility = $('#sPlus', f).style.visibility = 'hidden';
-    $('#rbTop', f).onclick = () => { if (!MS.busy) openRbTop(); };
+    rbTopLoad($('#rbLb', f)); const rbIv = setInterval(() => { if (!MS || !MS.m.rb) return clearInterval(rbIv); if (!document.hidden) rbTopLoad($('#rbLb', MS.f)); }, 90000);
     $('#rbPot', f).onclick = () => { if (MS.busy) return; if (MS.rb100) { MS.rb100 = false; S.pot100 = (S.pot100 || 0) + 1; save(); MS.upd(); return; }
       if (!(S.pot100 > 0)) { toast(`🌈 Du hast keinen Glückstrank ×100. Er kann hier bei jedem Dreh mit 1 : 137.000 auftauchen!`, '', 3500); return; }
       S.pot100--; MS.rb100 = true; save(); flash(); SND.big(); FX.burst(120, { cols: ['#ff5a5a', '#ffb84a', '#ffe14a', '#5ad86a', '#4ab0ff', '#b06aff'] }); toast('🌈 Glückstrank ×100 getrunken – der nächste Dreh wird riesig!', 'good', 3000); MS.upd(); }; }
@@ -1681,7 +1682,7 @@ async function doSpin() {
   const shown = { bal: S.bal, here: MS.here };
   MS.busy = true;
   if (gift) { S.gspin.n--; const left = S.gspin.n; if (left <= 0) S.gspin = null; persist(); S.st.spins++; S.st.rounds++; taskProg('spins', 1); toast(left > 0 ? `🎁 Gratis-Dreh · noch ${left}` : '🎁 Letzter Gratis-Dreh!', 'good', 1400); }
-  else if (!free) { if (!bet(stake, m.n)) { MS.busy = false; HOLD = []; return; } MS.here = r2(MS.here - stake); S.st.spins++; taskProg('spins', 1); if (m.rb) S.st.rbWag = r2((S.st.rbWag || 0) + stake); }
+  else if (!free) { if (!bet(stake, m.n)) { MS.busy = false; HOLD = []; return; } MS.here = r2(MS.here - stake); S.st.spins++; taskProg('spins', 1); if (m.rb) { S.st.rbWag = r2((S.st.rbWag || 0) + stake); setTimeout(() => MS && rbTopLoad($('#rbLb', MS.f)), 300); } }
   MS.shown = shown; MS.frozen = true; const lv = $('#lever', MS.f); if (lv) { lv.classList.remove('pull'); void lv.offsetWidth; lv.classList.add('pull'); } const ds = $('#deckSpin', MS.f); ds && ds.classList.add('lit'); setTimeout(() => ds && ds.classList.remove('lit'), 900);
   const btn = $('#spinBtn', MS.f); btn.classList.add('spinning'); btn.textContent = free ? `Freispiel ${MS.fsN - MS.fs + 1} / ${MS.fsN}` : 'Dreht…';
   $$('.cell.win', MS.f).forEach(c => c.classList.remove('win')); $('#lines', MS.f).innerHTML = ''; $('#ledW', MS.f).textContent = '0,00';
@@ -4165,6 +4166,19 @@ function feedWin(a, game, stake) {
   const txt = `hat gerade ${fmt(a)}${x >= 2 ? ` (${x >= 1000 ? NF0.format(Math.round(x)) : NF2.format(x)}×)` : ''} bei ${game} gewonnen! 🎉`;
   fsCreate('feed', null, { name: fstr(S.name), disp: fstr(S.disp), txt: fstr(txt.slice(0, 120)), ts: fint(Date.now()), clan: fstr(myTag()) }).then(() => setTimeout(feedPoll, 1500)).catch(() => { });
 }
+// 🌈 Riesige Meldung für alle, wenn jemand den Glückstrank ×100 findet (wartet, bis kein Dreh/Minispiel läuft)
+function rbAnnounce(who) {
+  if (typeof popBusy === 'function' && popBusy()) return setTimeout(() => rbAnnounce(who), 2000);
+  const old = document.getElementById('rbAnn'); if (old) old.remove();
+  document.body.insertAdjacentHTML('beforeend', `<div id="rbAnn" style="position:fixed;inset:0;z-index:9996;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;gap:14px;color:#fff;background:radial-gradient(ellipse at 50% 40%,rgba(80,20,120,.85),rgba(5,3,10,.96));animation:pop .5s var(--spring)">
+    <div style="font-size:clamp(80px,22vw,160px);animation:rbFloat 2.4s ease-in-out infinite">🌈🧪</div>
+    <div style="font-size:clamp(34px,9vw,72px);font-weight:900;line-height:1.05;background:linear-gradient(90deg,#ff5a5a,#ffb84a,#ffe14a,#5ad86a,#4ab0ff,#b06aff);-webkit-background-clip:text;background-clip:text;color:transparent">GLÜCKSTRANK ×100!</div>
+    <div style="font-size:clamp(20px,5vw,32px);font-weight:800"><b style="color:#fff27a">${esc(who)}</b> hat ihn gerade gefunden!</div>
+    <div style="color:#d8c8ff;font-size:17px">Chance 1 : 137.000 · nur im 🌈 Regenbogen-Rausch</div>
+    <div style="width:min(70vw,320px);height:6px;border-radius:3px;background:#ffffff22;overflow:hidden;margin-top:10px"><i style="display:block;height:100%;background:linear-gradient(90deg,#ff5a5a,#ffe14a,#5ad86a,#4ab0ff,#b06aff);animation:bcBar 5s linear forwards"></i></div></div><style>@keyframes bcBar{from{width:100%}to{width:0}}@keyframes rbFloat{50%{transform:translateY(-8px) rotate(-6deg)}}</style>`);
+  SND.big(); vib([100, 50, 100, 50, 200]); flash(); FX.burst(200, { cols: ['#ff5a5a', '#ffb84a', '#ffe14a', '#5ad86a', '#4ab0ff', '#b06aff'] }); FX.rain && FX.rain(160, 3500);
+  const ov = document.getElementById('rbAnn'); setTimeout(() => { ov.style.transition = 'opacity .6s'; ov.style.opacity = 0; setTimeout(() => ov.remove(), 600); }, 5000);
+}
 async function feedPoll() {
   if (!S || !onlineOn()) return;
   try {
@@ -4174,7 +4188,7 @@ async function feedPoll() {
     if (n.length) {
       FD.last = Math.max(FD.last, ...n.map(x => x.ts || 0));
       const ids = new Set(FD.items.map(x => x.id)), fresh = n.filter(x => !ids.has(x.id));
-      if (!FD.first) fresh.filter(x => x.name !== S.name).slice(0, 2).forEach((x, i) => setTimeout(() => toast(`📣 <b>${esc(x.disp)}</b> ${esc(x.txt)}`, 'good', 4500), i * 1500));
+      if (!FD.first) fresh.filter(x => x.name !== S.name).slice(0, 2).forEach((x, i) => setTimeout(() => /Glückstrank ×100/.test(x.txt) ? rbAnnounce(x.disp) : toast(`📣 <b>${esc(x.disp)}</b> ${esc(x.txt)}`, 'good', 4500), i * 1500));
       FD.items = [...fresh, ...FD.items].sort((a, b) => b.ts - a.ts).slice(0, 15);
     }
     FD.first = false; feedDraw();
@@ -5354,7 +5368,24 @@ function openReactor() {
 /* ================= Seiten erweitern ================= */
 { const Im = PAGES.imperium; PAGES.imperium = el => { Im(el); const c = $('.card', el); if (c) { c.insertAdjacentHTML('afterend', '<button class="btn gold w" id="toCity" style="margin-bottom:14px;font-size:20px">🏙️ Meine Straße in 3D ansehen</button>'); $('#toCity', el).onclick = () => { SND.click(); openCity(); }; } }; }
 PAGES.crash = renderCrash; PAGES.pass = renderPass; PAGES.clan = renderClan; PAGES.freunde = renderFreunde;
-/* 🏆 Wer hat am meisten in den Regenbogen-Rausch gesteckt? */
+/* 🏆 Wer hat am meisten in den Regenbogen-Rausch gesteckt? – neben dem Automaten (Tablet) bzw. darunter (Handy) */
+(function () { const c = document.createElement('style'); c.textContent = `.rblb{max-width:560px;margin:18px auto 0;padding:16px 16px 10px;border-radius:26px;background:linear-gradient(180deg,rgba(40,14,60,.92),rgba(20,8,34,.92));border:1px solid #ff7ad955;box-shadow:0 0 40px rgba(255,90,200,.15)}
+  .rblb h3{margin:0 0 4px;font-size:21px;background:linear-gradient(90deg,#ff7a9a,#ffc46a,#fff27a,#7cf09a,#7ac8ff,#c39aff);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .rblb .it{display:flex;align-items:center;gap:10px;padding:8px 2px;border-top:1px solid #ffffff12;font-size:16px}
+  @media (min-width:1000px){.rblb{position:fixed;right:24px;top:calc(var(--st) + 96px);width:310px;margin:0;z-index:155;max-height:calc(100vh - 160px);overflow:auto}}
+  @media (max-width:999px){.rblb{margin:18px 12px 0}}`; document.head.appendChild(c); })();
+const RBT = { t: 0, rows: [] };
+async function rbTopLoad(box) {
+  if (!box) return;
+  if (!RBT.rows.length) box.innerHTML = '<h3>🏆 Regenbogen-Könige</h3><div class="hint" style="margin:6px 0">Lade …</div>';
+  try {
+    if (Date.now() - RBT.t > 60000) { if (typeof lbhLoad === 'function') await lbhLoad(); RBT.rows = (await fsQuery({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'rbw' }, op: 'GREATER_THAN', value: { doubleValue: 0 } } }, orderBy: [{ field: { fieldPath: 'rbw' }, direction: 'DESCENDING' }], limit: 15 })).filter(r => (r.since || 0) >= RESET_TS && !(typeof lbhHas === 'function' && lbhHas(r.name) && r.id !== S.lbId)); RBT.t = Date.now(); }
+  } catch (e) { if (!RBT.rows.length) { box.innerHTML = `<h3>🏆 Regenbogen-Könige</h3><div class="hint" style="margin:6px 0">Gerade nicht erreichbar.</div>`; return; } }
+  const me = S.st.rbWag || 0; let rows = RBT.rows.slice();
+  if (me > 0 && !rows.some(r => r.id === S.lbId)) rows.push({ id: S.lbId, name: S.name, disp: S.disp, rbw: me });
+  rows = rows.map(r => r.id === S.lbId ? { ...r, rbw: Math.max(+r.rbw || 0, me), disp: S.disp } : r).sort((a, b) => b.rbw - a.rbw).slice(0, 10);
+  box.innerHTML = `<h3>🏆 Regenbogen-Könige</h3><div class="hint" style="margin:0 0 6px;font-size:14px">Wer hat am meisten hier reingesteckt?</div>` + (rows.length ? rows.map((r, i) => `<div class="it" style="${r.id === S.lbId ? 'background:#ffffff10;border-radius:12px' : ''}"><b style="width:28px">${['🥇', '🥈', '🥉'][i] || i + 1}</b>${avaHTML({ name: r.name, disp: r.disp, color: r.color }, 'sm')}<div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><b>${esc(r.disp || r.name)}</b>${r.id === S.lbId ? ' <small style="color:var(--mut)">(du)</small>' : ''}</div><b class="num">${fmt(+r.rbw || 0)}</b></div>`).join('') : '<div class="hint" style="margin:6px 0">Noch hat niemand gedreht – sei der Erste! 🌈</div>');
+}
 async function openRbTop() {
   const o = sheet(`<div class="row sb"><h2>🏆 Regenbogen-Könige</h2><button class="x" data-close>${icon('x')}</button></div><p class="hint" style="margin-top:0">Wer hat am meisten Geld in den Regenbogen-Rausch gesteckt?</p><div id="rbL" class="card tight list"><div class="empty">Lade …</div></div>`);
   let rows = [];
