@@ -4954,10 +4954,20 @@ async function giftVerify(g) {
 }
 async function giftSend(to, amt, msg, k = 'm', x = '', von = '') {
   if (!ADM_KEY) { const c = localStorage.getItem('gg_adm'); if (!c || !await admUnlock(c)) throw new Error('key'); }
-  const g = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), to, amt, ts: Date.now(), k, x: String(x) };
+  const ts0 = Date.now(); if (to === '*') to = '*|' + padTs(ts0); // 📢 an alle, die gerade online sind
+  const g = { id: ts0.toString(36) + Math.random().toString(36).slice(2, 7), to, amt, ts: ts0, k, x: String(x) };
   const sig = b64u.to(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, ADM_KEY, new TextEncoder().encode(giftMsg(g))));
   const r = await fsCreate('gifts', g.id, { to: fstr(to), amt: { doubleValue: amt }, ts: fint(g.ts), msg: fstr((msg || '').slice(0, 120)), sig: fstr(sig), von: fstr((von || S.disp).slice(0, 24)), k: fstr(k), x: fstr(String(x)) });
   if (!r.ok) throw new Error('HTTP ' + r.status);
+}
+function giftReceive(g, all) {
+      const a = r2(+g.amt), kd = g.k || 'm'; giftApply(kd, a, g.x);
+      if (kd === 'ban') { save(); if (a <= 0) toast('✅ Du bist wieder entsperrt!', 'good', 4000); return; }
+      if (kd === 'fw') { save(); return; } // still – die Überraschung kommt beim nächsten Dreh
+      if (kd === 'fk' && g.x === '1') setTimeout(() => { const ov = document.querySelector('.ov'); const rev = () => setTimeout(() => { toast('😜 Reingelegt! Das Geschenk war nur ein Spaß.', 'good', 5000); SND.click(); }, 400); if (ov) ov.addEventListener('click', rev, { once: true }); else rev(); }, 50);
+      save(); hdr(true); lbLast = ''; pushScore(true);
+      if (a >= 0) { SND.big(); FX.burst(120, { coins: true }); }
+      sheet(`<h2>${a >= 0 ? '🎁 Geschenk!' : '⚖️ Korrektur'}</h2><p class="hint" style="font-size:18px"><b>${esc(g.von || 'Der Besitzer')}</b> hat ${all ? 'allen Spielern, die gerade online sind,' : 'dir'} <b class="${a >= 0 ? 'pos' : 'neg'}">${(GIFT_K[kd === 'fk' ? 'm' : kd] || ['🎁'])[0]} ${giftTxt(kd, a, g.x)}</b> ${a >= 0 ? 'geschenkt' : 'abgezogen'}.${kd === 'sp' ? '<br>Einfach an einem beliebigen Automaten drehen – die ersten Drehs sind gratis!' : ''}${g.msg ? `<br><br>„${esc(g.msg)}“` : ''}</p><button class="btn white w" data-close>OK</button>`, { center: true });
 }
 async function giftPoll() {
   if (!S || !onlineOn() || document.hidden) return;
@@ -4968,13 +4978,7 @@ async function giftPoll() {
       if (S.gifts.includes(g.id) || Date.now() - (g.ts || 0) > 14 * 864e5 || (g.ts || 0) < (S.created || 0)) continue;
       if (!isFinite(+g.amt) || !await giftVerify({ id: g.id, to: g.to, amt: +g.amt, ts: +g.ts, sig: g.sig || '', k: g.k || '', x: g.x || '' })) continue;
       S.gifts.push(g.id); if (S.gifts.length > 200) S.gifts = S.gifts.slice(-200);
-      const a = r2(+g.amt), kd = g.k || 'm'; giftApply(kd, a, g.x);
-      if (kd === 'ban') { save(); if (a <= 0) toast('✅ Du bist wieder entsperrt!', 'good', 4000); continue; }
-      if (kd === 'fw') { save(); continue; } // still – die Überraschung kommt beim nächsten Dreh
-      if (kd === 'fk' && g.x === '1') setTimeout(() => { const ov = document.querySelector('.ov'); const rev = () => setTimeout(() => { toast('😜 Reingelegt! Das Geschenk war nur ein Spaß.', 'good', 5000); SND.click(); }, 400); if (ov) ov.addEventListener('click', rev, { once: true }); else rev(); }, 50);
-      save(); hdr(true); lbLast = ''; pushScore(true);
-      if (a >= 0) { SND.big(); FX.burst(120, { coins: true }); }
-      sheet(`<h2>${a >= 0 ? '🎁 Geschenk!' : '⚖️ Korrektur'}</h2><p class="hint" style="font-size:18px"><b>${esc(g.von || 'Der Besitzer')}</b> hat dir <b class="${a >= 0 ? 'pos' : 'neg'}">${(GIFT_K[kd === 'fk' ? 'm' : kd] || ['🎁'])[0]} ${giftTxt(kd, a, g.x)}</b> ${a >= 0 ? 'geschenkt' : 'abgezogen'}.${kd === 'sp' ? '<br>Einfach an einem beliebigen Automaten drehen – die ersten Drehs sind gratis!' : ''}${g.msg ? `<br><br>„${esc(g.msg)}“` : ''}</p><button class="btn white w" data-close>OK</button>`, { center: true });
+      giftReceive(g);
     }
   } catch (e) { }
 }
@@ -4998,6 +5002,7 @@ function giftStart() { if (!onlineOn()) return; setTimeout(giftPoll, 2500); setI
 function openGift() {
   const o = sheet(`<div class="row sb"><h2>🎁 Spielern etwas geben</h2><button class="x" data-close>${icon('x')}</button></div>
     <div class="lbl2" style="margin-top:0">Spielername</div><input class="inp" id="gfN" maxlength="18" placeholder="z. B. Robin" autocomplete="off">
+    <div class="filters" id="gfAll" style="margin-top:8px"><button data-a="0" class="on">👤 Ein Spieler</button><button data-a="1">📢 Alle, die gerade online sind</button></div>
     <div class="lbl2">Was?</div><div class="fdgg" id="gfK" style="grid-template-columns:repeat(4,1fr)">${Object.entries(GIFT_K).map(([k, [ic, n]]) => `<button class="btn ${k === 'm' ? 'gold' : 'dark'}" data-k="${k}" style="font-size:13px;padding:10px 4px">${ic}<br>${n.replace('Glückstrank ', '')}</button>`).join('')}</div>
     <div class="lbl2" id="gfAL">Betrag (mit Minus zum Abziehen, z. B. -500)</div><input class="inp num" id="gfA" type="number" inputmode="decimal" placeholder="z. B. 1000">
     <div id="gfUW" class="hidden"><div class="filters" id="gfU" style="margin-top:8px"><button data-u="m" class="on">Minuten</button><button data-u="s">Sekunden</button></div>
@@ -5018,19 +5023,22 @@ function openGift() {
   let fake = false, reveal = false;
   $('#gfF', o).onclick = e => { fake = !fake; e.target.classList.toggle('on', fake); $('#gfFR', o).classList.toggle('hidden', !fake); $('#gfVW', o).classList.toggle('hidden', !fake); };
   $('#gfR', o).onclick = e => { reveal = !reveal; e.target.classList.toggle('on', reveal); };
+  let toAll = false;
+  $('#gfAll', o).onclick = e => { const b = e.target.closest('[data-a]'); if (!b) return; toAll = b.dataset.a === '1'; $$('#gfAll button', o).forEach(x => x.classList.toggle('on', x === b)); $('#gfN', o).disabled = toAll; $('#gfN', o).style.opacity = toAll ? .4 : 1; SND.click(); };
   $('#gfUnban', o).onclick = () => { if (!$('#gfN', o).value.trim()) return toast('Erst den Spielernamen eingeben', 'bad'); $('#gfA', o).value = 0; $('#gfGo', o).click(); };
   $('#gfGo', o).onclick = async function () {
-    const nm = $('#gfN', o).value.trim().toLowerCase(), amt = r2(+$('#gfA', o).value || 0), msg = $('#gfM', o).value.trim(), x = kind === 'sp' ? r2(+$('#gfX', o).value || 0) : kind === 'ban' && unit === 's' ? 's' : '';
+    const nm = toAll ? '*' : $('#gfN', o).value.trim().toLowerCase(), amt = r2(+$('#gfA', o).value || 0), msg = $('#gfM', o).value.trim(), x = kind === 'sp' ? r2(+$('#gfX', o).value || 0) : kind === 'ban' && unit === 's' ? 's' : '';
     if (kind === 'sp' && !(x >= .1)) return toast('Einsatz mindestens 0,10 €', 'bad');
     if (kind !== 'm' && kind !== 'lv' && kind !== 'bp' && kind !== 'ban' && amt <= 0) return toast('Anzahl muss größer als 0 sein', 'bad');
     if (kind === 'ban' && amt < 0) return toast('Zeit darf nicht negativ sein', 'bad');
     if (!nm) return toast('Name fehlt', 'bad');
     if ((!amt && kind !== 'ban') || !isFinite(amt) || Math.abs(amt) > 1e12) return toast('Ungültiger Betrag', 'bad');
     this.disabled = true;
-    try { if (!await nameTaken(nm)) { this.disabled = false; return toast(`Spieler „${esc(nm)}“ gibt es nicht`, 'bad'); } } catch (e) { }
+    if (toAll && kind === 'ban') { this.disabled = false; return toast('Alle sperren geht nicht 😅', 'bad'); }
+    if (!toAll) try { if (!await nameTaken(nm)) { this.disabled = false; return toast(`Spieler „${esc(nm)}“ gibt es nicht`, 'bad'); } } catch (e) { }
     if (fake && kind !== 'm') return toast('Fake geht nur bei Geld 😜', 'bad');
     const kk = fake ? 'fk' : kind, xx = fake ? (reveal ? '1' : '0') : x, von = fake ? $('#gfV', o).value.trim() : '';
-    try { await giftSend(nm, amt, msg, kk, xx, von); SND.win(); toast(`${fake ? '😜 Fake-' : '🎁 '}${giftTxt(kk, amt, xx)} an ${esc(nm)} geschickt`, 'good'); o.close(); }
+    try { await giftSend(nm, amt, msg, kk, xx, von); SND.win(); toast(`${fake ? '😜 Fake-' : '🎁 '}${giftTxt(kk, amt, xx)} an ${toAll ? "alle, die online sind" : esc(nm)} geschickt`, 'good'); o.close(); }
     catch (e) { this.disabled = false; toast(e.message === 'key' ? 'Bitte Cheat-Code einmal neu eingeben (Admin-Schlüssel fehlt).' : 'Senden fehlgeschlagen – Firebase-Regeln prüfen.', 'bad'); }
   };
 }
@@ -5145,7 +5153,12 @@ async function bcPoll() {
     const n = await fsQuery({ from: [{ collectionId: 'gifts' }], where: rangeQ('to', '*', Date.now() - 6 * 36e5), limit: 20 });
     S.gifts = S.gifts || []; let last = null;
     for (const g of n.sort((a, b) => (a.ts || 0) - (b.ts || 0))) {
-      if (S.gifts.includes(g.id) || g.k !== 'bc') continue;
+      if (S.gifts.includes(g.id)) continue;
+      if (g.k !== 'bc') { // 🎁 Geschenk an alle: nur wer innerhalb von 15 Min. online ist
+        if (Date.now() - (+g.ts || 0) > 15 * 60000 || (+g.ts || 0) < (S.created || 0) || !isFinite(+g.amt)) continue;
+        if (!await giftVerify({ id: g.id, to: g.to, amt: +g.amt, ts: +g.ts, sig: g.sig || '', k: g.k || '', x: g.x || '' })) continue;
+        S.gifts.push(g.id); if (S.gifts.length > 200) S.gifts = S.gifts.slice(-200); giftReceive(g, true); continue;
+      }
       if (!await giftVerify({ id: g.id, to: g.to, amt: +g.amt || 0, ts: +g.ts, sig: g.sig || '', k: 'bc', x: g.x || '' })) continue;
       S.gifts.push(g.id); if (S.gifts.length > 200) S.gifts = S.gifts.slice(-200); last = g;
     }
