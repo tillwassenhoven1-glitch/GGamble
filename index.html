@@ -1431,7 +1431,8 @@ function prep(m) {
     for (let i = 0; i < N; i++) {
       let fs = 0, first = true;
       while (first || fs > 0) {
-        const g = genGrid(m, rng), ev = evalV(m, g, 1);
+        let g = genGrid(m, rng); if (!first && m.scat !== m.wild) { let t = 0; while (g.flat().filter(c => c === m.scat).length >= 2 && t++ < 50) g = genGrid(m, rng); }
+        const ev = evalV(m, g, 1);
         const mul = first ? 1 : 2; line += ev.line * mul; scat += ev.scat * mul;
         if (!first) fs--; if (ev.fs && first) fs += 10; first = false; // in Freispielen keine neuen Freispiele
       }
@@ -1683,7 +1684,10 @@ async function doSpin() {
   if (usePot) { rolls = S.potAct.m; S.potAct.left--; S.st.potUse = (S.st.potUse || 0) + 1; }
   let best = null;
   for (let k = 0; k < rolls; k++) {
-    const g = genGrid(m), ev = m.t === 'v' ? evalV(m, g, stake) : (() => { const e = evalC(m, g); return { tot: e.tot * stake, wins: e.wins.map(w => ({ ...w, w: w.w * stake })) }; })();
+    let g = genGrid(m);
+    // In Freispielen höchstens 1 Freispiel-Symbol (es gibt dort keine neuen Freispiele – also auch keine Spannung darauf)
+    if (free && m.t === 'v' && m.scat && m.scat !== m.wild) { let t = 0; while (g.flat().filter(c => c === m.scat).length >= 2 && t++ < 50) g = genGrid(m); }
+    const ev = m.t === 'v' ? evalV(m, g, stake) : (() => { const e = evalC(m, g); return { tot: e.tot * stake, wins: e.wins.map(w => ({ ...w, w: w.w * stake })) }; })();
     if (!best || ev.tot > best.ev.tot) best = { g, ev };
   }
   if (usePot) { const f = potF(m, rolls); if (f < 1) { best.ev.tot *= f; best.ev.wins = best.ev.wins.map(w => ({ ...w, w: w.w * f })); } } // Trank: bestes aus N, aber gedeckelt
