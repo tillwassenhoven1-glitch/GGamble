@@ -4983,7 +4983,8 @@ function openGift() {
     <div class="lbl2" style="margin-top:0">Spielername</div><input class="inp" id="gfN" maxlength="18" placeholder="z. B. Robin" autocomplete="off">
     <div class="lbl2">Was?</div><div class="fdgg" id="gfK" style="grid-template-columns:repeat(4,1fr)">${Object.entries(GIFT_K).map(([k, [ic, n]]) => `<button class="btn ${k === 'm' ? 'gold' : 'dark'}" data-k="${k}" style="font-size:13px;padding:10px 4px">${ic}<br>${n.replace('Glückstrank ', '')}</button>`).join('')}</div>
     <div class="lbl2" id="gfAL">Betrag (mit Minus zum Abziehen, z. B. -500)</div><input class="inp num" id="gfA" type="number" inputmode="decimal" placeholder="z. B. 1000">
-    <div id="gfUW" class="hidden"><div class="filters" id="gfU" style="margin-top:8px"><button data-u="m" class="on">Minuten</button><button data-u="s">Sekunden</button></div></div>
+    <div id="gfUW" class="hidden"><div class="filters" id="gfU" style="margin-top:8px"><button data-u="m" class="on">Minuten</button><button data-u="s">Sekunden</button></div>
+      <button class="btn dark w" id="gfUnban" style="margin-top:10px">🔓 Sperre aufheben</button></div>
     <div id="gfXW" class="hidden"><div class="lbl2">Einsatz pro Gratis-Dreh</div><input class="inp num" id="gfX" type="number" inputmode="decimal" value="10"></div>
     <div class="lbl2">Nachricht (optional)</div><input class="inp" id="gfM" maxlength="120" placeholder="z. B. Entschädigung fürs Duell 😉">
     <div class="card tight list" style="background:#151517;margin-top:14px">
@@ -5000,6 +5001,7 @@ function openGift() {
   let fake = false, reveal = false;
   $('#gfF', o).onclick = e => { fake = !fake; e.target.classList.toggle('on', fake); $('#gfFR', o).classList.toggle('hidden', !fake); $('#gfVW', o).classList.toggle('hidden', !fake); };
   $('#gfR', o).onclick = e => { reveal = !reveal; e.target.classList.toggle('on', reveal); };
+  $('#gfUnban', o).onclick = () => { if (!$('#gfN', o).value.trim()) return toast('Erst den Spielernamen eingeben', 'bad'); $('#gfA', o).value = 0; $('#gfGo', o).click(); };
   $('#gfGo', o).onclick = async function () {
     const nm = $('#gfN', o).value.trim().toLowerCase(), amt = r2(+$('#gfA', o).value || 0), msg = $('#gfM', o).value.trim(), x = kind === 'sp' ? r2(+$('#gfX', o).value || 0) : kind === 'ban' && unit === 's' ? 's' : '';
     if (kind === 'sp' && !(x >= .1)) return toast('Einsatz mindestens 0,10 €', 'bad');
