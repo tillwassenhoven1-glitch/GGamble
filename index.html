@@ -1433,7 +1433,7 @@ function prep(m) {
       while (first || fs > 0) {
         const g = genGrid(m, rng), ev = evalV(m, g, 1);
         const mul = first ? 1 : 2; line += ev.line * mul; scat += ev.scat * mul;
-        if (!first) fs--; if (ev.fs) fs += 10; first = false; if (fs > 40) fs = 40;
+        if (!first) fs--; if (ev.fs && first) fs += 10; first = false; // in Freispielen keine neuen Freispiele
       }
     }
     line /= N; scat /= N;
@@ -1450,7 +1450,7 @@ function potF(m, n) {
   prep(m); m.potF = m.potF || {}; if (m.potF[n]) return m.potF[n];
   const rng = mulberry(777 + m.i * 13 + n), N = 6000, ev1 = g => m.t === 'v' ? evalV(m, g, 1) : { tot: evalC(m, g).tot, fs: false };
   // Wert einer normalen Freispiel-Serie (ohne Trank)
-  let fsv = 0; if (m.t === 'v') { const K = 1500; for (let i = 0; i < K; i++) { let fs = 10, t = 0; while (fs > 0) { const e = ev1(genGrid(m, rng)); t += e.tot * 2; fs--; if (e.fs && fs < 40) fs += 10; } fsv += t; } fsv /= K; }
+  let fsv = 0; if (m.t === 'v') { const K = 1500; for (let i = 0; i < K; i++) { let fs = 10, t = 0; while (fs > 0) { const e = ev1(genGrid(m, rng)); t += e.tot * 2; fs--; } fsv += t; } fsv /= K; }
   let line = 0, fsPart = 0;
   for (let i = 0; i < N; i++) { let b = null; for (let k = 0; k < n; k++) { const e = ev1(genGrid(m, rng)); if (!b || e.tot > b.tot) b = e; } line += b.tot; if (b.fs) fsPart += fsv; }
   line /= N; fsPart /= N;
@@ -1678,7 +1678,7 @@ async function doSpin() {
   // Jackpot-Pool wächst
   if (m.t === 'j' && !free) S.jp[m.jp] = r2(S.jp[m.jp] + stake * .02);
   // Ergebnis (mit Glückstrank: bestes aus N)
-  let rolls = 1; const usePot = !free && S.potAct && stake <= potCap() + 1e-9; // Trank wirkt nicht in Freispielen
+  let rolls = 1; const usePot = S.potAct && stake <= potCap() + 1e-9; // Trank wirkt auch in Freispielen (Gewinne gedeckelt, siehe potF)
   if (S.potAct && !usePot) toast(`⚠️ Trank wirkt nicht: Einsatz über ${fmt(potCap())}. Nimm einen kleineren Einsatz oder „Max“.`, 'bad', 2600);
   if (usePot) { rolls = S.potAct.m; S.potAct.left--; S.st.potUse = (S.st.potUse || 0) + 1; }
   let best = null;
@@ -1718,10 +1718,10 @@ async function doSpin() {
     else if (!free) await celebrate(win, win / stake);
     else { SND.win(); FX.burst(30, { coins: true }); }
   } else if (!free) { if (allIn) SND.lose(); }
-  if (best.ev.fs) {
-    if (!free) { MS.fsStake = stake; MS.fsN = 0; MS.fsWin = 0; }
+  if (best.ev.fs && !free) { // 🚫 in Freispielen gibt's keine weiteren Freispiele
+    MS.fsStake = stake; MS.fsN = 0; MS.fsWin = 0;
     MS.fs += 10; MS.fsN += 10;
-    flash(); SND.big(); vib([80, 40, 80]); toast(`🎉 ${free ? '+10 weitere' : '10'} FREISPIELE! Alle Gewinne ×2`, 'good', 3000);
+    flash(); SND.big(); vib([80, 40, 80]); toast('🎉 10 FREISPIELE! Alle Gewinne ×2', 'good', 3000);
     FX.burst(90);
   }
   if (free) MS.fs--;
@@ -1939,18 +1939,21 @@ function openBonus() {
 /* ================= Rubbellose ================= */
 const LOSE = [
   { id: 'gp', n: 'Glückspfennig', p: 1, top: 1000, ic: 'coins', ty: '3', a: '#c7834e', b: '#e7b88a', lvl: 1 },
-  { id: 'vb', n: 'Vierblatt', p: 3, top: 6000, ic: 'clover', ty: 'sym', a: '#4f8a5a', b: '#a6d1ad', lvl: 1 },
-  { id: 'ga', n: 'Goldader', p: 10, top: 25000, ic: 'pick', ty: 'num', a: '#9c7a3e', b: '#dcc08a', lvl: 1 },
-  { id: 'tk', n: 'Tresorknacker', p: 50, top: 200000, ic: 'vault', ty: '3', a: '#6f7a88', b: '#cfd6df', lvl: 4 },
-  { id: 'dm', n: 'Diamantmine', p: 250, top: 1.25e6, ic: 'diamond', ty: 'num', a: '#4b5056', b: '#8c9298', lvl: 12, dark: 1 },
-  { id: 'kj', n: 'Kronjuwel', p: 2000, top: 12e6, ic: 'crown', ty: '3', a: '#5a5450', b: '#9d958c', lvl: 16, dark: 1 },
-  { id: 'ml', n: 'Millionenlos', p: 20000, top: 160e6, ic: 'cash', ty: 'num', a: '#474747', b: '#8a8a8a', lvl: 22, dark: 1 },
-  { id: 'sl', n: 'Schwarzes Los', p: 250000, top: 2.5e9, ic: 'eye', ty: '3', a: '#2a2a2a', b: '#6a6a6a', lvl: 30, dark: 1 },
+  { id: 'vb', n: 'Vierblatt', p: 3, top: 3000, ic: 'clover', ty: 'sym', a: '#4f8a5a', b: '#a6d1ad', lvl: 1 },
+  { id: 'ga', n: 'Goldader', p: 10, top: 10000, ic: 'pick', ty: 'num', a: '#9c7a3e', b: '#dcc08a', lvl: 1 },
+  { id: 'tk', n: 'Tresorknacker', p: 50, top: 50000, ic: 'vault', ty: '3', a: '#6f7a88', b: '#cfd6df', lvl: 4 },
+  { id: 'dm', n: 'Diamantmine', p: 250, top: 250000, ic: 'diamond', ty: 'num', a: '#4b5056', b: '#8c9298', lvl: 12, dark: 1 },
+  { id: 'kj', n: 'Kronjuwel', p: 2000, top: 2e6, ic: 'crown', ty: '3', a: '#5a5450', b: '#9d958c', lvl: 16, dark: 1 },
+  { id: 'ml', n: 'Millionenlos', p: 20000, top: 20e6, ic: 'cash', ty: 'num', a: '#474747', b: '#8a8a8a', lvl: 22, dark: 1 },
+  { id: 'sl', n: 'Schwarzes Los', p: 250000, top: 2.5e8, ic: 'eye', ty: '3', a: '#2a2a2a', b: '#6a6a6a', lvl: 30, dark: 1 },
 ];
-const TIER_M = [1, 2, 5, 10, 20, 50, 100, 500];
+const TIER_M = [1, 2, 5, 10, 20, 50, 100, 250]; // höchste Stufe ×250 (vorher ×500)
 const TIER_P = [.155, .077, .029, .011, .0045, .0013, .00055, .00007];
 const VB_SYM = ['🌻', '🐞', '🍄', '🌈', '🦋', '⭐', '💰', '👑', '🍀'];
 const TK = {}; // aktive Lose: id -> {res, cells, revealed}
+// Los nur, wenn es höchstens das Doppelte des Höchsteinsatzes kostet (sonst später freigeschaltet)
+const msAt = l => l <= 10 ? 10 * Math.pow(STAKE_G, l - 1) : 10 * Math.pow(STAKE_G, 9) * Math.pow(1.15, l - 10);
+function loseLvl(L) { let l = 1; while (l < 99 && msAt(l) * 2 < L.p) l++; return Math.max(L.lvl, l); }
 function loseMults(L) { return [...TIER_M, L.top / L.p]; }
 function drawPrize(L) {
   const ms = loseMults(L), ps = [...TIER_P, .02 / (L.top / L.p)];
@@ -1988,12 +1991,12 @@ function genTicket(L) {
 }
 function renderLose(el) {
   el.innerHTML = `<h1 class="t">Rubbellose</h1><p class="sub">Such dir ein Los aus – vor dem Rubbeln zeigen wir dir genau, wie es geht.</p>
-    ${LOSE.map(L => `<div class="ticket ${S.level < L.lvl ? 'tklocked' : ''}" id="tk_${L.id}"></div>`).join('')}`;
+    ${LOSE.map(L => `<div class="ticket ${S.level < loseLvl(L) ? 'tklocked' : ''}" id="tk_${L.id}"></div>`).join('')}`;
   LOSE.forEach(L => drawTicket(L));
 }
 function drawTicket(L) {
   const box = $('#tk_' + L.id); if (!box) return;
-  const t = TK[L.id], lk = S.level < L.lvl;
+  const t = TK[L.id], lk = S.level < loseLvl(L);
   const ms = loseMults(L), vals = ms.map(m => m * L.p);
   const grid = L.ty === 'num'
     ? `<div class="lab">GEWINNZAHLEN</div><div class="grid g2" data-g="w">${[0, 1].map(k => `<div class="sc" data-w="${k}">${t ? t.res.wn[k] : ''}</div>`).join('')}</div>
@@ -2009,7 +2012,7 @@ function drawTicket(L) {
       <div class="foot"><div class="barcode"></div><div class="nr">Nr. ${t ? t.nr : '————'}<small>Nur Spielgeld</small></div></div>
     </div>
     <div class="tkres" id="tr_${L.id}"></div>
-    <div class="tkbar">${lk ? `<span class="chip">${icon('lock')} Level ${L.lvl}</span><span class="chip">${shortMoney(L.p)}</span>`
+    <div class="tkbar">${lk ? `<span class="chip">${icon('lock')} Level ${loseLvl(L)}</span><span class="chip">${shortMoney(L.p)}</span>`
       : t && !t.done ? `<button class="btn dark w" data-all>Alles aufdecken</button>`
         : `<button class="btn white w" data-buy>${t ? 'Nochmal' : 'Kaufen'} · ${shortMoney(L.p)}</button>`}</div>`;
   // Rubbelschicht
