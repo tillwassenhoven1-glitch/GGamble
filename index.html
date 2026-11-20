@@ -2888,7 +2888,7 @@ function pushScore(force) {
   const withHist = Object.assign({}, withOwn, { hist: { stringValue: histPack() } });
   const noDM = Object.assign({}, withOwn); ['dv', 'dk', 'mv', 'mk'].forEach(x => delete noDM[x]);
   const noWk = Object.assign({}, noDM); ['wk', 'wkk'].forEach(x => delete noWk[x]);
-  const withRb = Object.assign({}, withHist, { rbw: { doubleValue: S.st.rbWag || 0 } }); // 🌈 Einsatz am Regenbogen-Automaten
+  const withRb = Object.assign({}, withHist, { rbw: { doubleValue: S.st.rbWag || 0 }, pt: fint(S.st.play || 0) }); // 🌈 Regenbogen-Einsatz, ⏱️ Spielzeit
   const tiers = [withRb, withHist, withOwn, noDM, noWk, full, f];
   const attempt = i => i >= tiers.length ? Promise.resolve(lbLast = '') : send(tiers[i]).then(r => {
     DIAG.rang = r.status + ' (Stufe ' + i + ') · ' + new Date().toLocaleTimeString();
@@ -4248,7 +4248,12 @@ async function renderWoche(el) {
 
 /* ================= Bestenliste (neu): Vermögen + Gewinn heute/Woche/Monat ================= */
 let rgTab = 0, rgMore = false;
-const RG_TABS = [['Vermögen', 'bal'], ['Heute', 'dy'], ['Woche', 'wk'], ['Monat', 'mo']];
+const RG_TABS = [['Vermögen', 'bal'], ['Heute', 'dy'], ['Woche', 'wk'], ['Monat', 'mo'], ['⏱️ Zeit', 'pt']];
+/* ⏱️ Spielzeit: zählt nur, wenn die Seite offen ist und in den letzten 3 Min. getippt wurde (kein AFK-Farmen) */
+let PT_IN = Date.now();
+['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(ev => addEventListener(ev, () => { PT_IN = Date.now(); }, { passive: true, capture: true }));
+setInterval(() => { if (S && !document.hidden && Date.now() - PT_IN < 180000) { S.st.play = (S.st.play || 0) + 30; } }, 30000);
+const fmtDur = sec => { sec = Math.max(0, Math.round(sec || 0)); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60); return h ? `${NF0.format(h)} Std. ${m} Min.` : `${m} Min.`; };
 /* 📈 Verlauf: Guthaben über die Zeit (für das Rot/Grün-Diagramm) */
 function histRec() {
   if (!S) return; S.ph = S.ph || []; const now = Date.now(), last = S.ph[S.ph.length - 1];
@@ -4307,18 +4312,18 @@ async function rgFetch0() {
   const docs = (await fsQuery({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'since' }, op: 'GREATER_THAN_OR_EQUAL', value: fint(RESET_TS) } }, limit: 1000 })).filter(r => r.id === S.lbId || isOwner(r.id) || (typeof lbhHas === 'function' ? !lbhHas(r.name) : true));
   return docs.map(d => ({ k: d.id, name: d.name || '?', disp: d.disp || d.name || '?', bal: d.bal || 0, lvl: d.level || 1, color: d.color || 0, ts: d.ts || 0, me: d.id === S.lbId,
     big: d.big ?? null, net: d.net ?? null, bxp: d.bxp ?? null, wag: d.wag ?? null, since: d.since ?? null, best: d.best || '', ach: d.ach ?? null, own: !!d.own, tit: d.tit || '', frm: d.frm || '', clan: d.clan || '', hist: d.hist || '',
-    dy: perVal(d, 'dy', d.dk === dayKey() ? d.dv : undefined), wk: perVal(d, 'wk', d.wkk === weekKey() ? d.wk : undefined), mo: perVal(d, 'mo', d.mk === monKey() ? d.mv : undefined) }));
+    dy: perVal(d, 'dy', d.dk === dayKey() ? d.dv : undefined), wk: perVal(d, 'wk', d.wkk === weekKey() ? d.wk : undefined), mo: perVal(d, 'mo', d.mk === monKey() ? d.mv : undefined), pt: d.pt ?? null }));
 }
 function rgMe() {
   wkAdd(0);
   return { k: S.lbId, me: true, name: S.name, disp: S.disp, photo: S.photo, color: S.color, frm: S.frm, tit: S.tit, clan: S.clan ? S.clan.tag : '', bal: S.bal, lvl: S.level, ts: Date.now(),
     big: S.st.biggest, net: S.st.net, bxp: S.bx.pnl, wag: S.st.wagered, since: S.created, best: S.st.bestGame, ach: Object.keys(S.ach).length,
-    dy: perVal({ since: S.created, bal: S.bal }, 'dy', S.dy.v), wk: perVal({ since: S.created, bal: S.bal }, 'wk', S.wk.v), mo: perVal({ since: S.created, bal: S.bal }, 'mo', S.mo.v) };
+    dy: perVal({ since: S.created, bal: S.bal }, 'dy', S.dy.v), wk: perVal({ since: S.created, bal: S.bal }, 'wk', S.wk.v), mo: perVal({ since: S.created, bal: S.bal }, 'mo', S.mo.v), pt: S.st.play || 0 };
 }
 async function renderRang2(el) {
   el.innerHTML = `<h1 class="t">Bestenliste</h1><p class="sub">${onlineOn() ? 'Alle echten Spieler online' : 'Konten auf diesem Gerät'} <button class="onl hidden" id="onlR" style="margin-left:6px"></button></p>
     <button class="btn dark w" id="toClan" style="margin-bottom:14px">🏢 Clans &amp; Clan-Bestenliste</button>
-    <div class="tabs" id="rgT">${RG_TABS.map(([n], i) => `<button data-t="${i}" class="${i === rgTab ? 'on' : ''}">${n}</button>`).join('')}</div>
+    <div class="tabs" id="rgT">${RG_TABS.map(([n], i) => `<button data-t="${i}" class="${i === rgTab ? 'on' : ''}" style="flex:1 1 0;min-width:0;padding-left:4px;padding-right:4px;font-size:15px;white-space:nowrap">${n}</button>`).join('')}</div>
     <div id="rgBody"><div class="empty">Lade …</div></div>`;
   $('#toClan', el).onclick = () => go('clan'); onlDraw(); $('#onlR', el).onclick = onlShow;
   $('#rgT', el).onclick = e => { const b = e.target.closest('[data-t]'); if (!b) return; rgTab = +b.dataset.t; rgMore = false; SND.click(); renderRang2(el); };
@@ -4338,18 +4343,19 @@ async function renderRang2(el) {
   const val = r => isBal ? r.bal : r[key];
   const rows = all.filter(r => val(r) !== null && val(r) !== undefined).sort((a, b) => val(b) - val(a));
   const meI = rows.findIndex(r => r.me), N = rows.length, me = rgMe();
-  const money = v => isBal ? fmt(v) : fmt(v, { sign: true });
-  const cls = v => v < 0 ? 'neg' : isBal ? '' : v > 0 ? 'pos' : '';
+  const isPt = key === 'pt';
+  const money = v => isPt ? fmtDur(v) : isBal ? fmt(v) : fmt(v, { sign: true });
+  const cls = v => isPt ? '' : v < 0 ? 'neg' : isBal ? '' : v > 0 ? 'pos' : '';
   const row = (r, i) => `<div class="it ${r.me ? 'me' : ''}" data-i="${i}"><span class="rn">${i + 1}</span>${avaHTML(r)}<div class="who"><b>${tagHTML(r.clan)}<span class="${nameCls(r)}">${esc(r.disp)}</span>${ownerTag(r)}</b><small>@${esc(r.name)}${titName(r.tit) ? ' · ' + esc(titName(r.tit)) : ''}${isBal ? '' : ' · ' + fmt(r.bal)}</small></div><span class="w num ${cls(val(r))}">${money(val(r))}</span></div>`;
   const pod = (r, i) => r ? `<div class="p${i + 1}"><div class="pa">${avaHTML(r)}<span class="rk" style="background:${['#d8b85a', '#cfcfd4', '#c8875a'][i]}">${i + 1}</span></div><div class="nm ${nameCls(r)}">${esc(r.disp)}</div>${ownOn(r) ? '<div class="owner" style="margin-top:4px">👑 Besitzer</div>' : ''}<div class="vv num">${money(val(r))}</div><div class="blk" style="height:${[150, 110, 80][i]}px"></div></div>` : '<div></div>';
-  const sub = ['Wer hat am meisten Geld?', 'Gewinn heute (gewonnen minus eingesetzt, plus Belohnungen)', 'Gewinn diese Woche – startet jeden Montag neu', `Gewinn im ${MONATE[new Date(Date.now()).getMonth()]}`][rgTab];
+  const sub = ['Wer hat am meisten Geld?', 'Gewinn heute (gewonnen minus eingesetzt, plus Belohnungen)', 'Gewinn diese Woche – startet jeden Montag neu', `Gewinn im ${MONATE[new Date(Date.now()).getMonth()]}`, 'Wer hat am längsten gespielt? (zählt nur aktive Zeit)'][rgTab];
   body.innerHTML = `<p class="hint" style="margin-top:-6px">${sub}</p>
     ${N >= 2 ? `<div class="podium">${pod(rows[1], 1)}${pod(rows[0], 0)}${pod(rows[2], 2)}</div>` : ''}
     <div class="sec">Top 10</div>
     <div class="card tight list rl">${rows.slice(0, 10).map(row).join('') || '<div class="empty">Noch niemand dabei.</div>'}</div>
     <div class="sec">Dein Platz</div>
     <div class="card myrank" id="rgMe"><div class="mr-n num">${meI >= 0 ? '#' + (meI + 1) : '–'}</div>${avaHTML(me)}<div class="who"><b class="${nameCls(ME_O())}">${esc(S.disp)}</b><small>${meI >= 0 ? `Platz ${meI + 1} von ${N} Spieler${N === 1 ? '' : 'n'}${meI < 10 ? ' · Top 10 🔥' : ''}` : 'Spiel eine Runde, um dabei zu sein'}</small></div><span class="w num ${cls(val(me))}">${money(val(me))}</span></div>
-    ${histChart(key)}
+    ${isPt ? '' : histChart(key)}
     ${N > 10 ? `<button class="btn dark w" id="rgMoreB" style="margin-top:4px">${rgMore ? '▲ Weniger anzeigen' : `▼ Mehr anzeigen (alle ${N} Spieler)`}</button>
       <div class="card tight list rl ${rgMore ? '' : 'hidden'}" id="rgAll" style="margin-top:12px">${rows.slice(10).map((r, i) => row(r, i + 10)).join('')}</div>` : ''}
     ${info ? `<p class="hint">${info}</p>` : ''}`;
