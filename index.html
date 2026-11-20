@@ -2581,7 +2581,7 @@ function untilMidnight() { const n = new Date(Date.now()), m = new Date(n); m.se
 
 /* ================= Glückstränke ================= */
 const POT_R = { 2: 10, 4: 6, 6: 4, 100: 10 }; // ×100 = 🌈 Regenbogen-Trank (super selten)
-const potCap = () => r2(Math.min(base() * 1.5, 100)); // Glückstrank wirkt nur bis 100 € Einsatz – sonst werden die Reichen mit Tränken immer reicher
+const potCap = () => r2(base() * 1.5);
 function potionsHTML() {
   return `<div class="pots">${[2, 4, 6, ...((S.pot[100] || 0) > 0 ? [100] : [])].map(m => `<div><div class="pot p${m}"><i>×${m}</i></div><b class="num">${S.pot[m]}×</b><button class="btn dark sm w" data-drink="${m}" ${S.pot[m] < 1 || S.potAct ? 'disabled' : ''}>Trinken</button></div>`).join('')}</div>`;
 }
