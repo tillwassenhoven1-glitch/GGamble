@@ -4442,10 +4442,13 @@ async function dmPoll(first) {
     const n = await fsQuery({ from: [{ collectionId: 'dm' }], where: rangeQ('ats', meKey(), last), orderBy: [{ field: { fieldPath: 'ats' }, direction: 'DESCENDING' }], limit: 100 });
     const ids = new Set(DM.inbox.map(m => m.id)), fresh = n.filter(m => !ids.has(m.id));
     DM.inbox.push(...fresh); payCheck(n);
-    if (!first && fresh.length && (!DM.open || fresh.some(m => m.von !== DM.open))) {
-      const m = fresh.find(x => x.von !== DM.open);
-      if (m && !PAY_RE.test(m.txt || '')) { toast(`💬 <b>${esc(m.disp || m.von)}</b>: ${esc(m.txt).slice(0, 60)}`, 'good', 4500, () => openDM(m.von, m.disp || m.von)); SND.coin(); }
+    // Jede Nachricht nur EINMAL melden – auch nach Neuladen (gemerkt im Spielstand), sonst kamen alte Meldungen immer wieder
+    const seen = S.dmNoteTs || 0, newest = Math.max(seen, ...n.map(m => +m.ts || 0));
+    if (!first && seen) {
+      const m = fresh.filter(x => x.von !== DM.open && (+x.ts || 0) > seen && !PAY_RE.test(x.txt || '')).sort((x, y) => y.ts - x.ts)[0];
+      if (m) { toast(`💬 <b>${esc(m.disp || m.von)}</b>: ${esc(m.txt).slice(0, 60)}`, 'good', 4500, () => openDM(m.von, m.disp || m.von)); SND.coin(); }
     }
+    if (newest > seen || !seen) { S.dmNoteTs = newest || Date.now(); save(); }
     frBadge();
   } catch (e) { }
 }
