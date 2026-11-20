@@ -4431,7 +4431,14 @@ async function frAdd(name, disp) {
   let ok = false; try { ok = await nameTaken(k); } catch (e) { return toast('Keine Verbindung', 'bad'); }
   if (!ok) return toast(`Spieler „${esc(name)}“ gibt es nicht`, 'bad');
   frList().push({ k, d: (disp || name).trim(), t: Date.now() }); save();
-  dmSend(k, '👋 hat dich als Freund hinzugefügt!').catch(() => { });
+  // 👋-Nachricht nur EINMAL pro Person – nicht wieder, wenn man sich nochmal hinzufügt (oder der andere schon geschrieben hat)
+  S.frSent = S.frSent || {};
+  if (!S.frSent[k] && !DM.inbox.some(m => m.von === k && /als Freund hinzugefügt/.test(m.txt || ''))) {
+    S.frSent[k] = Date.now(); save();
+    (async () => { try { const c = pairId(meKey(), k), old = await fsQuery({ from: [{ collectionId: 'dm' }], where: rangeQ('cts', c, 0), orderBy: [{ field: { fieldPath: 'cts' }, direction: 'DESCENDING' }], limit: 60 });
+      if (old.some(m => /als Freund hinzugefügt/.test(m.txt || ''))) return; } catch (e) { }
+      dmSend(k, '👋 hat dich als Freund hinzugefügt!').catch(() => { }); })();
+  }
   SND.win(); toast(`👥 ${esc((disp || name).trim())} ist jetzt dein Freund`, 'good');
   return true;
 }
