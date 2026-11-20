@@ -1259,7 +1259,7 @@ async function cloudSync(allowAdopt = true) { // true = anderes Gerät ist neuer
   return true;
 }
 async function syncTick() { if (!S || !ACC || syncing || document.hidden) return; syncing = true; try { await cloudSync(true); } finally { syncing = false; } }
-setInterval(syncTick, 30000); document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(syncTick, 300); });
+setInterval(syncTick, 120000); document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(syncTick, 300); });
 function cloudPush(now) {
   if (typeof ONLINE === 'undefined' || !onlineOn() || !S || !ACC) return;
   const run = async () => {
@@ -1268,7 +1268,7 @@ function cloudPush(now) {
     if (!S) return;
     cloudPut(a.cid, a, S).then(r => { DIAG.cloud = (r.skipped ? 'übersprungen (alter Stand)' : r.status) + ' · ' + new Date().toLocaleTimeString(); if (r.ok) { cloudLast = sig; cloudMine = Date.now(); } }).catch(e => { DIAG.cloud = 'Fehler ' + (e.message || '') + ' · ' + new Date().toLocaleTimeString(); });
   };
-  if (now) { clearTimeout(cloudT); run(); } else if (!cloudT) cloudT = setTimeout(run, 45000); // seltener speichern (Firebase-Kontingent); beim Schließen wird sofort gespeichert
+  if (now) { clearTimeout(cloudT); run(); } else if (!cloudT) cloudT = setTimeout(run, 90000); // seltener speichern (Firebase-Kontingent); beim Schließen wird sofort gespeichert
 }
 let saveT = 0; function save() { clearTimeout(saveT); saveT = setTimeout(persist, 250); }
 addEventListener('pagehide', () => { persist(); cloudPush(true); try { pushScore(); } catch (e) { } }); document.addEventListener('visibilitychange', () => { if (document.hidden) { persist(); cloudPush(true); } });
@@ -3650,7 +3650,7 @@ function startApp(key) {
   if (S.fsRun && MACH[S.fsRun.mi] && S.fsRun.fs > 0) setTimeout(resumeFreeSpins, 1200);
   else if (bonusReady()) setTimeout(() => S && openBonus(), 900);
   setInterval(() => { if (!S) return; applyInterest(); regenEnergy(); hdr(); save(); }, 30000);
-  setInterval(() => { if (S && !document.hidden) pushScore(); }, 75000); // Bestenliste alle 75 Sek. aktualisieren
+  setInterval(() => { if (S && !document.hidden) pushScore(); }, 120000); // Bestenliste alle 2 Min. aktualisieren (Firebase-Kontingent)
   setTimeout(() => pushScore(true), 3000);
   setInterval(() => { if (!S) return; if (S.bx.pos.length || S.bx.ord.length) bxTick(); else S.bx.lastTick = Date.now(); settleBets(); }, 2000);
   document.addEventListener('pointerdown', () => SND.c(), { once: true });
@@ -3725,7 +3725,7 @@ const fstr = s => ({ stringValue: String(s) }), fint = n => ({ integerValue: Str
 const fval = v => v === undefined || v === null ? undefined : v.stringValue !== undefined ? v.stringValue : v.integerValue !== undefined ? +v.integerValue : v.doubleValue !== undefined ? +v.doubleValue : v.booleanValue;
 let FS_QUOTA = 0; // HTTP 429 = Firebase-Tageskontingent voll → 10 Min. Pause statt weiter anzufragen
 // 💾 Zwischenspeicher: Bestenlisten/Clans/Sperren nur alle paar Minuten neu laden (jedes geladene Dokument kostet Firebase-Kontingent)
-const FQ_TTL = { rang: 180000, clans: 300000, lbsperre: 300000 }, FQ_C = new Map();
+const FQ_TTL = { rang: 300000, clans: 600000, lbsperre: 600000 }, FQ_C = new Map();
 async function fsQuery(q) {
   const col = q.from && q.from[0] && q.from[0].collectionId, ttl = FQ_TTL[col];
   if (ttl) { const key = JSON.stringify(q), c = FQ_C.get(key); if (c && Date.now() - c.t < ttl) return c.d.map(x => ({ ...x })); const d = await fsQuery0(q); FQ_C.set(key, { t: Date.now(), d }); if (FQ_C.size > 40) FQ_C.delete(FQ_C.keys().next().value); return d.map(x => ({ ...x })); }
@@ -4174,7 +4174,7 @@ function chatBg() {
     if (!S || document.hidden || document.querySelector('#lcLog')) return;
     try { const since = CH.seen || (Date.now() - 6 * 36e5); const n = await chatFetch(since, 1); if (n.length && n[0].name !== S.name) $('#hChat').classList.add('dot'); if (!CH.seen && n.length) CH.seen = since; } catch (e) { }
   };
-  CH.bg = setInterval(chk, 60000); setTimeout(chk, 5000);
+  CH.bg = setInterval(chk, 120000); setTimeout(chk, 5000);
 }
 
 /* ================= Live-Feed (große Gewinne für alle) ================= */
@@ -4215,7 +4215,7 @@ async function feedPoll() {
     FD.first = false; feedDraw();
   } catch (e) { }
 }
-function feedStart() { if (FD.iv || !onlineOn()) return; feedPoll(); FD.iv = setInterval(() => { if (!document.hidden) feedPoll(); }, 30000); setInterval(feedDraw, 60000); }
+function feedStart() { if (FD.iv || !onlineOn()) return; feedPoll(); FD.iv = setInterval(() => { if (!document.hidden) feedPoll(); }, 90000); setInterval(feedDraw, 60000); }
 function feedDraw() {
   const box = $('#feedBox'); FD.items = FD.items.filter(x => Date.now() - (x.ts || 0) < 36e5); if (!box) return; // Gewinne stehen 1 Stunde oben
   box.innerHTML = `<div class="row sb"><b style="font-size:18px">📣 Live</b><small style="color:var(--mut)">große Gewinne aller Spieler</small></div>
@@ -4308,10 +4308,11 @@ function perVal(d, p, tracked) {
   return tracked === undefined || tracked === null ? null : (+tracked || 0);
 }
 let RG_C = null;
-async function rgFetch() { if (RG_C && Date.now() - RG_C.t < 45000) return RG_C.d.map(x => ({ ...x, me: x.k === S.lbId })); const d = await rgFetch0(); RG_C = { t: Date.now(), d }; return d; }
+async function rgFetch() { if (RG_C && Date.now() - RG_C.t < 300000) return RG_C.d.map(x => ({ ...x, me: x.k === S.lbId })); const d = await rgFetch0(); RG_C = { t: Date.now(), d }; return d; }
 async function rgFetch0() {
   if (typeof lbhLoad === 'function') await lbhLoad();
-  const docs = (await fsQuery({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'since' }, op: 'GREATER_THAN_OR_EQUAL', value: fint(RESET_TS) } }, limit: 1000 })).filter(r => r.id === S.lbId || isOwner(r.id) || (typeof lbhHas === 'function' ? !lbhHas(r.name) : true));
+  // nur Spieler, die in den letzten 21 Tagen gespielt haben (spart viele Lesevorgänge); „seit Reset“ wird hier gefiltert
+  const docs = (await fsQuery({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(Math.floor(Date.now() / 36e5) * 36e5 - 21 * 864e5) } }, limit: 500 })).filter(r => (r.since || 0) >= RESET_TS).filter(r => r.id === S.lbId || isOwner(r.id) || (typeof lbhHas === 'function' ? !lbhHas(r.name) : true));
   return docs.map(d => ({ k: d.id, name: d.name || '?', disp: d.disp || d.name || '?', bal: d.bal || 0, lvl: d.level || 1, color: d.color || 0, ts: d.ts || 0, me: d.id === S.lbId,
     big: d.big ?? null, net: d.net ?? null, bxp: d.bxp ?? null, wag: d.wag ?? null, since: d.since ?? null, best: d.best || '', ach: d.ach ?? null, own: !!d.own, tit: d.tit || '', frm: d.frm || '', clan: d.clan || '', hist: d.hist || '',
     dy: perVal(d, 'dy', d.dk === dayKey() ? d.dv : undefined), wk: perVal(d, 'wk', d.wkk === weekKey() ? d.wk : undefined), mo: perVal(d, 'mo', d.mk === monKey() ? d.mv : undefined), pt: d.pt ?? null }));
@@ -4462,7 +4463,7 @@ async function dmPoll(first) {
   } catch (e) { }
 }
 function frBadge() { const n = unreadAll(); const h = $('#hChat'); if (h && n) h.classList.add('dot'); const b = $('#frBtnN'); if (b) b.textContent = n ? ` (${n})` : ''; }
-function dmStart() { if (DM.iv || !onlineOn()) return; dmPoll(true); DM.iv = setInterval(() => { if (!document.hidden) dmPoll(false); }, 30000); }
+function dmStart() { if (DM.iv || !onlineOn()) return; dmPoll(true); DM.iv = setInterval(() => { if (!document.hidden) dmPoll(false); }, 60000); }
 function renderFreunde(el) {
   frList();
   const others = [...new Set(DM.inbox.map(m => m.von))].filter(k => !isFriend(k));
@@ -4883,7 +4884,7 @@ async function fdRecover() {
     }
   } catch (e) { }
 }
-function fdStart() { if (FDX.iv || !onlineOn()) return; setTimeout(fdRecover, 3000); setInterval(() => { if (S && S.fdPend && !FDX.cur) fdRecover(); }, 60000); FDX.iv = setInterval(() => { if (!document.hidden) fdInbox(); }, 20000); setTimeout(fdInbox, 4000); }
+function fdStart() { if (FDX.iv || !onlineOn()) return; setTimeout(fdRecover, 3000); setInterval(() => { if (S && S.fdPend && !FDX.cur) fdRecover(); }, 60000); FDX.iv = setInterval(() => { if (!document.hidden) fdInbox(); }, 60000); setTimeout(fdInbox, 4000); }
 
 /* Spielerprofil: Freund hinzufügen / Nachricht schreiben */
 (() => {
@@ -5029,7 +5030,7 @@ async function onlCount() {
   if (!S || !onlineOn()) return;
   try {
     // Nur zählen (Aggregation = kaum Lesevorgänge) statt alle Dokumente zu laden – spart Firebase-Kontingent
-    const r = await fetch(`${FS()}:runAggregationQuery?key=${ONLINE.apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ structuredAggregationQuery: { structuredQuery: { from: [{ collectionId: 'online' }], where: { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(Date.now() - 180000) } } }, aggregations: [{ alias: 'n', count: {} }] } }) });
+    const r = await fetch(`${FS()}:runAggregationQuery?key=${ONLINE.apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ structuredAggregationQuery: { structuredQuery: { from: [{ collectionId: 'online' }], where: { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(Date.now() - 300000) } } }, aggregations: [{ alias: 'n', count: {} }] } }) });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const j = await r.json(), n = +((j[0] && j[0].result && j[0].result.aggregateFields && j[0].result.aggregateFields.n && j[0].result.aggregateFields.n.integerValue) || 0);
     ONL.n = Math.max(1, n); ONL.ok = true;
@@ -5041,11 +5042,11 @@ function onlDraw() { $$('.onl').forEach(b => { b.classList.toggle('hidden', !ONL
 function onlStart() {
   if (ONL.iv || !onlineOn()) return;
   onlDraw(); onlBeat().then(onlCount);
-  ONL.iv = setInterval(() => { if (document.hidden) return; onlBeat(); onlCount(); }, 70000);
+  ONL.iv = setInterval(() => { if (document.hidden) return; onlBeat(); onlCount(); }, 120000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { onlBeat(); onlCount(); } });
 }
 async function onlShow() {
-  try { const d = await fsQuery({ from: [{ collectionId: 'online' }], where: { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(Date.now() - 180000) } }, limit: 100 }); ONL.list = d.map(x => x.n || '?'); ONL.n = Math.max(1, d.length); onlDraw(); } catch (e) { }
+  try { const d = await fsQuery({ from: [{ collectionId: 'online' }], where: { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(Date.now() - 300000) } }, limit: 100 }); ONL.list = d.map(x => x.n || '?'); ONL.n = Math.max(1, d.length); onlDraw(); } catch (e) { }
   const names = [...new Set(ONL.list)].sort((a, b) => a.localeCompare(b));
   sheet(`<div class="row sb"><h2>🟢 ${ONL.n} online</h2><button class="x" data-close>${icon('x')}</button></div>
     <p class="hint">Spieler, die in den letzten 2–3 Minuten aktiv waren:</p>
@@ -5152,7 +5153,7 @@ function banCheck() {
   const t = document.getElementById('banT'); if (t) t.textContent = `${m}:${String(sec).padStart(2, '0')}`;
 }
 setInterval(() => { if (S) banCheck(); }, 1000);
-function giftStart() { if (!onlineOn()) return; setTimeout(giftPoll, 2500); setInterval(giftPoll, 30000); setTimeout(() => typeof bcPoll === 'function' && bcPoll(), 3500); setInterval(() => typeof bcPoll === 'function' && bcPoll(), 45000); document.addEventListener('visibilitychange', () => { if (!document.hidden && typeof bcPoll === 'function') setTimeout(bcPoll, 800); }); }
+function giftStart() { if (!onlineOn()) return; setTimeout(giftPoll, 2500); setInterval(giftPoll, 90000); document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(giftPoll, 1500); }); setTimeout(() => typeof bcPoll === 'function' && bcPoll(), 3500); setInterval(() => typeof bcPoll === 'function' && bcPoll(), 120000); document.addEventListener('visibilitychange', () => { if (!document.hidden && typeof bcPoll === 'function') setTimeout(bcPoll, 800); }); }
 function openGift() {
   const o = sheet(`<div class="row sb"><h2>🎁 Spielern etwas geben</h2><button class="x" data-close>${icon('x')}</button></div>
     <div class="lbl2" style="margin-top:0">Spielername</div><input class="inp" id="gfN" maxlength="18" placeholder="z. B. Robin" autocomplete="off">
