@@ -3468,7 +3468,7 @@ function openSettings() {
 
 /* ================= Cheat-Menü ================= */
 const CHEATS = [['m1', '💰 +1.000 €'], ['m2', '💰 +1 Mio. €'], ['m3', '💰 +1 Mrd. €'], ['lv1', '⭐ +1 Level'], ['bp1', '🎟️ +1 Battle-Pass-Stufe'], ['lv', '⭐ +5 Level'], ['lvmax', '🔓 Alles freischalten (Level 50)'], ['en', '⚡ Energie voll'], ['pot', '🧪 +3 von jedem Trank'], ['debt', '🧾 Schulden weg'], ['bonus', '🎁 Tagesbonus nochmal'], ['off', '🔒 Cheats ausblenden']];
-function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben</button><button class="btn white xs" data-ch="lbh">🙈 Bestenliste-Sperre</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="bdg">🏅 Abzeichen vergeben</button>${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
+function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben</button><button class="btn white xs" data-ch="lbh">🙈 Bestenliste-Sperre</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="bdg">🏅 Abzeichen vergeben</button><button class="btn white xs" data-ch="p100">🌈 ×100-Trank für mich</button>${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
 function doCheat(k) {
   const add = v => { S.bal = r2(S.bal + v); S.st.maxBal = Math.max(S.st.maxBal, S.bal); };
   if (k === 'm1') add(1000); else if (k === 'm2') add(1e6); else if (k === 'm3') add(1e9);
@@ -3483,6 +3483,12 @@ function doCheat(k) {
   else if (k === 'lbh') { if (typeof openLbh === 'function') openLbh(); return; }
   else if (k === 'bc') { if (typeof openBc === 'function') openBc(); return; }
   else if (k === 'bdg') { if (typeof openBadges === 'function') openBadges(); return; }
+  else if (k === 'p100') { (async () => { // 3× bestätigen
+      if (!await confirmBox('🌈 Glückstrank ×100 geben?', 'Der stärkste Trank im Spiel – 100-fach Glück für 10 Drehs.', 'Ja (1/3)')) return;
+      if (!await confirmBox('Wirklich sicher?', 'Damit kannst du sehr viel Geld gewinnen.', 'Ja (2/3)', true)) return;
+      if (!await confirmBox('Letzte Bestätigung!', 'Jetzt 1× Glückstrank ×100 in dein Inventar legen?', 'Ja, geben (3/3)', true)) return;
+      S.pot[100] = (S.pot[100] || 0) + 1; save(); SND.big(); FX.burst(160, { cols: ['#ff5a5a', '#ffb84a', '#ffe14a', '#5ad86a', '#4ab0ff', '#b06aff'] });
+      toast(`🌈 Glückstrank ×100 erhalten (du hast jetzt ${S.pot[100]}) – trinken im Glückslabor oder am Regenbogen-Automaten`, 'good', 5000); if (curPage === 'spiele') go('spiele', true); })(); return; }
   else if (k === 'own') { if (!isOwner(S.lbId) && !ADM_KEY) return toast('Dein Konto ist nicht als Besitzer erkannt – nutz „🏅 Abzeichen vergeben“ und gib dir 👑 Besitzer.', 'bad', 5000); S.owner = !S.owner; save(); pushScore(true); SND.win(); toast(S.owner ? '👑 Besitzer-Abzeichen aktiviert' : 'Besitzer-Abzeichen deaktiviert', 'good', 1600); return; }
   else if (k === 'off') { S.cheat = false; toast('Cheats ausgeblendet'); save(); return; }
   SND.coin(); FX.burst(30, { coins: true }); hdr(true); checkAch(); save(); toast('😎 ' + CHEATS.find(c => c[0] === k)[1], 'good', 1600);
