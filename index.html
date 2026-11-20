@@ -3731,10 +3731,13 @@ const fstr = s => ({ stringValue: String(s) }), fint = n => ({ integerValue: Str
 const fval = v => v === undefined || v === null ? undefined : v.stringValue !== undefined ? v.stringValue : v.integerValue !== undefined ? +v.integerValue : v.doubleValue !== undefined ? +v.doubleValue : v.booleanValue;
 let FS_QUOTA = 0; // HTTP 429 = Firebase-Tageskontingent voll → 10 Min. Pause statt weiter anzufragen
 // 💾 Zwischenspeicher: Bestenlisten/Clans/Sperren nur alle paar Minuten neu laden (jedes geladene Dokument kostet Firebase-Kontingent)
-const FQ_TTL = { rang: 300000, clans: 600000, lbsperre: 600000 }, FQ_C = new Map();
+const FQ_TTL = { rang: 300000, clans: 600000, lbsperre: 600000 }; const FQ_C = new Map();
+// auch nach Neuladen/Update gültig (localStorage) – sonst lädt jedes Update bei allen Spielern alles neu
+try { const p = JSON.parse(localStorage.getItem('gg_fq') || '[]'); p.forEach(([k, v]) => { if (Date.now() - v.t < 600000) FQ_C.set(k, v); }); } catch (e) { }
+function fqSave() { try { const a = [...FQ_C.entries()].filter(([k, v]) => JSON.stringify(v.d).length < 900000).slice(-8); localStorage.setItem('gg_fq', JSON.stringify(a)); } catch (e) { try { localStorage.removeItem('gg_fq'); } catch (x) { } } }
 async function fsQuery(q) {
   const col = q.from && q.from[0] && q.from[0].collectionId, ttl = FQ_TTL[col];
-  if (ttl) { const key = JSON.stringify(q), c = FQ_C.get(key); if (c && Date.now() - c.t < ttl) return c.d.map(x => ({ ...x })); const d = await fsQuery0(q); FQ_C.set(key, { t: Date.now(), d }); if (FQ_C.size > 40) FQ_C.delete(FQ_C.keys().next().value); return d.map(x => ({ ...x })); }
+  if (ttl) { const key = JSON.stringify(q), c = FQ_C.get(key); if (c && Date.now() - c.t < ttl) return c.d.map(x => ({ ...x })); const d = await fsQuery0(q); FQ_C.set(key, { t: Date.now(), d }); if (FQ_C.size > 40) FQ_C.delete(FQ_C.keys().next().value); fqSave(); return d.map(x => ({ ...x })); }
   return fsQuery0(q);
 }
 async function fsQuery0(q) {
@@ -4454,7 +4457,7 @@ async function frAdd(name, disp) {
 async function dmPoll(first) {
   if (!S || !onlineOn()) return;
   try {
-    const last = DM.inbox.length ? Math.max(...DM.inbox.map(m => m.ts)) : Date.now() - 14 * 864e5;
+    const last = DM.inbox.length ? Math.max(...DM.inbox.map(m => m.ts)) : Math.max(Date.now() - 14 * 864e5, (S.dmNoteTs || 0) - 3 * 864e5); // nach Neuladen nicht wieder 14 Tage laden
     const n = await fsQuery({ from: [{ collectionId: 'dm' }], where: rangeQ('ats', meKey(), last), orderBy: [{ field: { fieldPath: 'ats' }, direction: 'DESCENDING' }], limit: 100 });
     const ids = new Set(DM.inbox.map(m => m.id)), fresh = n.filter(m => !ids.has(m.id));
     DM.inbox.push(...fresh); payCheck(n);
@@ -5125,15 +5128,17 @@ function giftReceive(g, all) {
 }
 // Geschenke & Ansagen nie mitten in einen Dreh, Freispiele, Auto-Spin, Crash-Runde oder ein Minispiel (z. B. Glückslabor)
 function popBusy() { return (typeof tnBusy === 'function' && tnBusy()) || !!document.querySelector('.game-ov') || (typeof CR !== 'undefined' && CR && CR.run && !CR.run.done); }
-const GQ = { last: 0, legacy: 0 };
+const GQ = { last: 0, legacy: 0 }; try { const g = JSON.parse(localStorage.getItem('gg_gq') || '{}'); if (g.k && Date.now() - g.last < 14 * 864e5) Object.assign(GQ, g); } catch (e) { }
 async function giftPoll() {
   if (!S || !onlineOn() || document.hidden) return;
   if (popBusy()) { clearTimeout(giftPoll.t); giftPoll.t = setTimeout(giftPoll, 3000); return; }
   try {
     // Neue Geschenke haben „name|zeit“ – nur die seit dem letzten Abruf laden. Alte Form („name“) nur einmal beim Start.
     const n = await fsQuery({ from: [{ collectionId: 'gifts' }], where: rangeQ('to', meKey(), GQ.last ? GQ.last - 2000 : Date.now() - 14 * 864e5), limit: 30 });
+    if (GQ.k && GQ.k !== meKey()) { GQ.last = 0; GQ.legacy = 0; GQ.k = meKey(); }
     if (!GQ.legacy) { GQ.legacy = 1; try { n.push(...await fsQuery({ from: [{ collectionId: 'gifts' }], where: fEq('to', meKey()), limit: 30 })); } catch (e) { } }
     n.forEach(g => { GQ.last = Math.max(GQ.last, +g.ts || 0); }); if (!GQ.last) GQ.last = Date.now() - 60000;
+    try { if (!GQ.k || GQ.k === meKey()) { GQ.k = meKey(); localStorage.setItem('gg_gq', JSON.stringify(GQ)); } } catch (e) { }
     S.gifts = S.gifts || [];
     for (const g of n) {
       if (S.gifts.includes(g.id) || Date.now() - (g.ts || 0) > 14 * 864e5 || (g.ts || 0) < (S.created || 0)) continue;
@@ -5353,7 +5358,7 @@ function pinDraw() {
   bar.innerHTML = `<span style="font-size:22px">📌</span><div style="flex:1"><b style="color:#ffd84d;font-size:13px;letter-spacing:1.5px">ANGEPINNT VOM BESITZER</b><div style="font-weight:700;word-break:break-word">${esc(p.x)}</div></div>`;
 }
 setInterval(pinDraw, 30000);
-const BCQ = { last: 0, docs: [] };
+const BCQ = { last: 0, docs: [] }; try { const b = JSON.parse(localStorage.getItem('gg_bcq') || '{}'); if (b.last && Date.now() - b.last < 48 * 36e5) Object.assign(BCQ, b); } catch (e) { }
 async function bcPoll() {
   if (!S || !onlineOn() || document.hidden) return;
   if (popBusy()) { clearTimeout(bcPoll.t); bcPoll.t = setTimeout(bcPoll, 3000); return; }
@@ -5364,6 +5369,7 @@ async function bcPoll() {
     got.forEach(g => { if (!BCQ.docs.some(x => x.id === g.id)) BCQ.docs.push(g); BCQ.last = Math.max(BCQ.last, +g.ts || 0); });
     if (!BCQ.last) BCQ.last = Date.now() - 60000;
     BCQ.docs = BCQ.docs.filter(g => Date.now() - (+g.ts || 0) < 49 * 36e5);
+    try { localStorage.setItem('gg_bcq', JSON.stringify(BCQ)); } catch (e) { }
     const n = BCQ.docs;
     // 📌 aktuelle Anpinnung bestimmen (neueste signierte Ansage mit Zeit oder Entfernen)
     let pin = null;
