@@ -1633,7 +1633,8 @@ function openMachine(i) {
   const upd = () => {
     const bal = MS.frozen ? MS.shown.bal : S.bal, here = MS.frozen ? MS.shown.here : MS.here;
     $('#mBal', f).textContent = fmt(bal); $('#mBal', f).classList.toggle('neg', bal < 0);
-    $('#mHere', f).textContent = (Math.abs(here) < .005 ? '±' + fmt(0) : fmt(here, { sign: true })) + ' hier';
+    { const h = $('#mHere', f), z = Math.abs(here) < .005; h.textContent = (z ? '±' + fmt(0) : fmt(here, { sign: true })) + ' hier';
+      h.style.cssText = `display:inline-block;white-space:nowrap;margin-top:4px;padding:3px 10px;border-radius:999px;font-weight:800;font-size:15px;font-style:normal;color:${z ? '#cfcfd4' : here > 0 ? '#3ddc84' : '#ff5a5a'};background:${z ? '#ffffff12' : here > 0 ? '#3ddc8422' : '#ff5a5a22'};border:1px solid ${z ? '#ffffff22' : here > 0 ? '#3ddc8466' : '#ff5a5a66'}`; }
     $('#mNote', f).textContent = S.note > 0 ? `Schuldschein ${fmt(S.note)}` : '';
     $('#mStake', f).textContent = S.gspin && S.gspin.n > 0 ? `🎁 ${S.gspin.n}× ${fmt(S.gspin.st)}` : MS.allIn ? 'MAX ' + fmt(maxBtnStake()) : fmt(STAKES[S.stakeI]);
     $('#ledC', f).textContent = NF2.format(bal).replace(/\./g, ''); $('#ledB', f).textContent = NF2.format(MS.allIn ? maxBtnStake() : STAKES[S.stakeI]);
