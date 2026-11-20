@@ -121,8 +121,8 @@ service cloud.firestore {
     }
     match /online/{id} {
       allow read: if true;
-      allow create, update: if request.resource.data.keys().hasOnly(['ts','n','a','b','l','u']) && request.resource.data.ts is int
-                            && request.resource.data.get('a', '').size() <= 120;
+      allow create, update: if request.resource.data.keys().hasOnly(['ts','n','a','b','l','u','h']) && request.resource.data.ts is int
+                            && request.resource.data.get('a', '').size() <= 120 && request.resource.data.get('h', '').size() <= 1500;
       allow delete: if false;
     }
     match /gifts/{id} {

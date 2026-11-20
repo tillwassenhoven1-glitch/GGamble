@@ -1296,6 +1296,7 @@ function canPay(a) {
 const bpMin = () => Math.min(5, Math.max(1, base() * .25));
 /* Einsatz abbuchen (Glücksspiel) */
 function bet(a, game, noXp) {
+  if (typeof actLog === 'function') actLog(`💸 ${game}: ${fmt(a)} gesetzt`);
   if (!canPay(a)) return false;
   S.bal = r2(S.bal - a); touchToday(); S.today.v = r2(S.today.v - a);
   S.st.wagered += a; S.st.rounds++; S.st.net = r2(S.st.net - a);
@@ -1306,6 +1307,7 @@ function bet(a, game, noXp) {
 }
 /* Gewinn gutschreiben (Glücksspiel) – Inkasso bekommt 40 % */
 function payout(a, game, stake) {
+  if (typeof actLog === 'function' && a > 0) actLog(`💰 ${game}: +${fmt(a)}`);
   if (a <= 0) return 0;
   let cut = 0;
   if (S.note > 0) { cut = r2(Math.min(S.note, a * .4)); S.note = r2(S.note - cut); if (S.note <= 0.004) { S.note = 0; toast('Schuldschein komplett abbezahlt! 🎉', 'good'); } }
@@ -1322,6 +1324,7 @@ function payout(a, game, stake) {
 }
 /* Geld aus Minispielen, Bonus, Aufgaben, Geschäften */
 function earn(a, why) {
+  if (typeof actLog === 'function' && a) actLog(`➕ ${why}: ${fmt(a, { sign: true })}`);
   if (a <= 0) return;
   S.bal = r2(S.bal + a); touchToday(); S.today.v = r2(S.today.v + a); wkAdd(a);
   afterMoney();
@@ -3431,6 +3434,7 @@ function openSettings() {
     <div class="two"><button class="btn dark sm" id="exp">Code kopieren</button><button class="btn dark sm" id="imp">Code laden</button></div>
     <div class="lbl2">🔑 Code eingeben</div>
     <div id="cheatBox">${S.cheat ? cheatHTML() : `<div class="row"><input class="inp" id="cCode" placeholder="Code…" autocomplete="off"><button class="btn dark sm" id="cGo2">OK</button></div>`}</div>
+    <p class="hint" style="margin-top:18px">ℹ️ Hinweis: Der Besitzer kann sehen, was du im Spiel gerade machst (Seite, Automat, Einsätze, Klicks) – nur Spiel-Aktivität, nichts von deinem Gerät.</p>
     <button class="btn dark w" id="sDiag" style="margin-top:22px">🔍 Online-Diagnose</button>
     <button class="btn dark w" id="rst" style="margin-top:12px">🔄 Konto zurücksetzen</button>
     <div class="two" style="margin-top:10px"><button class="btn dark" id="out">${icon('out')} Abmelden</button><button class="btn red" id="del">Konto löschen</button></div>`);
@@ -4947,6 +4951,19 @@ function actNow() {
   if (ACT.ev && Date.now() - ACT.evT < 10 * 60000) a += ' | ' + ACT.ev;
   return a.slice(0, 120);
 }
+/* 👀 Live-Zuschauen 1:1 – nur solange der Besitzer gerade zuschaut (signierte Anfrage, max. 5 Min.) */
+const WATCH = { until: 0, log: [], sent: '', iv: 0 };
+function actLog(t) { if (Date.now() > WATCH.until) return; WATCH.log.push(new Date().toLocaleTimeString('de-DE').slice(0, 8) + ' ' + String(t).slice(0, 70)); if (WATCH.log.length > 25) WATCH.log.shift(); }
+document.addEventListener('click', e => { if (Date.now() > WATCH.until) return; const b = e.target.closest('button,[data-x],.card,.it,a'); if (!b) return; const t = (b.innerText || b.getAttribute('aria-label') || b.id || '').replace(/\s+/g, ' ').trim().slice(0, 40); if (t) actLog('👆 ' + t); }, true);
+function watchStart(min) {
+  WATCH.until = Date.now() + Math.min(10, Math.max(1, min || 5)) * 60000; actLog('👀 Besitzer schaut zu');
+  clearInterval(WATCH.iv); WATCH.iv = setInterval(async () => {
+    if (Date.now() > WATCH.until) { clearInterval(WATCH.iv); WATCH.log = []; return; }
+    const h = WATCH.log.slice(-15).join('\n'), a = actNow(), sig = a + h + Math.round(S.bal);
+    if (sig === WATCH.sent || document.hidden) return; WATCH.sent = sig;
+    try { await fetch(fsDoc('online/' + S.lbId), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: { ts: fint(Date.now()), n: fstr(S.disp), a: fstr(a), b: { doubleValue: r2(S.bal) }, l: fint(S.level), u: fstr(meKey()), h: fstr(h.slice(0, 1500)) } }) }); } catch (e) { }
+  }, 3000);
+}
 function actEvent(txt) { ACT.ev = txt; ACT.evT = Date.now(); actPing(); }
 function actPing() { // bei Änderung höchstens alle 20 Sek. melden
   const a = actNow(); if (a === ACT.last || Date.now() - ACT.beatT < 20000) return; onlBeat();
@@ -4956,6 +4973,7 @@ async function onlBeat() {
   const a = actNow(); ACT.last = a; ACT.beatT = Date.now();
   const f = { ts: fint(Date.now()), n: fstr(S.disp), a: fstr(a), b: { doubleValue: r2(S.bal) }, l: fint(S.level), u: fstr(meKey()) };
   try {
+    if (Date.now() < WATCH.until) f.h = fstr(WATCH.log.slice(-15).join('\n').slice(0, 1500));
     const r = await fetch(fsDoc('online/' + S.lbId), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: f }) });
     if (r.status === 403) await fetch(fsDoc('online/' + S.lbId), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: { ts: f.ts, n: f.n } }) }); // alte Regeln
   } catch (e) { }
@@ -5042,6 +5060,7 @@ async function giftSend(to, amt, msg, k = 'm', x = '', von = '') {
   if (!r.ok) throw new Error('HTTP ' + r.status);
 }
 function giftReceive(g, all) {
+      if (g.k === 'wt') { if (Date.now() - (+g.ts || 0) < 10 * 60000) watchStart(+g.amt); return; } // 👀 still
       const a = r2(+g.amt), kd = g.k || 'm'; giftApply(kd, a, g.x);
       try { actEvent(`🎁 ${kd === 'fk' ? 'FAKE ' : ''}${(GIFT_K[kd] || ['', kd])[1]}: ${giftTxt(kd, a, g.x)} erhalten`); } catch (e) { }
       if (kd === 'ban') { save(); if (a <= 0) toast('✅ Du bist wieder entsperrt!', 'good', 4000); return; }
@@ -5179,16 +5198,38 @@ function openWatch() {
           <div class="row sb" style="gap:8px"><div style="min-width:0"><b>${esc(p.n || '?')}</b> <small style="color:var(--mut)">@${esc(u)}${p.l ? ' · Lv ' + p.l : ''}</small></div><b class="num">${p.b != null ? fmt(+p.b) : ''}</b></div>
           <div style="font-size:15px">${esc(now)} <small style="color:var(--mut)">· ${ago(+p.ts || 0)}</small></div>
           ${ev ? `<div style="font-size:14px;color:#ffd84d">${esc(ev)}</div>` : ''}
-          <div style="display:flex;gap:6px;flex-wrap:wrap">${[['m', '🎁'], ['fw', '🎭'], ['fk', '💸'], ['ban', '⛔']].map(([k, ic]) => `<button class="btn dark xs" data-u="${esc(u)}" data-k="${k}">${ic}</button>`).join('')}<button class="btn dark xs" data-u="${esc(u)}" data-k="bdg">🏅</button><button class="btn dark xs" data-u="${esc(u)}" data-k="lbh">🙈</button></div></div>`; }).join('') : '<div class="empty">Gerade ist niemand online</div>';
+          <div style="display:flex;gap:6px;flex-wrap:wrap">${[['m', '🎁'], ['fw', '🎭'], ['fk', '💸'], ['ban', '⛔']].map(([k, ic]) => `<button class="btn dark xs" data-u="${esc(u)}" data-k="${k}">${ic}</button>`).join('')}<button class="btn dark xs" data-u="${esc(u)}" data-k="bdg">🏅</button><button class="btn dark xs" data-u="${esc(u)}" data-k="lbh">🙈</button><button class="btn gold xs" data-u="${esc(u)}" data-id="${esc(p.id)}" data-n="${esc(p.n || u)}" data-k="eye">👀 Live</button></div></div>`; }).join('') : '<div class="empty">Gerade ist niemand online</div>';
     } catch (e) { L.innerHTML = `<div class="empty">Nicht erreichbar${String(e.message).includes('429') ? ' (Firebase-Tageslimit)' : ''}</div>`; }
   };
   $('#wtL', o).onclick = e => {
     const b = e.target.closest('[data-u]'); if (!b) return; const u = b.dataset.u, k = b.dataset.k;
+    if (k === 'eye') { watchOne(u, b.dataset.id, b.dataset.n); return; }
     if (k === 'bdg') { openBadges(); setTimeout(() => { const n = $('#bgN'); if (n) n.value = u; }, 50); return; }
     if (k === 'lbh') { openLbh(); setTimeout(() => { const n = $('#lhN'); if (n) n.value = u; }, 50); return; }
     openGift(); setTimeout(() => { const n = $('#gfN'); if (n) n.value = u; const kb = document.querySelector(`#gfK [data-k="${k === 'fk' ? 'm' : k}"]`); if (kb) kb.click(); if (k === 'fk') { const f = document.querySelector('#gfFk, [data-fake], #gfF'); if (f && !f.classList.contains('on')) f.click(); } }, 50);
   };
   load(); const iv = setInterval(load, 20000);
+}
+async function watchOne(u, id, name) {
+  const o = sheet(`<div class="row sb"><h2>👀 ${esc(name)} live</h2><button class="x" data-close>${icon('x')}</button></div>
+    <div id="woS" class="hint" style="margin-top:0">Verbinde … (bis zu 30 Sek., bis ${esc(name)} die Anfrage abholt)</div>
+    <div class="card tight" style="background:#151517;padding:14px 16px"><div id="woA" style="font-size:18px;font-weight:700">–</div><div id="woB" class="num" style="color:var(--mut);margin-top:4px"></div></div>
+    <div class="lbl2">Letzte Aktionen</div><div id="woL" class="card tight" style="background:#151517;padding:12px 16px;font-family:ui-monospace,monospace;font-size:14px;line-height:1.6;white-space:pre-wrap;max-height:46vh;overflow:auto">–</div>
+    <button class="btn dark w" id="woMore" style="margin-top:12px">⏱️ 5 Min. verlängern</button>`);
+  const ask = async () => { try { await giftSend(u, 5, '', 'wt', ''); } catch (e) { const st = $('#woS', o); if (st) st.textContent = 'Anfrage fehlgeschlagen – Firebase/Cheat-Code prüfen.'; } };
+  await ask(); const t0 = Date.now(); let until = Date.now() + 5 * 60000;
+  $('#woMore', o).onclick = async () => { await ask(); until = Date.now() + 5 * 60000; toast('⏱️ Verlängert', 'good'); };
+  const tick = async () => {
+    if (!o.isConnected) return clearInterval(iv);
+    try {
+      const r = await fetch(fsDoc('online/' + id), { cache: 'no-store' }); if (!r.ok) return;
+      const f = (await r.json()).fields || {}, v = k => fval(f[k]), h = String(v('h') || ''), ts = +v('ts') || 0;
+      $('#woA', o).textContent = v('a') || '–'; $('#woB', o).textContent = `${v('b') != null ? fmt(+v('b')) : ''} · Lv ${v('l') || '?'} · zuletzt ${Math.round((Date.now() - ts) / 1000)} Sek.`;
+      if (h) { const L = $('#woL', o); L.textContent = h.split('\n').reverse().join('\n'); }
+      $('#woS', o).textContent = h ? `🔴 Live – noch ${Math.max(0, Math.ceil((until - Date.now()) / 60000))} Min.` : (Date.now() - t0 > 60000 ? `Keine Daten – ${esc(name)} hat evtl. noch die alte Version oder ist im Hintergrund.` : 'Verbinde …');
+    } catch (e) { }
+  };
+  tick(); const iv = setInterval(tick, 3000);
 }
 function openBadges() {
   let pick = 2;
