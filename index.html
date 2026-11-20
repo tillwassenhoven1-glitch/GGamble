@@ -1409,7 +1409,7 @@ const MACH = [
 ];
 const RB_ST = 1000, RB_CH = 1 / 100000; // Einsatz Regenbogen-Automat, Chance auf Trank ×100 (1 : 100.000)
 const MLVL = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 50];
-MACH.forEach((m, i) => { m.i = i; m.t = m.t || 'c'; m.lvl = m.rb ? 10 : MLVL[i]; });
+MACH.forEach((m, i) => { m.i = i; m.t = m.t || 'c'; m.lvl = m.rb ? 3 : MLVL[i]; });
 const JP = { mini: { n: 'Mini', seed: 500, ch: 1 / 1500, ref: 2 }, major: { n: 'Major', seed: 5000, ch: 1 / 6000, ref: 10 }, grand: { n: 'Grand', seed: 50000, ch: 1 / 25000, ref: 50 } };
 const LINES3 = [[1, 1, 1], [0, 0, 0], [2, 2, 2], [0, 1, 2], [2, 1, 0]];
 const LINES5 = [[1, 1, 1, 1, 1], [0, 0, 0, 0, 0], [2, 2, 2, 2, 2], [0, 1, 2, 1, 0], [2, 1, 0, 1, 2], [0, 0, 1, 2, 2], [2, 2, 1, 0, 0], [1, 0, 0, 0, 1], [1, 2, 2, 2, 1], [1, 0, 1, 2, 1]];
