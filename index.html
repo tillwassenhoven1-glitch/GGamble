@@ -4088,6 +4088,20 @@ async function clanTop() {
   const g = {}; all.forEach(r => { const t = r.clan; if (!t || (r.since || 0) < RESET_TS) return; (g[t] = g[t] || { tag: t, sum: 0, n: 0 }); g[t].sum += r.bal || 0; g[t].n++; });
   return Object.values(g).sort((a, b) => b.sum - a.sum);
 }
+/* 👀 In fremde Clans reinschauen: Mitglieder + gemeinsames Guthaben */
+async function clanView(tag, c) {
+  const o = sheet(`<div class="row sb"><h2 style="font-size:28px">${tagHTML(tag)} ${esc(c ? c.name : tag)}</h2><button class="x" data-close>${icon('x')}</button></div>
+    <small style="color:var(--mut)">gegründet von @${esc(c ? c.own : '?')}</small><div id="cvB" style="margin-top:12px"><div class="empty">Lade …</div></div>`);
+  try {
+    const mem = await clanMembers(tag), B = $('#cvB', o); if (!B) return;
+    const sum = r2(mem.reduce((a, r) => a + (r.bal || 0), 0));
+    B.innerHTML = `<div class="stat"><small>Gemeinsamer Kontostand</small><b class="num ${sum < 0 ? 'neg' : 'pos'}" style="font-size:28px">${fmt(sum)}</b></div>
+      <div class="sec">Mitglieder · ${mem.length} / ${CLAN_MAX}</div>
+      ${mem.length ? `<div class="card tight list rl">${mem.map((r, i) => `<div class="it ${r.name === S.name ? 'me' : ''}" data-mi="${i}" style="cursor:pointer"><span class="rn">${i + 1}</span>${avaHTML({ disp: r.disp, name: r.name, color: r.color, frm: r.frm })}<div class="who"><b>${esc(r.disp || r.name)}${badgeTag(r)}</b><small>Level ${r.level || 1}</small></div><span class="w num ${(r.bal || 0) < 0 ? 'neg' : ''}">${fmt(r.bal || 0)}</span></div>`).join('')}</div>` : '<div class="empty">Keine Mitglieder</div>'}
+      ${!S.clan && mem.length < CLAN_MAX ? `<p class="hint" style="margin-top:10px">Beitreten kannst du unter „Mein Clan“.</p>` : ''}`;
+    B.onclick = e => { const it = e.target.closest('[data-mi]'); if (!it) return; const r = mem[+it.dataset.mi]; if (r.name === S.name) return; o.close(); setTimeout(() => playerProfile({ ...r, k: r.id }, '–'), 250); };
+  } catch (e) { const B = $('#cvB', o); if (B) B.innerHTML = '<div class="empty">Gerade nicht erreichbar.</div>'; }
+}
 async function renderClan(el) {
   el.innerHTML = `<button class="btn dark sm" id="back">${icon('left')} Bestenliste</button><h1 class="t" style="margin-top:16px">Clans</h1>
     <p class="sub">Tu dich mit Freunden zusammen – euer Geld zählt zusammen</p>
@@ -4099,9 +4113,10 @@ async function renderClan(el) {
   try {
     const clans = await clanList(), byTag = {}; clans.forEach(c => byTag[c.id] = c);
     if (!B.isConnected) return;
+    if (!B._cv) { B._cv = 1; B.addEventListener('click', e => { const v = e.target.closest('[data-cv]'); if (v && !e.target.closest('[data-j]')) clanView(v.dataset.cv, byTag[v.dataset.cv]); }); }
     if (clanTab === 1) {
       const top = await clanTop(); if (!B.isConnected) return;
-      B.innerHTML = top.length ? `<div class="card tight list rl">${top.slice(0, 20).map((c, i) => `<div class="it ${c.tag === myTag() ? 'me' : ''}"><span class="rn">${i + 1}</span><div class="who"><b>${tagHTML(c.tag)} ${esc(byTag[c.tag] ? byTag[c.tag].name : c.tag)}</b><small>${c.n} Mitglied${c.n === 1 ? '' : 'er'}</small></div><span class="w num ${c.sum < 0 ? 'neg' : ''}">${fmt(r2(c.sum))}</span></div>`).join('')}</div>` : '<div class="empty">Noch keine Clans – gründe den ersten!</div>';
+      B.innerHTML = top.length ? `<div class="card tight list rl">${top.slice(0, 20).map((c, i) => `<div class="it ${c.tag === myTag() ? 'me' : ''}" data-cv="${esc(c.tag)}" style="cursor:pointer"><span class="rn">${i + 1}</span><div class="who"><b>${tagHTML(c.tag)} ${esc(byTag[c.tag] ? byTag[c.tag].name : c.tag)}</b><small>${c.n} Mitglied${c.n === 1 ? '' : 'er'}</small></div><span class="w num ${c.sum < 0 ? 'neg' : ''}">${fmt(r2(c.sum))}</span></div>`).join('')}</div>` : '<div class="empty">Noch keine Clans – gründe den ersten!</div>';
       return;
     }
     if (S.clan) {
@@ -4119,7 +4134,7 @@ async function renderClan(el) {
         <input class="inp" id="clN" maxlength="24" placeholder="Clan-Name, z. B. Die Zocker"><input class="inp" id="clK" maxlength="5" placeholder="Kürzel, z. B. ZOCK" style="margin-top:10px;text-transform:uppercase">
         <button class="btn gold w" id="clMk" style="margin-top:12px">Gründen · ${fmt(CLAN_COST)}</button></div>
       <div class="sec">Clan beitreten</div>
-      ${clans.length ? `<div class="card tight list">${clans.map(c => `<div class="it"><div class="who"><b>${tagHTML(c.id)} ${esc(c.name)}</b><small>von @${esc(c.own)}</small></div><button class="btn dark xs" data-j="${esc(c.id)}">Beitreten</button></div>`).join('')}</div>` : '<div class="empty">Noch keine Clans – gründe den ersten!</div>'}`;
+      ${clans.length ? `<div class="card tight list">${clans.map(c => `<div class="it" data-cv="${esc(c.id)}" style="cursor:pointer"><div class="who"><b>${tagHTML(c.id)} ${esc(c.name)}</b><small>von @${esc(c.own)} · 👀 ansehen</small></div><button class="btn dark xs" data-j="${esc(c.id)}">Beitreten</button></div>`).join('')}</div>` : '<div class="empty">Noch keine Clans – gründe den ersten!</div>'}`;
     $('#clMk', B).onclick = async function () {
       const name = $('#clN', B).value.trim(), tag = $('#clK', B).value.trim().toUpperCase();
       if (name.length < 3) return toast('Name: mindestens 3 Zeichen', 'bad');
