@@ -7,7 +7,7 @@ Eine Spielhalle im Browser – nur mit Spielgeld: Automaten mit Freispielen und 
 👉 **https://tillwassenhoven1-glitch.github.io/GGamble/**
 
 Keine Installation, keine Werbung, keine Käufe, kein echtes Geld – läuft auf Handy, iPad und PC. 🎮
-Version 0.4.2 · Open Beta
+Version 0.4.3 · Open Beta
 
 ## 🔐 Konto
 
@@ -91,7 +91,7 @@ service cloud.firestore {
     }
     match /rang/{id} {
       function ok() {
-        return request.resource.data.keys().hasOnly(['name','disp','bal','level','color','ts','big','net','bxp','wag','since','best','ach','own','tit','frm','clan','wk','wkk','dv','dk','mv','mk','hist','rbw','pt','pw','pwk'])
+        return request.resource.data.keys().hasOnly(['name','disp','bal','level','color','ts','big','net','bxp','wag','since','best','ach','own','tit','frm','clan','wk','wkk','dv','dk','mv','mk','hist','rbw','pt','pw','pwk','crl'])
           && request.resource.data.bal is number
           && request.resource.data.bal < 1000000000000000;
       }

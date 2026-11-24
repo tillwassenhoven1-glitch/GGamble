@@ -921,7 +921,7 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 
 /* ===== core.js ===== */
 'use strict';
-const VERSION = '0.4.2 Open Beta';
+const VERSION = '0.4.3 Open Beta';
 const FORCE_V = 12; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
 const WARTUNG = false; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
 /* ================= Helfer ================= */
@@ -2894,7 +2894,7 @@ let lbFull = true;
 let lbOwn = true, lbTier = 0;
 function pushScore(force) { if (TAB_DEAD) return;
   if (!onlineOn() || !S) return;
-  const sig = [S.bal, S.level, S.disp, S.color, S.st.biggest, S.st.rbWag || 0, Object.keys(S.ach).length, S.owner ? 1 : 0, S.wk && S.wk.v, S.dy && S.dy.v, S.tit, S.frm, S.clan ? S.clan.tag : ''].join('|'); if (!force && sig === lbLast) return; lbLast = sig;
+  const sig = [S.bal, S.level, S.disp, S.color, S.st.biggest, S.st.rbWag || 0, Object.keys(S.ach).length, S.owner ? 1 : 0, S.wk && S.wk.v, S.dy && S.dy.v, S.tit, S.frm, S.clan ? S.clan.tag + (S.clan.role ? '*' : '') : ''].join('|'); if (!force && sig === lbLast) return; lbLast = sig;
   const f = { name: { stringValue: S.name }, disp: { stringValue: S.disp }, bal: { doubleValue: S.bal }, level: { integerValue: String(S.level) }, color: { integerValue: String(S.color || 0) }, ts: { integerValue: String(Date.now()) } };
   const full = Object.assign({}, f, { big: { doubleValue: S.st.biggest || 0 }, net: { doubleValue: S.st.net || 0 }, bxp: { doubleValue: S.bx.pnl || 0 }, wag: { doubleValue: S.st.wagered || 0 }, since: { integerValue: String(S.created || Date.now()) }, best: { stringValue: S.st.bestGame || '' }, ach: { integerValue: String(Object.keys(S.ach).length) } });
   const send = fields => fetch(`${FS()}/rang/${lbId()}?key=${ONLINE.apiKey}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) });
@@ -2905,7 +2905,8 @@ function pushScore(force) { if (TAB_DEAD) return;
   const noWk = Object.assign({}, noDM); ['wk', 'wkk'].forEach(x => delete noWk[x]);
   const withRb = Object.assign({}, withHist, { rbw: { doubleValue: S.st.rbWag || 0 }, pt: fint(S.st.play || 0) }); // 🌈 Regenbogen-Einsatz, ⏱️ Spielzeit
   const withPw = Object.assign({}, withRb, { pw: { doubleValue: (S.pw && S.pw.v) || 0 }, pwk: { stringValue: (S.pw && S.pw.k) || '' } }); // 🥇 Wochen-Preise: Wert der letzten Woche
-  const tiers = [withPw, withRb, withHist, withOwn, noDM, noWk, full, f];
+  const withCrl = Object.assign({}, withPw, { crl: fint(S.clan && S.clan.role ? 1 : 0) }); // 🏢 Clan-Rolle (Admin)
+  const tiers = [withCrl, withPw, withRb, withHist, withOwn, noDM, noWk, full, f];
   const attempt = i => i >= tiers.length ? Promise.resolve(lbLast = '') : send(tiers[i]).then(r => {
     DIAG.rang = r.status + ' (Stufe ' + i + ') · ' + new Date().toLocaleTimeString();
     if (r.ok) { lbTier = i; return; }
@@ -4103,9 +4104,11 @@ async function clanView(tag, c) {
     const sum = r2(mem.reduce((a, r) => a + (r.bal || 0), 0));
     B.innerHTML = `<div class="stat"><small>Gemeinsamer Kontostand</small><b class="num ${sum < 0 ? 'neg' : 'pos'}" style="font-size:28px">${fmt(sum)}</b></div>
       <div class="sec">Mitglieder · ${mem.length} / ${CLAN_MAX}</div>
-      ${mem.length ? `<div class="card tight list rl">${mem.map((r, i) => `<div class="it ${r.name === S.name ? 'me' : ''}" data-mi="${i}" style="cursor:pointer"><span class="rn">${i + 1}</span>${avaHTML({ disp: r.disp, name: r.name, color: r.color, frm: r.frm })}<div class="who"><b>${esc(r.disp || r.name)}${badgeTag(r)}</b><small>Level ${r.level || 1}</small></div><span class="w num ${(r.bal || 0) < 0 ? 'neg' : ''}">${fmt(r.bal || 0)}</span></div>`).join('')}</div>` : '<div class="empty">Keine Mitglieder</div>'}
+      ${mem.length ? `<div class="card tight list rl">${mem.map((r, i) => `<div class="it ${r.name === S.name ? 'me' : ''}" data-mi="${i}" style="cursor:pointer"><span class="rn">${i + 1}</span>${avaHTML({ disp: r.disp, name: r.name, color: r.color, frm: r.frm })}<div class="who"><b>${esc(r.disp || r.name)}${badgeTag(r)}</b><small>${clRoleTag(r, c)}Level ${r.level || 1}</small></div><span class="w num ${(r.bal || 0) < 0 ? 'neg' : ''}">${fmt(r.bal || 0)}</span>${isAdm() && r.name !== S.name ? `<button class="btn red xs" data-ak="${esc(r.name)}">Kicken</button>` : ''}</div>`).join('')}</div>` : '<div class="empty">Keine Mitglieder</div>'}
+      ${isAdm() ? `<button class="btn red w" id="cvDel" style="margin-top:12px">🗑️ Clan löschen (Admin)</button>` : ''}
       ${!S.clan && mem.length < CLAN_MAX ? `<p class="hint" style="margin-top:10px">Beitreten kannst du unter „Mein Clan“.</p>` : ''}`;
-    B.onclick = e => { const it = e.target.closest('[data-mi]'); if (!it) return; const r = mem[+it.dataset.mi]; if (r.name === S.name) return; o.close(); setTimeout(() => playerProfile({ ...r, k: r.id }, '–'), 250); };
+    if (isAdm()) clAdmBind(o, B, tag, c);
+    B.onclick = e => { if (e.target.closest('[data-ak],#cvDel')) return; const it = e.target.closest('[data-mi]'); if (!it) return; const r = mem[+it.dataset.mi]; if (r.name === S.name) return; o.close(); setTimeout(() => playerProfile({ ...r, k: r.id }, '–'), 250); };
   } catch (e) { const B = $('#cvB', o); if (B) B.innerHTML = '<div class="empty">Gerade nicht erreichbar.</div>'; }
 }
 async function renderClan(el) {
@@ -4126,13 +4129,15 @@ async function renderClan(el) {
       return;
     }
     if (S.clan) {
-      const mem = await clanMembers(S.clan.tag); if (!B.isConnected) return;
+      const mem = (await clanMembers(S.clan.tag)).filter(r => !(S.clKick && S.clKick[r.name] > Date.now() - 864e5)); if (!B.isConnected) return;
       const sum = r2(mem.reduce((a, r) => a + (r.bal || 0), 0)), c = byTag[S.clan.tag];
       B.innerHTML = `<div class="card"><div class="row sb"><div><h2 style="font-size:30px">${tagHTML(S.clan.tag)} ${esc(c ? c.name : S.clan.name)}</h2><small style="color:var(--mut)">gegründet von @${esc(c ? c.own : '?')}</small></div></div>
         <div class="stat" style="margin-top:14px"><small>Gemeinsamer Kontostand</small><b class="num ${sum < 0 ? 'neg' : 'pos'}" style="font-size:30px">${fmt(sum)}</b></div></div>
         <div class="sec">Mitglieder · ${mem.length} / ${CLAN_MAX}</div>
-        <div class="card tight list rl">${mem.map((r, i) => `<div class="it ${r.name === S.name ? 'me' : ''}"><span class="rn">${i + 1}</span>${avaHTML({ disp: r.disp, name: r.name, color: r.color, frm: r.frm })}<div class="who"><b>${esc(r.disp || r.name)}</b><small>@${esc(r.name)}${titName(r.tit) ? ' · ' + esc(titName(r.tit)) : ''}</small></div><span class="w num ${r.bal < 0 ? 'neg' : ''}">${fmt(r.bal || 0)}</span></div>`).join('') || '<div class="empty">Gleich da – dein Eintrag wird gerade hochgeladen.</div>'}</div>
+        <div class="card tight list rl">${mem.map((r, i) => `<div class="it ${r.name === S.name ? 'me' : ''}"><span class="rn">${i + 1}</span>${avaHTML({ disp: r.disp, name: r.name, color: r.color, frm: r.frm })}<div class="who"><b>${esc(r.disp || r.name)}</b><small>${clRoleTag(r, c)}@${esc(r.name)}${titName(r.tit) ? ' · ' + esc(titName(r.tit)) : ''}</small>${clActs(r, c)}</div><span class="w num ${r.bal < 0 ? 'neg' : ''}">${fmt(r.bal || 0)}</span></div>`).join('') || '<div class="empty">Gleich da – dein Eintrag wird gerade hochgeladen.</div>'}</div>
+        ${clInvHTML(c)}
         <button class="btn dark w" id="clLeave" style="margin-top:10px">Clan verlassen</button>`;
+      clBind(B, c, mem, () => renderClan(el));
       $('#clLeave', B).onclick = async () => { if (!await confirmBox('Clan verlassen?', `Du verlässt <b>[${esc(S.clan.tag)}]</b>. Du kannst später wieder beitreten.`, 'Verlassen', true)) return; S.clan = null; save(); lbLast = ''; pushScore(true); toast('Clan verlassen'); renderClan(el); };
       return;
     }
@@ -4140,7 +4145,8 @@ async function renderClan(el) {
         <input class="inp" id="clN" maxlength="24" placeholder="Clan-Name, z. B. Die Zocker"><input class="inp" id="clK" maxlength="5" placeholder="Kürzel, z. B. ZOCK" style="margin-top:10px;text-transform:uppercase">
         <button class="btn gold w" id="clMk" style="margin-top:12px">Gründen · ${fmt(CLAN_COST)}</button></div>
       <div class="sec">Clan beitreten</div>
-      ${clans.length ? `<div class="card tight list">${clans.map(c => `<div class="it" data-cv="${esc(c.id)}" style="cursor:pointer"><div class="who"><b>${tagHTML(c.id)} ${esc(c.name)}</b><small>von @${esc(c.own)} · 👀 ansehen</small></div><button class="btn dark xs" data-j="${esc(c.id)}">Beitreten</button></div>`).join('')}</div>` : '<div class="empty">Noch keine Clans – gründe den ersten!</div>'}`;
+      ${clans.length ? `<div class="card tight list">${clans.map(c => `<div class="it" data-cv="${esc(c.id)}" style="cursor:pointer"><div class="who"><b>${tagHTML(c.id)} ${esc(c.name)}</b><small>von @${esc(c.own)} · 👀 ansehen</small></div>${clInvOk(c.id) || isAdm() ? `<button class="btn gold xs" data-j="${esc(c.id)}">${clInvOk(c.id) ? '📨 Annehmen' : 'Beitreten (Admin)'}</button>` : '<span class="chip" style="font-size:12px">🔒 nur mit Einladung</span>'}</div>`).join('')}</div>` : '<div class="empty">Noch keine Clans – gründe den ersten!</div>'}`;
+    { const inv = Object.keys(S.clInv || {}).filter(t => clInvOk(t) && byTag[t]); if (inv.length) { const sec = [...B.querySelectorAll('.sec')].find(x => /beitreten/i.test(x.textContent)); if (sec) sec.insertAdjacentHTML('beforebegin', `<div class="sec">📨 Einladungen</div><div class="card tight list">${inv.map(t => `<div class="it"><div class="who"><b>${tagHTML(t)} ${esc(byTag[t].name)}</b><small>von @${esc(S.clInv[t].von)}</small></div><button class="btn gold xs" data-j="${esc(t)}">Annehmen</button><button class="btn dark xs" data-nj="${esc(t)}">✕</button></div>`).join('')}</div>`); } }
     $('#clMk', B).onclick = async function () {
       const name = $('#clN', B).value.trim(), tag = $('#clK', B).value.trim().toUpperCase();
       if (name.length < 3) return toast('Name: mindestens 3 Zeichen', 'bad');
@@ -4156,11 +4162,14 @@ async function renderClan(el) {
       } catch (e) { this.disabled = false; toast('Hat nicht geklappt – Internet & Firebase-Regeln prüfen.', 'bad'); }
     };
     B.onclick = async e => {
-      const b = e.target.closest('[data-j]'); if (!b) return; b.disabled = true;
+      const nj = e.target.closest('[data-nj]'); if (nj) { delete S.clInv[nj.dataset.nj]; save(); return renderClan(el); }
+      const b = e.target.closest('[data-j]'); if (!b) return;
+      if (!clInvOk(b.dataset.j) && !isAdm()) return toast('🔒 Du brauchst eine Einladung vom Clan-Leiter oder einem Clan-Admin.', 'bad');
+      b.disabled = true;
       try {
         const tag = b.dataset.j, mem = await clanMembers(tag);
         if (mem.length >= CLAN_MAX) { b.disabled = false; return toast(`Der Clan ist voll (${CLAN_MAX} Mitglieder).`, 'bad'); }
-        S.clan = { tag, name: byTag[tag] ? byTag[tag].name : tag }; save(); lbLast = ''; pushScore(true);
+        S.clan = { tag, name: byTag[tag] ? byTag[tag].name : tag, ts: Date.now() }; if (S.clInv) delete S.clInv[tag]; save(); lbLast = ''; pushScore(true);
         SND.win(); toast(`Willkommen bei [${esc(tag)}]! 🎉`, 'good'); setTimeout(() => renderClan(el), 1200);
       } catch (er) { b.disabled = false; toast('Keine Verbindung', 'bad'); }
     };
@@ -4426,7 +4435,7 @@ const unreadFrom = k => DM.inbox.filter(m => m.von === k && m.ts > (S.dmRead[k] 
 const unreadAll = () => { frList(); return DM.inbox.filter(m => m.ts > (S.dmRead[m.von] || 0)).length; };
 /* 💸 Geld schicken (ab Level 5, 5 % Steuer) – läuft als besondere Nachricht */
 const PAY_LV = 5, PAY_TAX = .05, PAY_RE = /^¤PAY\|([\d.]+)\|([\d.]+)$/;
-const dmText = (t, mine) => { const p = PAY_RE.exec(t || ''); return p ? (mine ? `💸 ${fmt(+p[2])} geschickt (${fmt(+p[1])} angekommen)` : `💸 hat dir ${fmt(+p[1])} geschickt!`) : t; };
+const dmText = (t, mine) => { if (/^¤C/.test(t || '') && typeof clDmText === 'function') return clDmText(t, mine); const p = PAY_RE.exec(t || ''); return p ? (mine ? `💸 ${fmt(+p[2])} geschickt (${fmt(+p[1])} angekommen)` : `💸 hat dir ${fmt(+p[1])} geschickt!`) : t; };
 function payCheck(list) {
   S.payGot = S.payGot || [];
   for (const m of list) {
@@ -4499,7 +4508,7 @@ async function dmPoll(first) {
     // Jede Nachricht nur EINMAL melden – auch nach Neuladen (gemerkt im Spielstand), sonst kamen alte Meldungen immer wieder
     const seen = S.dmNoteTs || 0, newest = Math.max(seen, ...n.map(m => +m.ts || 0));
     if (!first && seen) {
-      const m = fresh.filter(x => x.von !== DM.open && (+x.ts || 0) > seen && !PAY_RE.test(x.txt || '')).sort((x, y) => y.ts - x.ts)[0];
+      const m = fresh.filter(x => x.von !== DM.open && (+x.ts || 0) > seen && !PAY_RE.test(x.txt || '') && !/^¤C/.test(x.txt || '')).sort((x, y) => y.ts - x.ts)[0];
       if (m) { toast(`💬 <b>${esc(m.disp || m.von)}</b>: ${esc(m.txt).slice(0, 60)}`, 'good', 4500, () => openDM(m.von, m.disp || m.von)); SND.coin(); }
     }
     if (newest > seen || !seen) { S.dmNoteTs = newest || Date.now(); save(); }
@@ -6270,8 +6279,9 @@ function openShopX(id, done) {
 }
 
 /* ================= 🆕 Update-Hinweis (einmal pro Version, jederzeit wieder aufrufbar) ================= */
-const UPD_V = '0.4.2', UPD_UNTIL = new Date(2026, 11, 8).getTime();
+const UPD_V = '0.4.3', UPD_UNTIL = new Date(2026, 11, 8).getTime();
 const UPD = [
+  ['🏢', 'Clans neu', 'Beitreten nur noch mit Einladung. Der Leiter ernennt Admins (⭐) – Leiter & Admins können einladen und kicken.', 'clan'],
   ['🃏', 'Blackjack', 'Schlag den Dealer! Verdoppeln, Teilen – Blackjack zahlt 3:2.', 'blackjack'],
   ['🎡', 'Roulette', 'Setz auf Rot, Schwarz oder eine Zahl (zahlt 36×).', 'roulette'],
   ['👥', 'Mit Freunden spielen', 'Blackjack, Roulette & Pferderennen zusammen im Treff-Raum – alle sehen dieselbe Runde.', 'tisch'],
@@ -6298,7 +6308,7 @@ function updAuto() {
   setTimeout(w, 3500);
 }
 { const H = PAGES.halle; PAGES.halle = el => { H(el); if (Date.now() > UPD_UNTIL) return; const t = $('.halle-top', el); if (!t) return;
-  t.insertAdjacentHTML('afterend', `<button class="lhb" id="updB" style="width:100%;text-align:left;color:#fff;cursor:pointer;font:inherit"><span class="e">🆕</span><div style="flex:1"><b>Update ${UPD_V}:</b> Blackjack, Roulette, Pferderennen, Händler Hugo, Luxus-Shop & mehr<br><small style="color:var(--gold2)">Antippen: Was ist neu?</small></div></button>`);
+  t.insertAdjacentHTML('afterend', `<button class="lhb" id="updB" style="width:100%;text-align:left;color:#fff;cursor:pointer;font:inherit"><span class="e">🆕</span><div style="flex:1"><b>Update ${UPD_V}:</b> Clans mit Einladung & Rollen, Blackjack, Roulette, Pferderennen, Händler Hugo & mehr<br><small style="color:var(--gold2)">Antippen: Was ist neu?</small></div></button>`);
   $('#updB', el).onclick = () => { SND.click(); openUpd(); }; }; }
 { const Pr = PAGES.profil; PAGES.profil = el => { Pr(el); const l = $('#xSty', el); if (l) { l.parentElement.insertAdjacentHTML('beforeend', `<div class="it" id="xUpd"><div class="ibox">🆕</div><span class="lbl">Was ist neu?</span><span class="val">${UPD_V}</span>${icon('right', 'chev')}</div>`); $('#xUpd', el).onclick = openUpd; } }; }
 (function updWait() { if (S && $('#main')) updAuto(); else setTimeout(updWait, 2000); })();
@@ -6467,6 +6477,110 @@ PAGES.tisch = renderTisch;
   c.insertAdjacentHTML('afterend', `<button class="card gm xcard" data-y="tisch" style="position:relative"><span class="neu">NEU</span><div class="ibox" style="font-size:38px">👥</div><h4>Mit Freunden spielen</h4><p>${T.room ? 'Du bist im Treff-Raum – ab an den Tisch!' : 'Blackjack, Roulette & Pferde zusammen im Treff-Raum'}</p></button>`);
   $('[data-y="tisch"]', el).onclick = () => { SND.click(); go('tisch'); }; }; }
 { const RU = roomUI; roomUI = () => { RU(); const o = T.ov; if (!o) return; const d = $('#rDuel', o); if (d && d.parentElement) { d.parentElement.insertAdjacentHTML('afterend', `<button class="btn gold w" id="rTisch" style="margin:4px 0 6px">👥 Zusammen spielen: 🃏 🎡 🐎</button>`); $('#rTisch', o).onclick = () => { o.close(); go('tisch'); }; } }; }
+
+/* ================= 🏢 Clans 0.4.3: Einladungen, Rollen, Kicken, Admin-Löschen ================= */
+const isAdm = () => !!(typeof ADM_KEY !== 'undefined' && ADM_KEY) || !!localStorage.getItem('gg_adm');
+const clDel = tag => !!(LBH && LBH.set && LBH.set.has('c:' + String(tag).toLowerCase()));
+const clInvOk = tag => !!(S.clInv && S.clInv[tag] && Date.now() - S.clInv[tag].ts < 7 * 864e5);
+const clIsOwn = (c, name = S.name) => !!c && String(c.own).toLowerCase() === String(name).toLowerCase();
+const clMyRole = c => clIsOwn(c) ? 2 : S.clan && S.clan.role ? 1 : 0; // 2 = Leiter, 1 = Admin
+const clRoleTag = (r, c) => clIsOwn(c, r.name) ? '<span style="color:var(--gold2);font-weight:800">👑 Leiter</span> · ' : +r.crl === 1 ? '<span style="color:#7ad7ff;font-weight:800">⭐ Admin</span> · ' : '';
+function clActs(r, c) {
+  const me = clMyRole(c); if (!me || r.name === S.name || clIsOwn(c, r.name)) return '';
+  const adm = +r.crl === 1;
+  return `<div style="display:flex;gap:6px;margin-top:6px">${me === 2 ? `<button class="btn dark xs" data-cr="${esc(r.name)}" data-v="${adm ? 0 : 1}">${adm ? '⭐ Admin weg' : '⭐ Zum Admin'}</button>` : ''}${me === 2 || !adm ? `<button class="btn red xs" data-ck="${esc(r.name)}">Kick</button>` : ''}</div>`;
+}
+function clInvHTML(c) {
+  if (!clMyRole(c)) return '';
+  return `<div class="card" style="margin-top:12px"><h3 style="font-size:20px">📨 Spieler einladen</h3><p class="hint" style="margin-top:4px">Beitreten geht nur mit Einladung. ${clMyRole(c) === 2 ? 'Als Leiter kannst du Admins ernennen (⭐) – die dürfen auch einladen und Mitglieder kicken.' : 'Als Clan-Admin darfst du einladen und Mitglieder kicken.'}</p>
+    <div class="row" style="gap:8px"><input class="inp" id="clInvN" placeholder="Spielername" maxlength="24"><button class="btn gold sm" id="clInvGo">Einladen</button></div></div>`;
+}
+function clBind(B, c, mem, redraw) {
+  const tag = S.clan.tag, cname = c ? c.name : S.clan.name;
+  const ib = $('#clInvGo', B);
+  if (ib) ib.onclick = async () => {
+    const n = $('#clInvN', B).value.trim().toLowerCase(); if (!n) return;
+    if (n === meKey()) return toast('Du bist schon drin 😄', 'bad');
+    if (mem.some(r => String(r.name).toLowerCase() === n)) return toast('Ist schon im Clan ✓');
+    if (mem.length >= CLAN_MAX) return toast(`Der Clan ist voll (${CLAN_MAX}).`, 'bad');
+    ib.disabled = true;
+    try { if (!await nameTaken(n)) { ib.disabled = false; return toast(`Spieler „${esc(n)}“ gibt es nicht`, 'bad'); }
+      await dmSend(n, `¤CINV|${tag}|${cname}`); SND.win(); toast(`📨 Einladung an ${esc(n)} geschickt`, 'good'); $('#clInvN', B).value = ''; }
+    catch (e) { toast('Hat nicht geklappt – Internet?', 'bad'); }
+    ib.disabled = false;
+  };
+  B.addEventListener('click', async e => {
+    const k = e.target.closest('[data-ck]'), r = e.target.closest('[data-cr]');
+    if (k) {
+      const n = k.dataset.ck; if (!await confirmBox('Mitglied kicken?', `<b>${esc(n)}</b> fliegt aus <b>[${esc(tag)}]</b> (sobald er/sie online ist).`, 'Kicken', true)) return;
+      try { await dmSend(n.toLowerCase(), `¤CKICK|${tag}`); S.clKick = S.clKick || {}; S.clKick[n] = Date.now(); save(); toast(`🚪 ${esc(n)} wurde gekickt`, 'good'); redraw(); } catch (er) { toast('Hat nicht geklappt', 'bad'); }
+    } else if (r) {
+      const n = r.dataset.cr, v = +r.dataset.v;
+      try { await dmSend(n.toLowerCase(), `¤CROLE|${tag}|${v}`); toast(v ? `⭐ ${esc(n)} ist jetzt Clan-Admin (sobald online)` : `${esc(n)} ist kein Admin mehr`, 'good'); } catch (er) { toast('Hat nicht geklappt', 'bad'); }
+    }
+  });
+}
+function clAdmBind(o, B, tag, c) {
+  B.addEventListener('click', async e => {
+    const k = e.target.closest('[data-ak]');
+    if (k) { e.stopPropagation(); const n = k.dataset.ak; if (!await confirmBox('Als Admin kicken?', `<b>${esc(n)}</b> aus <b>[${esc(tag)}]</b> entfernen?`, 'Kicken', true)) return;
+      try { await giftSend(n.toLowerCase(), 0, `Aus Clan [${tag}] entfernt`, 'ck', tag); toast(`🚪 ${esc(n)} wird aus [${esc(tag)}] entfernt`, 'good'); k.disabled = true; } catch (er) { toast('Fehler: ' + (er.message === 'key' ? 'Admin-Schlüssel fehlt' : er.message), 'bad'); } return; }
+    if (e.target.closest('#cvDel')) {
+      if (!await confirmBox('Clan löschen?', `<b>[${esc(tag)}] ${esc(c ? c.name : '')}</b> wird für alle gelöscht – alle Mitglieder fliegen raus.`, 'Löschen', true)) return;
+      if (!await confirmBox('Wirklich?', 'Das geht nicht rückgängig.', 'Ja, löschen', true)) return;
+      try { await lbhSet('c:' + tag, 1); toast(`🗑️ Clan [${esc(tag)}] gelöscht`, 'good'); o.close(); if (curPage === 'clan') go('clan', true); } catch (er) { toast('Fehler: ' + (er.message === 'key' ? 'Admin-Schlüssel fehlt' : er.message), 'bad'); }
+    }
+  });
+}
+function clDmText(t, mine) {
+  const p = String(t).split('|');
+  if (p[0] === '¤CINV') return mine ? `📨 Einladung in Clan [${p[1]}] geschickt` : `📨 lädt dich in den Clan [${p[1]}] ${p.slice(2).join('|')} ein! → Bestenliste → Clans`;
+  if (p[0] === '¤CKICK') return mine ? `🚪 aus Clan [${p[1]}] gekickt` : `🚪 hat dich aus dem Clan [${p[1]}] gekickt`;
+  if (p[0] === '¤CROLE') return mine ? (p[2] === '1' ? `⭐ zum Admin von [${p[1]}] gemacht` : `Admin-Rolle in [${p[1]}] entfernt`) : (p[2] === '1' ? `⭐ hat dich zum Admin von [${p[1]}] gemacht!` : `hat dir die Admin-Rolle in [${p[1]}] entzogen`);
+  return t;
+}
+async function clSenderOk(tag, von, needOwner) {
+  try {
+    const cl = (await clanList()).find(c => c.id === tag); if (!cl) return false;
+    if (clIsOwn(cl, von)) return true; if (needOwner) return false;
+    const mem = await clanMembers(tag); return mem.some(r => String(r.name).toLowerCase() === von && +r.crl === 1);
+  } catch (e) { return false; }
+}
+async function clanCheck(list) {
+  if (!S) return; S.clGot = S.clGot || [];
+  for (const m of list) {
+    const t = m.txt || ''; if (!/^¤C(INV|KICK|ROLE)\|/.test(t) || m.an !== meKey() || m.von === meKey() || S.clGot.includes(m.id)) continue;
+    if ((+m.ts || 0) < (S.created || 0) || Date.now() - (+m.ts || 0) > 14 * 864e5) continue;
+    S.clGot.push(m.id); if (S.clGot.length > 200) S.clGot = S.clGot.slice(-200);
+    const p = t.split('|'), tag = p[1];
+    if (p[0] === '¤CINV') {
+      if (S.clan && S.clan.tag === tag) continue;
+      S.clInv = S.clInv || {}; S.clInv[tag] = { von: m.von, ts: +m.ts || Date.now() }; save();
+      whenFree(() => { SND.win(); toast(`📨 <b>${esc(m.disp || m.von)}</b> lädt dich in den Clan <b>[${esc(tag)}]</b> ein – tippen zum Annehmen`, 'good', 7000, () => { clanTab = 0; go('clan'); }); });
+    } else if (p[0] === '¤CKICK') {
+      if (!S.clan || S.clan.tag !== tag || (+m.ts || 0) < (S.clan.ts || 0)) continue;
+      const cl = (await clanList().catch(() => [])).find(c => c.id === tag); if (clIsOwn(cl)) continue; // Leiter kann nicht gekickt werden
+      if (!await clSenderOk(tag, m.von, !!S.clan.role)) continue; // Admins kann nur der Leiter kicken
+      S.clan = null; save(); lbLast = ''; pushScore(true);
+      whenFree(() => toast(`🚪 Du wurdest aus dem Clan [${esc(tag)}] gekickt`, 'bad', 6000));
+      if (curPage === 'clan') go('clan', true);
+    } else if (p[0] === '¤CROLE') {
+      if (!S.clan || S.clan.tag !== tag || !await clSenderOk(tag, m.von, true)) continue;
+      S.clan.role = p[2] === '1' ? 1 : 0; save(); lbLast = ''; pushScore(true);
+      whenFree(() => toast(S.clan.role ? `⭐ Du bist jetzt Admin im Clan [${esc(tag)}]!` : `Deine Admin-Rolle in [${esc(tag)}] wurde entfernt`, S.clan.role ? 'good' : '', 6000));
+    }
+  }
+}
+{ const P0 = payCheck; payCheck = list => { P0(list); clanCheck(list).catch(() => { }); }; }
+{ const C0 = clanList; clanList = async () => { if (typeof lbhLoad === 'function') await lbhLoad(); return (await C0()).filter(c => !clDel(c.id)); }; }
+{ const T0 = clanTop; clanTop = async () => (await T0()).filter(c => !clDel(c.tag)); }
+GIFT_K.ck = ['🚪', 'Clan-Kick'];
+{ const G0 = giftReceive; giftReceive = (g, all) => {
+  if (g && g.k === 'ck') { if (S.clan && S.clan.tag === g.x) { S.clan = null; save(); lbLast = ''; pushScore(true); whenFree(() => toast(`🚪 Der Admin hat dich aus dem Clan [${esc(g.x)}] entfernt`, 'bad', 6000)); if (curPage === 'clan') go('clan', true); } return; }
+  return G0(g, all);
+}; }
+// gelöschter Clan → Mitglieder fliegen raus
+setInterval(async () => { try { if (S && S.clan && onlineOn()) { await lbhLoad(); if (clDel(S.clan.tag)) { const t = S.clan.tag; S.clan = null; save(); lbLast = ''; pushScore(true); toast(`🗑️ Der Clan [${esc(t)}] wurde vom Admin gelöscht`, 'bad', 6000); if (curPage === 'clan') go('clan', true); } } } catch (e) { } }, 300000);
 </script>
 </body>
 </html>
