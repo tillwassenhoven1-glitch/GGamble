@@ -5527,8 +5527,12 @@ const TUT = [
   { p: 'spiele', sel: '#potCard', t: '🧪 Glückstränke', x: 'Im Glückslabor braust du Tränke (kostet ⚡ Energie). Ein Trank lässt jeden Dreh mehrmals würfeln – du bekommst das beste Ergebnis!' },
   { p: 'spiele', sel: '[data-x="pass"]', t: '🎟️ Battle Pass', x: 'Jede Runde gibt Battle-Pass-Punkte. Stufen bringen Geld, Tränke und Energie – plus tägliche Missionen.' },
   { p: 'spiele', sel: '[data-x="reactor"]', t: '⚡ Energie-Code', x: 'Alle 5 Minuten: Merk dir die Farbfolge und hol dir bis zu +3 Energie.' },
+  { p: 'spiele', sel: '[data-y="blackjack"]', t: '🃏 Casino-Tische', x: 'Blackjack, Roulette und Pferderennen – mit echten Casino-Regeln. Der Höchsteinsatz steigt mit deinem Level.' },
+  { p: 'spiele', sel: '[data-y="haendler"]', t: '🧔 Händler Hugo & 💎 Luxus-Shop', x: 'Bei Hugo kaufst du dauerhafte Upgrades (richtig teuer!). Im Luxus-Shop gibt es Rahmen, Titel und goldene Namen.' },
+  { p: 'spiele', sel: '.lhb', t: '🌟 Glücksstunde', x: 'Jeden Tag gibt es eine Stunde mit doppelten Gewinnen, doppeltem Minispiel-Geld und doppelten XP. Hier steht, wann.' },
+  { p: 'spiele', sel: '#imp', t: '🏪 Imperium', x: 'Kauf Geschäfte, die auch offline Geld verdienen. Bau sie aus und richte sie ein (Einrichtung, Personal, Werbung, Deko) für mehr Einnahmen.' },
   { p: 'boerse', sel: '#bBuy', t: '📈 Börse', x: 'Glaubst du, der Kurs steigt? → Kaufen. Glaubst du, er fällt? → Short. Gewinn holst du mit ✕ bei deiner Position.' },
-  { p: 'rang', sel: '#rgT', t: '🏆 Bestenliste', x: 'Wer ist am reichsten? Wer hat heute, diese Woche oder diesen Monat am meisten gewonnen – und wer spielt am längsten?' },
+  { p: 'rang', sel: '#rgT', t: '🏆 Bestenliste', x: 'Wer ist am reichsten? Wer hat heute, diese Woche oder diesen Monat am meisten gewonnen – und wer spielt am längsten? Die Top 3 der Woche bekommen jeden Montag Preise 🥇' },
   { p: 'rang', sel: '#hChat', t: '💬 Chat & Freunde', x: 'Hier chattest du mit allen, fügst Freunde hinzu, schickst Geld (ab Level 5) und forderst sie zum Duell heraus.' },
   { t: '🎉 Fertig!', x: 'Viel Glück! Als Startbonus bekommst du gleich ein kleines Geschenk. Das Tutorial findest du jederzeit wieder in den Einstellungen.', end: 1 },
 ];
@@ -5553,13 +5557,13 @@ function tutStart() {
     if (st.p && curPage !== st.p) { go(st.p); await new Promise(r => setTimeout(r, 450)); }
     let el = typeof st.sel === 'function' ? st.sel() : st.sel ? document.querySelector(st.sel) : null;
     if (el && !el.offsetParent && el.id !== 'hChat') el = null;
-    if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); await new Promise(r => setTimeout(r, 420)); }
+    if (el) { el.scrollIntoView({ block: 'center' }); await new Promise(r => setTimeout(r, 250)); }
     $('#tutN', box).textContent = `${i + 1} / ${TUT.length}`; $('#tutT', box).textContent = st.t; $('#tutX', box).textContent = st.x;
     $('#tutNext', box).textContent = st.end ? '🎉 Los geht’s!' : 'Weiter →'; $('#tutBack', box).style.visibility = i ? 'visible' : 'hidden';
     if (el) {
       const r = el.getBoundingClientRect(), pad = 8;
       Object.assign(hole.style, { left: r.left - pad + 'px', top: r.top - pad + 'px', width: r.width + pad * 2 + 'px', height: r.height + pad * 2 + 'px' });
-      const below = r.bottom + 20 + 230 < innerHeight; box.style.top = (below ? r.bottom + 20 : Math.max(16, r.top - 20 - box.offsetHeight)) + 'px';
+      const below = r.bottom + 20 + 230 < innerHeight; box.style.top = Math.min(innerHeight - box.offsetHeight - 16, below ? r.bottom + 20 : Math.max(16, r.top - 20 - box.offsetHeight)) + 'px';
     } else { Object.assign(hole.style, { left: '50%', top: '40%', width: '0px', height: '0px' }); box.style.top = Math.max(20, innerHeight / 2 - box.offsetHeight / 2) + 'px'; }
     SND.click();
   };
@@ -6223,7 +6227,7 @@ PAGES.blackjack = renderBJ; PAGES.roulette = renderRoul; PAGES.pferd = renderPfe
 { const Sp = PAGES.spiele; PAGES.spiele = el => {
   Sp(el); const xg = $('.xg', el); if (!xg) return;
   xg.insertAdjacentHTML('beforebegin', lhBanner());
-  xg.insertAdjacentHTML('afterend', `<div class="sec">Casino-Tische <small>neu in 0.4.1</small></div><div class="xg" style="margin-top:0">
+  xg.insertAdjacentHTML('afterend', `<div class="sec">Casino-Tische <small>neu in 0.4.2</small></div><div class="xg" style="margin-top:0">
     <button class="card gm xcard" data-y="blackjack" style="position:relative"><span class="neu">NEU</span><div class="ibox" style="font-size:38px">🃏</div><h4>Blackjack</h4><p>Schlag den Dealer – 21 gewinnt!</p></button>
     <button class="card gm xcard" data-y="roulette" style="position:relative"><span class="neu">NEU</span><div class="ibox" style="font-size:38px">🎡</div><h4>Roulette</h4><p>Rot oder Schwarz? Oder alles auf eine Zahl?</p></button>
     <button class="card gm xcard" data-y="pferd" style="position:relative"><span class="neu">NEU</span><div class="ibox" style="font-size:38px">🐎</div><h4>Pferderennen</h4><p>Tipp auf den Sieger – Quoten bis über 15×</p></button></div>
@@ -6263,6 +6267,40 @@ function openShopX(id, done) {
     o.close(); setTimeout(() => openShopX(id, done), 320);
   });
 }
+
+/* ================= 🆕 Update-Hinweis (einmal pro Version, jederzeit wieder aufrufbar) ================= */
+const UPD_V = '0.4.2', UPD_UNTIL = new Date(2026, 11, 8).getTime();
+const UPD = [
+  ['🃏', 'Blackjack', 'Schlag den Dealer! Verdoppeln, Teilen – Blackjack zahlt 3:2.', 'blackjack'],
+  ['🎡', 'Roulette', 'Setz auf Rot, Schwarz oder eine Zahl (zahlt 36×).', 'roulette'],
+  ['🐎', 'Pferderennen', 'Tipp auf den Sieger – Quoten bis 18×.', 'pferd'],
+  ['🧔', 'Händler Hugo', 'Dauerhafte Upgrades: mehr Geld, mehr XP, längere Tränke, mehr Glück. Richtig teuer!', 'haendler'],
+  ['💎', 'Luxus-Shop', 'Rahmen & Titel ab 50.000 € – Luxus-Titel machen deinen Namen golden.', 'lux'],
+  ['🛋️', 'Geschäfte einrichten', 'Einrichtung, Personal, Werbung & Deko – je +10 % Einnahmen pro Laden.', 'imperium'],
+  ['🌟', 'Glücksstunde', 'Jeden Tag eine Stunde mit doppelten Gewinnen und doppelten XP.', 'spiele'],
+  ['🥇', 'Wochen-Preise', 'Die Top 3 der Wochen-Bestenliste bekommen jeden Montag Tränke + Titel.', 'woche'],
+  ['🏅', 'Neue Erfolge', '8 neue Erfolge – große Erfolge geben jetzt auch einen Glückstrank.', 'profil'],
+];
+function openUpd() {
+  S.updSeen = UPD_V; save();
+  const o = sheet(`<div style="text-align:center"><div style="font-size:54px;line-height:1">🆕</div><h2 style="font-size:32px;margin:6px 0 2px">Neues Update!</h2><span class="chip gold">Version ${esc(VERSION)}</span></div>
+    <p class="hint" style="text-align:center;margin-top:10px">Das ist neu – tipp auf etwas, um es direkt auszuprobieren:</p>
+    <div class="card tight list" style="background:#151517;margin-top:6px">${UPD.map(([e, n, d, pg], i) => `<div class="it" data-u="${i}" style="cursor:pointer;align-items:flex-start"><div class="ibox" style="font-size:26px">${e}</div><div style="flex:1"><b style="font-size:18px">${n}</b><p class="hint" style="margin:2px 0 0">${d}</p></div>${icon('right', 'chev')}</div>`).join('')}</div>
+    <button class="btn gold w" data-close style="margin-top:14px;font-size:20px">Los geht's! 🎉</button>`);
+  $$('[data-u]', o).forEach(r => r.onclick = () => { const pg = UPD[+r.dataset.u][3]; SND.click(); o.close(); setTimeout(() => go(pg), 300); });
+}
+function updAuto() {
+  if (!S) return;
+  if ((S.tutV || 0) < TUT_V) { S.updSeen = UPD_V; save(); return; } // neue Spieler sehen das Tutorial (mit allen neuen Sachen)
+  if (S.updSeen === UPD_V) return;
+  const w = () => { if (!S || S.updSeen === UPD_V) return; if (document.querySelector('.ov,#tutOv,.full,.game-ov,#banOv') || (typeof popBusy === 'function' && popBusy())) return setTimeout(w, 3000); SND.big(); FX.burst(100, { cols: ['#f5cf5a', '#fff'] }); openUpd(); };
+  setTimeout(w, 3500);
+}
+{ const H = PAGES.halle; PAGES.halle = el => { H(el); if (Date.now() > UPD_UNTIL) return; const t = $('.halle-top', el); if (!t) return;
+  t.insertAdjacentHTML('afterend', `<button class="lhb" id="updB" style="width:100%;text-align:left;color:#fff;cursor:pointer;font:inherit"><span class="e">🆕</span><div style="flex:1"><b>Update ${UPD_V}:</b> Blackjack, Roulette, Pferderennen, Händler Hugo, Luxus-Shop & mehr<br><small style="color:var(--gold2)">Antippen: Was ist neu?</small></div></button>`);
+  $('#updB', el).onclick = () => { SND.click(); openUpd(); }; }; }
+{ const Pr = PAGES.profil; PAGES.profil = el => { Pr(el); const l = $('#xSty', el); if (l) { l.parentElement.insertAdjacentHTML('beforeend', `<div class="it" id="xUpd"><div class="ibox">🆕</div><span class="lbl">Was ist neu?</span><span class="val">${UPD_V}</span>${icon('right', 'chev')}</div>`); $('#xUpd', el).onclick = openUpd; } }; }
+(function updWait() { if (S && $('#main')) updAuto(); else setTimeout(updWait, 2000); })();
 </script>
 </body>
 </html>
