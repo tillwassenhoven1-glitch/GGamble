@@ -921,7 +921,7 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 
 /* ===== core.js ===== */
 'use strict';
-const VERSION = '0.4.3 Open Beta';
+const VERSION = '0.4.4 Open Beta';
 const FORCE_V = 12; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
 const WARTUNG = false; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
 /* ================= Helfer ================= */
@@ -2571,7 +2571,10 @@ function ensureTasks() {
   if (!S.tasks) S.tasks = {};
   if (S.tasks.d !== d) { S.tasks.d = d; S.tasks.day = mkTasks(hashStr(d + ACC), 1, 2, 14 + S.level * 14); }
   if (S.tasks.w !== w) { S.tasks.w = w; S.tasks.week = mkTasks(hashStr(w + ACC + 'w'), 6, 6.5, 240); }
+  // Bonus-Merker gehört in S.tasks (ein Feld am Array ging beim Speichern verloren → nach Neuladen gab's die Energie nochmal)
+  if (!S.tasks.bfix) { S.tasks.bfix = 1; if (S.tasks.day.every(t => t.done)) S.tasks.bd = d; if (S.tasks.week.every(t => t.done)) S.tasks.bw = w; }
 }
+const taskBonusGot = k => k === 'day' ? S.tasks.bd === S.tasks.d : S.tasks.bw === S.tasks.w;
 function hashStr(s) { let h = 7; for (const c of String(s)) h = Math.imul(h ^ c.charCodeAt(0), 2654435761); return h >>> 0; }
 function taskProg(k, v) {
   if (!S) return; ensureTasks(); if (typeof bpmProg === 'function') bpmProg(k, v);
@@ -2583,8 +2586,8 @@ function taskProg(k, v) {
 }
 function taskBonus() {
   [['day', 1, 'Alle Tagesaufgaben'], ['week', 2, 'Alle Wochenaufgaben']].forEach(([k, n, txt]) => {
-    const L = S.tasks[k]; if (!L || L.bonus || !L.every(t => t.done)) return;
-    L.bonus = true; whenFree(() => setTimeout(() => { addEnergy(n); toast(`⚡ ${txt} geschafft: +${n} Energie!`, 'good', 4500); SND.big(); FX.burst(70, { cols: ['#7cff6b', '#fff'] }); }, 1400));
+    const L = S.tasks[k]; if (!L || taskBonusGot(k) || !L.every(t => t.done)) return;
+    if (k === 'day') S.tasks.bd = S.tasks.d; else S.tasks.bw = S.tasks.w; save(); whenFree(() => setTimeout(() => { addEnergy(n); toast(`⚡ ${txt} geschafft: +${n} Energie!`, 'good', 4500); SND.big(); FX.burst(70, { cols: ['#7cff6b', '#fff'] }); }, 1400));
   });
 }
 function tasksHTML(list) {
@@ -2618,8 +2621,8 @@ function renderSpiele(el) {
    <p class="hint" style="margin-top:8px">⚡ Alle 5 Minuten +1 Energie (bis 10) – auch wenn GGamble zu ist. Nur wer alle Aufgaben schafft, bekommt extra Energie.</p>
    ${S.bal < 0 ? `<div class="card warn" style="margin-top:18px"><div class="row" style="align-items:flex-start">${icon('warn')}<div><h4>Du bist im Minus (${fmt(S.bal)})</h4><p class="hint" style="font-size:18px;margin:6px 0 0;color:#cfcfd4">Jedes Minispiel zahlt zuerst deine Schulden ab. ${isLocked() ? 'Dein Konto ist gesperrt, bis du wieder über dem Dispo bist.' : ''}</p></div></div></div>` : ''}
    <div class="sec">Aufgaben <small>neue Tagesaufgaben in ${untilMidnight()}</small></div>
-   <div class="card"><div class="row sb"><h3 style="font-size:24px">Heute</h3><span class="chip ${S.tasks.day.bonus ? 'gold' : ''}">${S.tasks.day.bonus ? '✓' : 'Alle 3:'} +1 ⚡</span></div>${tasksHTML(S.tasks.day)}</div>
-   <div class="card"><div class="row sb"><h3 style="font-size:24px">Diese Woche</h3><span class="chip ${S.tasks.week.bonus ? 'gold' : ''}">${S.tasks.week.bonus ? '✓' : 'Alle 3:'} +2 ⚡</span></div>${tasksHTML(S.tasks.week)}</div>
+   <div class="card"><div class="row sb"><h3 style="font-size:24px">Heute</h3><span class="chip ${taskBonusGot('day') ? 'gold' : ''}">${taskBonusGot('day') ? '✓' : 'Alle 3:'} +1 ⚡</span></div>${tasksHTML(S.tasks.day)}</div>
+   <div class="card"><div class="row sb"><h3 style="font-size:24px">Diese Woche</h3><span class="chip ${taskBonusGot('week') ? 'gold' : ''}">${taskBonusGot('week') ? '✓' : 'Alle 3:'} +2 ⚡</span></div>${tasksHTML(S.tasks.week)}</div>
    <div class="sec">Glückstränke ${S.potAct ? `<small class="goldc">×${S.potAct.m} aktiv · noch ${S.potAct.left} Runden</small>` : ''}</div>
    <div class="card" id="potCard">${potionsHTML()}
      <p style="font-size:19px;line-height:1.45;margin:20px 4px 10px">Ein Glückstrank lässt Drehs am Automaten und Rubbellose mehrmals würfeln – du bekommst das beste Ergebnis. ×2 wirkt 10 Runden, ×4 6 Runden, ×6 4 Runden – und nur bis ${fmt(potCap())} Einsatz. Beim Max-Einsatz-Knopf wirkt er nicht.</p>
