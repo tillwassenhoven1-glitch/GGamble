@@ -4177,7 +4177,7 @@ async function renderClan(el) {
       try {
         const tag = b.dataset.j, mem = await clanMembers(tag);
         if (mem.length >= CLAN_MAX) { b.disabled = false; return toast(`Der Clan ist voll (${CLAN_MAX} Mitglieder).`, 'bad'); }
-        S.clan = { tag, name: byTag[tag] ? byTag[tag].name : tag, ts: Date.now() }; if (S.clInv) delete S.clInv[tag]; save(); lbLast = ''; pushScore(true);
+        S.clan = { tag, name: byTag[tag] ? byTag[tag].name : tag, ts: Date.now() }; if (S.clInv) delete S.clInv[tag]; save(); lbLast = ''; pushScore(true); FQ_C.clear();
         SND.win(); toast(`Willkommen bei [${esc(clShow(tag))}]! 🎉`, 'good'); setTimeout(() => renderClan(el), 1200);
       } catch (er) { b.disabled = false; toast('Keine Verbindung', 'bad'); }
     };
@@ -6582,6 +6582,11 @@ async function clanCheck(list) {
 { const P0 = payCheck; payCheck = list => { P0(list); clanCheck(list).catch(() => { }); }; }
 { const C0 = clanList; clanList = async () => { if (typeof lbhLoad === 'function') await lbhLoad(); if (S && S.clan && clDel(S.clan.tag)) { const t = S.clan.tag; S.clan = null; save(); lbLast = ''; pushScore(true); toast(`🗑️ Der Clan [${esc(clShow(t))}] wurde vom Admin gelöscht`, 'bad', 6000); } return (await C0()).filter(c => !clDel(c.id)); }; }
 { const T0 = clanTop; clanTop = async () => (await T0()).filter(c => !clDel(c.tag)); }
+// Mich selbst immer in meinem Clan anzeigen (die Online-Liste ist bis zu 5 Min. zwischengespeichert)
+{ const M0 = clanMembers; clanMembers = async tag => { const mem = (await M0(tag)).filter(r => String(r.name).toLowerCase() !== meKey() || (S.clan && S.clan.tag === tag));
+  if (S && S.clan && S.clan.tag === tag) { const me = { id: S.lbId, name: S.name, disp: S.disp, bal: S.bal, level: S.level, color: S.color, frm: S.frm, tit: S.tit, clan: tag, crl: S.clan.role ? 1 : 0, photo: S.photo, since: S.created };
+    const i = mem.findIndex(r => String(r.name).toLowerCase() === meKey()); if (i >= 0) mem[i] = { ...mem[i], ...me }; else mem.push(me); mem.sort((a, b) => (b.bal || 0) - (a.bal || 0)); }
+  return mem; }; }
 GIFT_K.ck = ['🚪', 'Clan-Kick']; GIFT_K.cdel = ['🗑️', 'Clan gelöscht'];
 { const G0 = giftReceive; giftReceive = (g, all) => {
   if (g && g.k === 'cdel') { try { LBH.set.add('c:' + String(g.x).toLowerCase()); FQ_C.clear(); } catch (e) { } if (S.clan && S.clan.tag === g.x) { S.clan = null; save(); lbLast = ''; pushScore(true); whenFree(() => toast(`🗑️ Der Clan [${esc(clShow(g.x))}] wurde vom Admin gelöscht`, 'bad', 6000)); } if (curPage === 'clan') go('clan', true); return; }
