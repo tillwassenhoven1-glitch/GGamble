@@ -921,7 +921,7 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 
 /* ===== core.js ===== */
 'use strict';
-const VERSION = '0.3.0 Open Beta';
+const VERSION = '0.4.2 Open Beta';
 const FORCE_V = 12; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
 const WARTUNG = false; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
 /* ================= Helfer ================= */
@@ -1671,7 +1671,7 @@ function openMachine(i) {
       if (!(S.pot[100] > 0)) { toast(`🌈 Du hast keinen Glückstrank ×100. Er kann hier bei jedem Dreh mit 1 : 100.000 auftauchen!`, '', 3500); return; }
       S.pot[100]--; S.potAct = { m: 100, left: POT_R[100] }; S.st.potsDrunk++; save(); flash(); SND.big(); FX.burst(160, { cols: ['#ff5a5a', '#ffb84a', '#ffe14a', '#5ad86a', '#4ab0ff', '#b06aff'] }); toast(`🌈 Glückstrank ×100 getrunken – 100-fach Glück für ${POT_R[100]} Drehs, an jedem Automaten!`, 'good', 4000); MS.upd(); }; }
   $('#sMinus', f).onclick = () => { if (MS.busy) return; MS.allIn = S.maxOn = false; S.stakeI = Math.max(0, S.stakeI - 1); SND.click(); upd(); };
-  $('#sPlus', f).onclick = () => { if (MS.busy) return; MS.allIn = S.maxOn = false; const n = Math.min(STAKES.length - 1, S.stakeI + 1); if (STAKES[n] > maxStake()) { let l = S.level; while (10 * Math.pow(STAKE_G, l - 1) < STAKES[n]) l++; toast(`${fmt(STAKES[n])} Einsatz gibt's ab Level ${l}`); SND.err(); return; } S.stakeI = n; SND.click(); upd(); };
+  $('#sPlus', f).onclick = () => { if (MS.busy) return; MS.allIn = S.maxOn = false; const n = Math.min(STAKES.length - 1, S.stakeI + 1); if (STAKES[n] > maxStake()) { let l = S.level; while (l < 999 && msAt(l) < STAKES[n] - 1e-9) l++; toast(`${fmt(STAKES[n])} Einsatz gibt's ab Level ${l}`); SND.err(); return; } S.stakeI = n; SND.click(); upd(); };
   $('#mAll', f).onclick = () => { if (MS.busy) return; MS.allIn = S.maxOn = !MS.allIn; save(); SND.click(); upd(); };
   $('#mAuto', f).onclick = () => { if (MS.auto) { autoStop('Auto-Spin gestoppt'); return; } openAuto(); };
   $('#mLuck', f).onclick = () => openPotions(upd);
@@ -1738,7 +1738,7 @@ async function doSpin() {
   if (!free && Math.random() < 1 / 4000) whenFree(() => { addEnergy(1); toast('⚡ Seltener Fund im Automaten: +1 Energie!', 'good', 4000); SND.big(); FX.burst(60, { cols: ['#7cff6b', '#fff'] }); });
   MS.frozen = false; MS.upd();
   MS.grid = best.g;
-  let win = best.ev.tot * (free ? 2 : 1);
+  let win = best.ev.tot * (free ? 2 : 1) * (typeof upLuck === 'function' && !rb100 ? upLuck() : 1); // 🍀 Händler-Upgrade
   // 🧢 Gewinn-Deckel: höchstens ×100 pro Dreh, Freispiel-Serie insgesamt höchstens ×250
   if (!rb100 && win > stake * WIN_CAP) { const f = stake * WIN_CAP / win; best.ev.wins = best.ev.wins.map(w => ({ ...w, w: w.w * f })); win = stake * WIN_CAP; }
   if (free && MS.fsWin + win > stake * FS_CAP) win = Math.max(0, stake * FS_CAP - MS.fsWin);
@@ -2603,9 +2603,9 @@ function bindPotions(root, cb) {
     const b = e.target.closest('[data-drink]'); if (!b) return; const m = +b.dataset.drink;
     if (S.potAct) { toast('Es wirkt schon ein Glückstrank.'); return; }
     if (S.pot[m] < 1) return;
-    S.pot[m]--; S.potAct = { m, left: POT_R[m] }; S.st.potsDrunk++;
+    S.pot[m]--; S.potAct = { m, left: POT_R[m] + (typeof upN === 'function' ? upN('trank') : 0) }; S.st.potsDrunk++;
     SND.big(); flash(); FX.burst(80, { cols: m === 2 ? ['#7ad07a', '#fff'] : m === 4 ? ['#5fa0f5', '#fff'] : ['#c487f0', '#fff'] });
-    toast(`Glückstrank ×${m} wirkt für ${POT_R[m]} Runden ✨`, 'good'); checkAch(); save(); cb && cb();
+    toast(`Glückstrank ×${m} wirkt für ${S.potAct.left} Runden ✨`, 'good'); checkAch(); save(); cb && cb();
   });
 }
 
@@ -2854,7 +2854,8 @@ function labRun(body, done, cl, isEnded) {
 const SHOPS = [['kiosk', 'Kiosk', '🏪', 500, 10], ['spaeti', 'Späti', '🏬', 2500, 45], ['doener', 'Dönerbude', '🥙', 10000, 160], ['wasch', 'Waschsalon', '🧺', 40000, 560], ['bar', 'Cocktailbar', '🍸', 150000, 1900], ['hotel', 'Hotel', '🏨', 750000, 8500], ['casino', 'Casino', '🎰', 5e6, 50000], ['bank', 'Privatbank', '🏦', 4e7, 350000]];
 const shopInc = (s, l) => l > 0 ? r2(s[4] * .8 * Math.pow(1.5, l - 1)) : 0;
 const shopCost = (s, l) => r2(s[3] * Math.pow(1.8, l));
-function shopRate() { return r2(SHOPS.reduce((a, s) => a + shopInc(s, S.shops[s[0]] || 0), 0)); }
+const shopMul = id => 1 + (typeof SHX !== 'undefined' ? SHX.reduce((a, x) => a + (((S.shopX || {})[id] || {})[x[0]] || 0) * x[3], 0) : 0);
+function shopRate() { return r2(SHOPS.reduce((a, s) => a + shopInc(s, S.shops[s[0]] || 0) * shopMul(s[0]), 0)); }
 function shopPending() { const h = Math.min(24, (Date.now() - S.shopTs) / 36e5); return r2(shopRate() * h); }
 function collectShops(silent) { const p = shopPending(); S.shopTs = Date.now(); if (p > 0) { earn(p, 'Imperium'); if (!silent) { toast(`Geschäfte eingesammelt: +${fmt(p)} 🏪`, 'good'); SND.coin(); FX.burst(50, { coins: true }); } } save(); }
 function renderImperium(el) {
@@ -2863,11 +2864,12 @@ function renderImperium(el) {
     <p class="sub">Deine Geschäfte verdienen jede Stunde Geld – auch offline (max. 24 Std. ansammeln).</p>
     <div class="card"><div class="row sb"><div><small style="color:var(--mut)">Einnahmen</small><b style="display:block;font-size:30px" class="pos num">${fmt(shopRate())}/h</b></div>
       <button class="btn gold" id="col" ${pend <= 0 ? 'disabled' : ''}>Einsammeln<br>${fmt(pend)}</button></div></div>
-    ${SHOPS.map(s => { const l = S.shops[s[0]] || 0, c = shopCost(s, l), lk = l === 0 && SHOPS.indexOf(s) > 0 && !(S.shops[SHOPS[SHOPS.indexOf(s) - 1][0]]); return `<div class="card shop" style="${lk ? 'opacity:.5' : ''}"><div class="em">${s[2]}</div><div class="inf"><b>${s[1]}</b>${l ? ` <span class="chip" style="padding:3px 10px;font-size:12px">Stufe ${l}</span>` : ''}<small>${l ? `${fmt(shopInc(s, l))}/h → ${fmt(shopInc(s, l + 1))}/h` : `bringt ${fmt(s[4])}/h`}</small></div>
+    ${SHOPS.map(s => { const l = S.shops[s[0]] || 0, c = shopCost(s, l), lk = l === 0 && SHOPS.indexOf(s) > 0 && !(S.shops[SHOPS[SHOPS.indexOf(s) - 1][0]]); return `<div class="card shop" style="${lk ? 'opacity:.5' : ''}"><div class="em">${s[2]}</div><div class="inf"><b>${s[1]}</b>${l ? ` <span class="chip" style="padding:3px 10px;font-size:12px">Stufe ${l}</span>` : ''}<small>${l ? `${fmt(r2(shopInc(s, l) * shopMul(s[0])))}/h → ${fmt(r2(shopInc(s, l + 1) * shopMul(s[0])))}/h` : `bringt ${fmt(s[4])}/h`}</small>${l ? `<button class="btn dark xs" data-ix="${s[0]}" style="margin-top:6px">🛋️ Einrichten${shopMul(s[0]) > 1 ? ` · +${Math.round((shopMul(s[0]) - 1) * 100)} %` : ''}</button>` : ''}</div>
       <button class="btn ${l ? 'dark' : 'white'} sm" data-s="${s[0]}" ${lk ? 'disabled' : ''}>${l ? 'Ausbauen' : 'Kaufen'}<br><span class="num" style="font-size:13px">${fmt(c)}</span></button></div>`; }).join('')}`;
   $('#back', el).onclick = () => go('spiele');
   $('#col', el).onclick = () => { collectShops(); renderImperium(el); };
   el.onclick = e => {
+    const ix = e.target.closest('[data-ix]'); if (ix) { SND.click(); return openShopX(ix.dataset.ix, () => renderImperium(el)); }
     const b = e.target.closest('[data-s]'); if (!b) return; const s = SHOPS.find(x => x[0] === b.dataset.s), l = S.shops[s[0]] || 0, c = shopCost(s, l);
     if (S.bal < c) { toast(`Dafür brauchst du ${fmt(c)} Guthaben (Dispo zählt nicht).`, 'bad'); SND.err(); return; }
     collectShops(true);
@@ -2902,7 +2904,8 @@ function pushScore(force) { if (TAB_DEAD) return;
   const noDM = Object.assign({}, withOwn); ['dv', 'dk', 'mv', 'mk'].forEach(x => delete noDM[x]);
   const noWk = Object.assign({}, noDM); ['wk', 'wkk'].forEach(x => delete noWk[x]);
   const withRb = Object.assign({}, withHist, { rbw: { doubleValue: S.st.rbWag || 0 }, pt: fint(S.st.play || 0) }); // 🌈 Regenbogen-Einsatz, ⏱️ Spielzeit
-  const tiers = [withRb, withHist, withOwn, noDM, noWk, full, f];
+  const withPw = Object.assign({}, withRb, { pw: { doubleValue: (S.pw && S.pw.v) || 0 }, pwk: { stringValue: (S.pw && S.pw.k) || '' } }); // 🥇 Wochen-Preise: Wert der letzten Woche
+  const tiers = [withPw, withRb, withHist, withOwn, noDM, noWk, full, f];
   const attempt = i => i >= tiers.length ? Promise.resolve(lbLast = '') : send(tiers[i]).then(r => {
     DIAG.rang = r.status + ' (Stufe ' + i + ') · ' + new Date().toLocaleTimeString();
     if (r.ok) { lbTier = i; return; }
@@ -2952,7 +2955,7 @@ const BADGES = { 9: ['👑', 'Besitzer', '#ffd84d'], 2: ['🛡️', 'Admin', '#f
 const badgeOf = r => { if (!r || typeof LBH === 'undefined' || !LBH.bdg) return 0; const n = String(r.me ? S && S.name : r.name || '').toLowerCase(); return LBH.bdg[n] || 0; };
 const badgeTag = r => { const b = BADGES[badgeOf(r)]; if (!b || (badgeOf(r) === 9 && ownOn(r))) return ''; return ` <span class="owner" style="background:${b[2]}22;color:${b[2]};border-color:${b[2]}66">${b[0]} ${b[1]}</span>`; };
 const ownerTag = r => (ownOn(r) ? '<span class="owner">👑 Besitzer</span>' : '') + badgeTag(r);
-const nameCls = r => ownOn(r) ? 'ownername' : '';
+const nameCls = r => ownOn(r) ? 'ownername' : (typeof LUX_T !== 'undefined' && LUX_T.includes(r && r.tit) ? 'luxname' : '');
 const RANG_WIP = false; // Bestenliste ist in Arbeit
 async function renderRang(el) {
   if (RANG_WIP) { el.innerHTML = `<h1 class="t">Bestenliste</h1><p class="sub">Top 10 online – nur echte Spieler</p>
@@ -3481,7 +3484,7 @@ function openSettings() {
 
 /* ================= Cheat-Menü ================= */
 const CHEATS = [['m1', '💰 +1.000 €'], ['m2', '💰 +1 Mio. €'], ['m3', '💰 +1 Mrd. €'], ['lv1', '⭐ +1 Level'], ['bp1', '🎟️ +1 Battle-Pass-Stufe'], ['lv', '⭐ +5 Level'], ['lvmax', '🔓 Alles freischalten (Level 50)'], ['en', '⚡ Energie voll'], ['pot', '🧪 +3 von jedem Trank'], ['debt', '🧾 Schulden weg'], ['bonus', '🎁 Tagesbonus nochmal'], ['off', '🔒 Cheats ausblenden']];
-function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben</button><button class="btn white xs" data-ch="lbh">🙈 Bestenliste-Sperre</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="bdg">🏅 Abzeichen vergeben</button><button class="btn white xs" data-ch="p100">🌈 ×100-Trank für mich</button>${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
+function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben</button><button class="btn white xs" data-ch="lbh">🙈 Bestenliste-Sperre</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="bdg">🏅 Abzeichen vergeben</button><button class="btn white xs" data-ch="p100">🌈 ×100-Trank für mich</button><button class="btn white xs" data-ch="lh">🌟 Glücksstunde starten</button><button class="btn white xs" data-ch="stat">📊 Statistik</button>${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
 function doCheat(k) {
   const add = v => { S.bal = r2(S.bal + v); S.st.maxBal = Math.max(S.st.maxBal, S.bal); };
   if (k === 'm1') add(1000); else if (k === 'm2') add(1e6); else if (k === 'm3') add(1e9);
@@ -3495,6 +3498,8 @@ function doCheat(k) {
   else if (k === 'gift') { if (typeof openGift === 'function') openGift(); return; }
   else if (k === 'lbh') { if (typeof openLbh === 'function') openLbh(); return; }
   else if (k === 'bc') { if (typeof openBc === 'function') openBc(); return; }
+  else if (k === 'lh') { if (typeof openLhAdm === 'function') openLhAdm(); return; }
+  else if (k === 'stat') { if (typeof openStats === 'function') openStats(); return; }
   else if (k === 'bdg') { if (typeof openBadges === 'function') openBadges(); return; }
   else if (k === 'p100') { (async () => { // 3× bestätigen
       if (!await confirmBox('🌈 Glückstrank ×100 geben?', 'Der stärkste Trank im Spiel – 100-fach Glück für 10 Drehs.', 'Ja (1/3)')) return;
@@ -4353,7 +4358,7 @@ async function rgFetch0() {
   const docs = (await fsQuery({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(Math.floor(Date.now() / 36e5) * 36e5 - 21 * 864e5) } }, limit: 500 })).filter(r => (r.since || 0) >= RESET_TS).filter(r => r.id === S.lbId || isOwner(r.id) || (typeof lbhHas === 'function' ? !lbhHas(r.name) : true));
   return docs.map(d => ({ k: d.id, name: d.name || '?', disp: d.disp || d.name || '?', bal: d.bal || 0, lvl: d.level || 1, color: d.color || 0, ts: d.ts || 0, me: d.id === S.lbId,
     big: d.big ?? null, net: d.net ?? null, bxp: d.bxp ?? null, wag: d.wag ?? null, since: d.since ?? null, best: d.best || '', ach: d.ach ?? null, own: !!d.own, tit: d.tit || '', frm: d.frm || '', clan: d.clan || '', hist: d.hist || '',
-    dy: perVal(d, 'dy', d.dk === dayKey() ? d.dv : undefined), wk: perVal(d, 'wk', d.wkk === weekKey() ? d.wk : undefined), mo: perVal(d, 'mo', d.mk === monKey() ? d.mv : undefined), pt: d.pt ?? null }));
+    dy: perVal(d, 'dy', d.dk === dayKey() ? d.dv : undefined), wk: perVal(d, 'wk', d.wkk === weekKey() ? d.wk : undefined), mo: perVal(d, 'mo', d.mk === monKey() ? d.mv : undefined), pt: d.pt ?? null, pw: d.pw ?? null, pwk: d.pwk || '', wkk: d.wkk || '', wkRaw: d.wk ?? null }));
 }
 function rgMe() {
   wkAdd(0);
@@ -4965,10 +4970,10 @@ function bldHTML(s, i) {
   return `<div class="bld" data-s="${s[0]}" style="left:${x}px;height:${h}px;--c1:${col[0]};--c2:${col[1]}">
     <div class="fc f"><div class="wins" style="grid-template-rows:repeat(${floors},1fr)">${win}</div>
       <div class="sign"><span>${s[2]}</span><b>${esc(s[1])}</b></div><div class="awn"></div>
-      <div class="ground"><div class="shopwin">${s[2]}</div><div class="door"></div><div class="shopwin">${s[2]}</div></div>
+      <div class="ground"><div class="shopwin">${typeof shxIcons === 'function' && shxIcons(s[0], 0) || s[2]}</div><div class="door"></div><div class="shopwin">${typeof shxIcons === 'function' && shxIcons(s[0], 1) || s[2]}</div></div>
       <div class="lvl">Stufe ${l}</div></div>
     <div class="fc sl"></div><div class="fc sr"></div><div class="fc rf"></div>
-    <div class="inc num">+${fmt(shopInc(s, l))}/h</div></div>`;
+    <div class="inc num">+${fmt(r2(shopInc(s, l) * shopMul(s[0])))}/h</div></div>`;
 }
 function openCity() {
   if (document.querySelector('.city')) return;
@@ -5018,7 +5023,8 @@ function openCity() {
       ${l ? `<div class="two"><div class="stat"><small>Stufe</small><b>${l}</b></div><div class="stat"><small>Einnahmen</small><b class="pos num">${fmt(shopInc(s, l))}/h</b></div></div>
         <p class="hint">Nächste Stufe: <b class="pos">${fmt(shopInc(s, l + 1))}/h</b> (+${fmt(r2(shopInc(s, l + 1) - shopInc(s, l)))}/h)</p>`
       : `<p class="hint" style="font-size:17px">${lk ? `🔒 Kauf zuerst ${esc(SHOPS[SHOPS.indexOf(s) - 1][1])}.` : `Dieses Grundstück ist frei! Der Laden bringt <b class="pos">${fmt(shopInc(s, 1))}/h</b>.`}</p>`}
-      <button class="btn ${l ? 'gold' : 'white'} w" id="cBuy" ${lk ? 'disabled' : ''} style="margin-top:8px">${l ? 'Ausbauen' : 'Kaufen'} · ${fmt(c)}</button>`, { center: true });
+      <button class="btn ${l ? 'gold' : 'white'} w" id="cBuy" ${lk ? 'disabled' : ''} style="margin-top:8px">${l ? 'Ausbauen' : 'Kaufen'} · ${fmt(c)}</button>${l ? `<button class="btn dark w" id="cIx" style="margin-top:10px">🛋️ Einrichten &amp; Upgrades${shopMul(s[0]) > 1 ? ` · +${Math.round((shopMul(s[0]) - 1) * 100)} %` : ''}</button>` : ''}`, { center: true });
+    { const ix = $('#cIx', o); if (ix) ix.onclick = () => { o.close(); openShopX(s[0], () => { const nb = document.createElement('div'); nb.innerHTML = bldHTML(s, SHOPS.indexOf(s)); const n = nb.firstElementChild; const cur = scene.querySelector(`.bld[data-s="${s[0]}"]`); if (cur) cur.replaceWith(n); upd(); $('.ctop small', f).innerHTML = `${SHOPS.filter(x => S.shops[x[0]]).length} von ${SHOPS.length} Läden · <span class="num">${fmt(shopRate())}/h</span>`; }); }; }
     $('#cBuy', o).onclick = () => {
       if (S.bal < c) { toast(`Dafür brauchst du ${fmt(c)} Guthaben (Dispo zählt nicht).`, 'bad'); SND.err(); return; }
       collectShops(true); S.bal = r2(S.bal - c); S.shops[s[0]] = l + 1; SND.big(); FX.burst(80);
@@ -5723,6 +5729,540 @@ async function openRbTop() {
     q('#xSty', openStyle); q('#xPass', () => go('pass')); q('#xClan', () => go('clan')); q('#xFr', () => go('freunde'));
   };
 })();
+
+/* ================= 0.4.1: Blackjack, Roulette, Pferderennen, Händler, Luxus-Shop, Wochen-Preise, Glücksstunde, Admin-Statistik ================= */
+(() => {
+  const st = document.createElement('style'); st.dataset.dyn = '1';
+  st.textContent = `
+.luxname{background:linear-gradient(90deg,#f5cf5a,#fff3b0,#e0a92e,#f5cf5a);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent!important;animation:luxSh 3s linear infinite}
+@keyframes luxSh{to{background-position:-200% 0}}
+.avatar.fr-lx_kosmos{box-shadow:0 0 0 3px #6a5cff,0 0 18px #6a5cff,0 0 30px #ff4fd8;animation:frNeon 3s linear infinite}
+.avatar.fr-lx_blitz{box-shadow:0 0 0 3px #fff36a,0 0 20px #fff36a;animation:lxBl 1.2s steps(2) infinite}
+@keyframes lxBl{50%{box-shadow:0 0 0 3px #7ad7ff,0 0 26px #7ad7ff}}
+.avatar.fr-lx_lava{box-shadow:0 0 0 4px #ff3d00,0 0 22px #ff6a00,0 4px 30px #ffb300;animation:frFire .8s ease-in-out infinite alternate}
+.avatar.fr-lx_krone{box-shadow:0 0 0 3px #f5cf5a,0 0 0 7px #7a3cff,0 0 30px #f5cf5a;animation:lxKr 2s ease-in-out infinite}
+@keyframes lxKr{50%{box-shadow:0 0 0 3px #fff3b0,0 0 0 8px #b06aff,0 0 40px #f5cf5a}}
+.lhb{display:flex;gap:12px;align-items:center;margin:14px 0 0;padding:14px 16px;border-radius:18px;background:#17150c;border:1px solid rgba(245,207,90,.25);font-size:16px;line-height:1.35}
+.lhb.on{background:linear-gradient(135deg,#3a2c05,#6b4c00);border-color:#f5cf5a;box-shadow:0 0 24px rgba(245,207,90,.35);animation:lhP 2s ease-in-out infinite}
+@keyframes lhP{50%{box-shadow:0 0 36px rgba(245,207,90,.6)}}
+.lhb .e{font-size:30px}
+.tbl{background:radial-gradient(ellipse at top,#1d6b3c,#0d3a20);border-radius:22px;padding:16px;margin-top:14px;min-height:120px;border:2px solid #2a8a50}
+.tbl .lb{font-size:14px;color:#bfe7cc;font-weight:800;letter-spacing:1px;margin-bottom:8px}
+.cds{display:flex;gap:8px;flex-wrap:wrap;min-height:84px}
+.cd{width:56px;height:80px;border-radius:9px;background:#fff;color:#111;display:flex;flex-direction:column;justify-content:space-between;padding:5px 7px;font-weight:900;font-size:20px;box-shadow:0 3px 8px rgba(0,0,0,.4);animation:cdIn .25s ease-out}
+.cd.r{color:#d0242c}.cd .s{align-self:flex-end;font-size:24px}
+.cd.h{background:repeating-linear-gradient(45deg,#8a1c2a,#8a1c2a 6px,#a8283a 6px,#a8283a 12px);color:transparent}
+@keyframes cdIn{from{transform:translateY(-20px) rotate(-8deg);opacity:0}}
+.bjh{padding:8px;border-radius:14px;margin-top:8px}.bjh.cur{background:rgba(255,255,255,.1);outline:2px solid #f5cf5a}
+.bjv{display:inline-block;margin-left:8px;padding:2px 10px;border-radius:999px;background:rgba(0,0,0,.35);color:#fff;font-size:15px}
+.rlw{display:flex;align-items:center;justify-content:center;height:120px;margin-top:14px;border-radius:22px;background:radial-gradient(circle,#2a2a30,#121214);font-size:64px;font-weight:900}
+.rlb{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:12px}
+.rlb button{position:relative;padding:12px 0;border-radius:10px;border:0;font-weight:900;font-size:18px;color:#fff;cursor:pointer}
+.rlb .rd{background:#b8232c}.rlb .bk{background:#26262b}.rlb .gr{background:#1f8a45;grid-column:1/4}.rlb .ot{background:#16351f;font-size:15px}
+.rlb .wt{grid-column:span 1}
+.rlb i{position:absolute;right:3px;top:3px;min-width:20px;padding:1px 5px;border-radius:999px;background:#f5cf5a;color:#1d1503;font-size:11px;font-style:normal}
+.rlb .hit{outline:3px solid #f5cf5a;box-shadow:0 0 16px #f5cf5a}
+.chs{display:flex;gap:6px;flex-wrap:wrap}.chs button{min-width:52px}
+.hr{position:relative;height:44px;border-bottom:1px dashed rgba(255,255,255,.15);display:flex;align-items:center}
+.hr .h{position:absolute;left:0;font-size:32px;transform:scaleX(-1);transition:left .12s linear}
+.hr .fin{position:absolute;right:8px;top:0;bottom:0;border-right:4px dotted #fff;opacity:.5}
+.hr .n{position:absolute;left:-2px;top:-2px;font-size:11px;color:#bfe7cc;font-weight:900}
+.hsel{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.hsel button{padding:12px;border-radius:14px;border:2px solid transparent;background:#1c1c20;color:#fff;font-weight:800;text-align:left;cursor:pointer;font-size:16px}
+.hsel button.on{border-color:#f5cf5a;background:#2b2410}
+.npc{display:flex;gap:14px;align-items:flex-end;margin-top:10px}.npc .f{font-size:84px;line-height:1;filter:drop-shadow(0 6px 14px rgba(0,0,0,.6))}
+.npc .bub{position:relative;flex:1;background:#f3ead2;color:#2a2010;border-radius:18px;padding:14px 16px;font-size:17px;font-weight:700;line-height:1.35}
+.npc .bub:before{content:'';position:absolute;left:-10px;bottom:18px;border:10px solid transparent;border-right-color:#f3ead2;border-left:0}
+.upd{display:flex;gap:4px;margin-top:6px}.upd i{width:22px;height:8px;border-radius:9px;background:#333}.upd i.on{background:#f5cf5a}
+.lxg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.lxi{padding:14px;border-radius:18px;background:#151517;border:1px solid #2a2a2e;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px}
+.lxi b{font-size:16px}.lxi small{color:var(--mut)}
+`;
+  document.head.appendChild(st);
+})();
+
+const okNum = v => isFinite(v) && v > 0;
+function stakeMax() { return Math.max(.1, Math.floor(maxStake() * 100) / 100); }
+function readStake(inp) {
+  const mx = stakeMax(), v = Math.round((+inp.value || 0) * 100) / 100;
+  if (!okNum(v) || v < .1) { toast('Mindestens 0,10 €', 'bad'); SND.err(); return 0; }
+  if (v > mx + 1e-9) { toast(`Höchstens ${fmt(mx)} auf deinem Level`, 'bad'); SND.err(); return 0; }
+  return v;
+}
+function stakeUI(id, val) {
+  const mx = stakeMax();
+  return `<div class="lbl2" style="margin-top:0">Einsatz (max. ${fmt(mx)})</div>
+    <input class="inp num" id="${id}" type="number" inputmode="decimal" min="0.1" step="0.1" value="${Math.min(val || 1, mx)}">
+    <div class="row" data-q4="${id}" style="gap:8px;margin-top:10px"><button class="btn dark xs" data-q="h">½</button><button class="btn dark xs" data-q="d">×2</button><button class="btn dark xs" data-q="min">Min</button><button class="btn dark xs" data-q="max">Max</button></div>`;
+}
+function bindStake(el) {
+  $$('[data-q4]', el).forEach(r => r.onclick = e => {
+    const b = e.target.closest('[data-q]'); if (!b) return; const inp = $('#' + r.dataset.q4, el), mx = stakeMax();
+    let v = +inp.value || .1; v = { h: v / 2, d: v * 2, min: .1, max: mx }[b.dataset.q]; inp.value = Math.max(.1, Math.min(mx, Math.round(v * 100) / 100)); SND.click();
+  });
+}
+/* Unentschieden / Einsatz zurück (kein Gewinn – zählt nicht für Glücksstunde & Live-Gewinne) */
+function refund(a) {
+  if (!(a > 0)) return;
+  S.bal = r2(S.bal + a); touchToday(); S.today.v = r2(S.today.v + a); S.st.net = r2(S.st.net + a); wkAdd(a); afterMoney();
+}
+
+/* ================= 🌟 Glücksstunde ================= */
+function lhHour(dk = dayKey()) { let h = 7; for (const c of dk) h = (h * 31 + c.charCodeAt(0)) >>> 0; return 15 + (h % 7); } // täglich zufällig zwischen 15 und 21 Uhr
+function lhState() {
+  const now = Date.now(), d = new Date(now), H = lhHour();
+  const s = new Date(d); s.setHours(H, 0, 0, 0);
+  if (S && S.lhAdm && S.lhAdm.u > now) return { on: true, until: S.lhAdm.u, key: 'a' + S.lhAdm.t, adm: true };
+  if (now >= +s && now < +s + 36e5) return { on: true, until: +s + 36e5, key: 'd' + dayKey() };
+  return { on: false, next: now < +s ? H : null };
+}
+const lhCap = () => r2(Math.max(150, potCap() * 5));
+function lhLeft(k) { if (!S.lhB || S.lhB.k !== k) S.lhB = { k, b: 0 }; return Math.max(0, r2(lhCap() - S.lhB.b)); }
+function lhTake(a) {
+  const L = lhState(); if (!L.on || !(a > 0)) return 0;
+  const b = r2(Math.min(a, lhLeft(L.key))); if (b <= 0) return 0;
+  S.lhB.b = r2(S.lhB.b + b); return b;
+}
+function lhBanner() {
+  const L = lhState();
+  if (L.on) return `<div class="lhb on"><span class="e">🌟</span><div><b>GLÜCKSSTUNDE!</b> Gewinne &amp; Minispiel-Geld ×2, XP ×2 · noch ${Math.max(1, Math.ceil((L.until - Date.now()) / 60000))} Min.<br><small>Bonus übrig: ${fmt(lhLeft(L.key))} · zählt bei Einsätzen bis ${fmt(potCap())}</small></div></div>`;
+  return `<div class="lhb"><span class="e">🌟</span><div>Glücksstunde ${L.next !== null ? `heute ab <b>${L.next}:00 Uhr</b>` : `morgen ab <b>${lhHour(dayKey(new Date(Date.now() + 864e5)))}:00 Uhr</b>`} – dann gibt's doppelte Gewinne!</div></div>`;
+}
+setInterval(() => {
+  if (!S) return; const L = lhState();
+  if (L.on && S.lhSeen !== L.key) { S.lhSeen = L.key; save(); whenFree(() => { toast('🌟 GLÜCKSSTUNDE! Jetzt doppelte Gewinne, doppeltes Minispiel-Geld und doppelte XP!', 'good', 6000); SND.big(); FX.burst(120, { cols: ['#f5cf5a', '#fff'] }); }); if (curPage === 'halle' || curPage === 'spiele') go(curPage, true); }
+  if (!L.on && S.lhWas) { S.lhWas = 0; if (curPage === 'halle' || curPage === 'spiele') go(curPage, true); }
+  if (L.on) S.lhWas = 1;
+}, 20000);
+/* Admin-Start: signierte Nachricht (k='lh', amt = Minuten) – gilt für alle, auch wer später reinkommt */
+const LH_OK = {};
+async function lhScan() {
+  if (!S || typeof BCQ === 'undefined') return;
+  for (const g of BCQ.docs || []) {
+    if (g.k !== 'lh') continue; const u = (+g.ts || 0) + Math.min(180, +g.amt || 0) * 60000; if (u <= Date.now()) continue;
+    if (LH_OK[g.id] === undefined) LH_OK[g.id] = await giftVerify({ id: g.id, to: g.to, amt: +g.amt, ts: +g.ts, sig: g.sig || '', k: 'lh', x: g.x || '' });
+    if (LH_OK[g.id] && (!S.lhAdm || S.lhAdm.u < u)) { S.lhAdm = { u, t: +g.ts }; save(); }
+  }
+}
+setInterval(lhScan, 30000);
+GIFT_K.lh = ['🌟', 'Glücksstunde'];
+{ const G0 = giftReceive; giftReceive = (g, all) => { if (g && g.k === 'lh') { const u = (+g.ts || 0) + Math.min(180, +g.amt || 0) * 60000; if (u > Date.now() && (!S.lhAdm || S.lhAdm.u < u)) { S.lhAdm = { u, t: +g.ts }; save(); } return; } return G0(g, all); }; }
+async function openLhAdm() {
+  const o = sheet(`<div class="row sb"><h2>🌟 Glücksstunde starten</h2><button class="x" data-close>${icon('x')}</button></div>
+    <p class="hint">Für alle Spieler: Gewinne ×2, Minispiel-Geld ×2, XP ×2 (Bonus pro Spieler gedeckelt, nur bei normalen Einsätzen). Wer später online kommt, bekommt sie auch.</p>
+    <div class="lbl2">Dauer in Minuten (max. 180)</div><input class="inp num" id="lhM" type="number" value="60" min="5" max="180">
+    <button class="btn gold w" id="lhGo" style="margin-top:16px">Jetzt starten</button>`);
+  $('#lhGo', o).onclick = async () => {
+    const m = Math.max(5, Math.min(180, Math.round(+$('#lhM', o).value || 60)));
+    try { await giftSend('*', m, `🌟 Glücksstunde für ${m} Minuten!`, 'lh'); S.lhAdm = { u: Date.now() + m * 60000, t: Date.now() }; save(); toast(`🌟 Glücksstunde für ${m} Min. gestartet`, 'good'); o.close(); }
+    catch (e) { toast('Fehler: ' + (e.message === 'key' ? 'Admin-Schlüssel fehlt (Cheat-Code nochmal eingeben)' : e.message), 'bad', 5000); }
+  };
+}
+
+/* ================= 🧔 Händler Hugo: dauerhafte Upgrades (sehr teuer) ================= */
+const UPS = [
+  ['fleiss', '💼', 'Fleiß', '+5 % Geld aus Minispielen, Tagesbonus, Aufgaben & Geschäften', 5, [25e3, 100e3, 400e3, 1.5e6, 6e6]],
+  ['schlau', '📚', 'Köpfchen', '+10 % XP', 5, [20e3, 80e3, 300e3, 1.2e6, 5e6]],
+  ['trank', '🧪', 'Trankmeister', 'Glückstränke ×2/×4/×6 wirken 1 Runde länger', 3, [50e3, 500e3, 5e6]],
+  ['glueck', '🍀', 'Glücksklee', '+1 % auf alle Automaten-Gewinne', 3, [150e3, 1.5e6, 15e6]],
+];
+const upN = id => (S && S.up && S.up[id]) || 0;
+const upLuck = () => 1 + upN('glueck') / 100;
+const upReq = n => 5 + n * 5; // Level-Voraussetzung pro Stufe
+const upTotal = s => Object.values((s && s.up) || {}).reduce((a, b) => a + b, 0);
+const HUGO = ['Na, Kleiner? Gute Ware hat ihren Preis …', 'Ich verkaufe nur an echte Profis. Komm wieder, wenn du reich bist.', 'Einmal gekauft – für immer deins. Hehehe.', 'Die letzte Stufe? Die hat noch keiner geschafft …', 'Psst … der Glücksklee ist mein bestes Stück.'];
+function renderHaendler(el) {
+  S.up = S.up || {};
+  el.innerHTML = `<button class="btn dark sm" id="back">${icon('left')} Minispiele</button>
+    <h1 class="t" style="margin-top:16px">Händler Hugo</h1><p class="sub">Dauerhafte Verbesserungen – richtig teuer und nur für Profis</p>
+    <div class="npc"><div class="f">🧔</div><div class="bub">${HUGO[Math.floor(Math.random() * HUGO.length)]}</div></div>
+    <div class="card tight list" style="margin-top:16px">${UPS.map(([id, e, n, d, max, cost]) => {
+      const l = upN(id), done = l >= max, c = cost[l], rq = upReq(l), lk = !done && S.level < rq;
+      return `<div class="it" style="align-items:flex-start"><div class="ibox" style="font-size:26px">${e}</div><div style="flex:1"><b style="font-size:19px">${n}</b> <small style="color:var(--mut)">Stufe ${l} / ${max}</small><p class="hint" style="margin:4px 0 0">${d}</p>
+        <div class="upd">${Array.from({ length: max }, (_, i) => `<i class="${i < l ? 'on' : ''}"></i>`).join('')}</div></div>
+        <button class="btn ${done ? 'dark' : lk ? 'dark' : 'gold'} xs" data-up="${id}" ${done || lk ? 'disabled' : ''} style="align-self:center;white-space:nowrap">${done ? '✓ Max' : lk ? `🔒 Lv. ${rq}` : fmt(c)}</button></div>`;
+    }).join('')}</div>
+    <p class="hint">Nur mit echtem Guthaben bezahlbar (kein Dispo). Bei „Konto zurücksetzen“ sind die Upgrades weg.</p>`;
+  $('#back', el).onclick = () => go('spiele');
+  $$('[data-up]', el).forEach(b => b.onclick = async () => {
+    const u = UPS.find(x => x[0] === b.dataset.up); if (!u) return; const l = upN(u[0]); if (l >= u[4]) return;
+    const c = u[5][l]; if (S.level < upReq(l)) return;
+    if (S.bal < c) { toast(`Hugo: „Komm wieder, wenn du ${fmt(c)} hast.“`, 'bad'); SND.err(); return; }
+    if (!await confirmBox(`${u[1]} ${u[2]} Stufe ${l + 1}?`, `${u[3]}.<br>Kostet <b>${fmt(c)}</b> – dauerhaft.`, 'Kaufen')) return;
+    if (upN(u[0]) !== l || S.bal < c) return;
+    S.bal = r2(S.bal - c); S.up[u[0]] = l + 1; S.st.upSpent = r2((S.st.upSpent || 0) + c);
+    persist(); hdr(true); pushScore(true); checkAch(); SND.big(); FX.burst(90, { cols: ['#f5cf5a', '#fff'] });
+    toast(`🧔 Hugo: „Gute Wahl!“ ${u[1]} ${u[2]} jetzt Stufe ${l + 1}`, 'good', 4000); go('haendler', true);
+  });
+}
+
+/* ================= 🛍️ Luxus-Shop ================= */
+const LUX = [
+  ['f', 'lx_kosmos', 'Rahmen „Kosmos“', 50e3], ['t', 'lx_roller', 'Titel „High Roller“', 75e3],
+  ['f', 'lx_blitz', 'Rahmen „Blitz“', 150e3], ['t', 'lx_tycoon', 'Titel „Tycoon“', 250e3],
+  ['f', 'lx_lava', 'Rahmen „Lava“', 400e3], ['t', 'lx_gold', 'Titel „Goldene Legende“', 600e3],
+  ['f', 'lx_krone', 'Rahmen „Königskrone“', 1e6], ['t', 'lx_baron', 'Titel „Kasino-Baron“', 1e6],
+];
+const LUX_T = LUX.filter(x => x[0] === 't').map(x => x[1]);
+const luxHas = (s, x) => (x[0] === 'f' ? s.frames || [] : s.titles || []).includes(x[1]);
+const luxCount = s => LUX.filter(x => luxHas(s, x)).length;
+LUX.forEach(([t, id, n]) => { const nm = n.replace(/^.*„(.*)“$/, '$1'); if (t === 'f') FRAMES.push([id, nm, s => (s.frames || []).includes(id), 'Luxus-Shop']); else TITLES.push([id, nm, s => (s.titles || []).includes(id), 'Luxus-Shop · goldener Name']); });
+TITLES.push(['wsieger', 'Wochensieger 🥇', s => (s.titles || []).includes('wsieger'), 'Platz 1 der Wochen-Bestenliste']);
+TITLES.push(['wpod', 'Wochen-Podium', s => (s.titles || []).includes('wpod') || (s.titles || []).includes('wsieger'), 'Top 3 der Wochen-Bestenliste']);
+function renderLux(el) {
+  el.innerHTML = `<button class="btn dark sm" id="back">${icon('left')} Minispiele</button>
+    <h1 class="t" style="margin-top:16px">Luxus-Shop 💎</h1><p class="sub">Zeig allen, was du hast. Luxus-Titel lassen deinen Namen <span class="luxname">golden glänzen</span>.</p>
+    <div class="lxg" style="margin-top:14px">${LUX.map((x, i) => { const has = luxHas(S, x); return `<div class="lxi">${x[0] === 'f' ? avaHTML({ ...S, frm: x[1] }) : `<span class="titl">${esc(titName(x[1]))}</span><b class="luxname">${esc(S.disp)}</b>`}
+      <b>${esc(x[2])}</b><button class="btn ${has ? 'dark' : 'gold'} xs w" data-lx="${i}" ${has ? 'disabled' : ''}>${has ? '✓ Gekauft' : fmt(x[3])}</button></div>`; }).join('')}</div>
+    <p class="hint">Anlegen unter Profil → Titel &amp; Profilrahmen. Alle anderen Spieler sehen es in der Bestenliste.</p>`;
+  $('#back', el).onclick = () => go('spiele');
+  $$('[data-lx]', el).forEach(b => b.onclick = async () => {
+    const x = LUX[+b.dataset.lx]; if (!x || luxHas(S, x)) return;
+    if (S.bal < x[3]) { toast(`Dafür brauchst du ${fmt(x[3])} auf dem Konto`, 'bad'); SND.err(); return; }
+    if (!await confirmBox(`${x[2]} kaufen?`, `Kostet <b>${fmt(x[3])}</b>. Nur Optik – aber jeder sieht es.`, 'Kaufen')) return;
+    if (luxHas(S, x) || S.bal < x[3]) return;
+    S.bal = r2(S.bal - x[3]); (x[0] === 'f' ? (S.frames = S.frames || []) : (S.titles = S.titles || [])).push(x[1]);
+    if (x[0] === 'f') S.frm = x[1]; else S.tit = x[1];
+    S.st.luxSpent = r2((S.st.luxSpent || 0) + x[3]);
+    persist(); hdr(true); pushScore(true); checkAch(); SND.big(); FX.burst(140, { cols: ['#f5cf5a', '#fff3b0', '#fff'] });
+    toast(`💎 ${x[2]} gekauft und angelegt!`, 'good', 4000); go('lux', true);
+  });
+}
+
+/* ================= 🃏 Blackjack (Dealer steht auf 17, BJ zahlt 3:2, Verdoppeln, Teilen) ================= */
+const SU = ['♠', '♥', '♦', '♣'], RK = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+const bjCard = () => ({ r: Math.floor(Math.random() * 13), s: Math.floor(Math.random() * 4) });
+const cVal = c => c.r === 0 ? 11 : Math.min(10, c.r + 1);
+function hVal(cs) { let v = 0, a = 0; cs.forEach(c => { v += cVal(c); if (c.r === 0) a++; }); while (v > 21 && a) { v -= 10; a--; } return { v, soft: a > 0 }; }
+const isBJ = cs => cs.length === 2 && hVal(cs).v === 21;
+const cardHTML = (c, hide) => hide ? '<div class="cd h">.</div>' : `<div class="cd ${c.s === 1 || c.s === 2 ? 'r' : ''}"><span>${RK[c.r]}</span><span class="s">${SU[c.s]}</span></div>`;
+let BJ_EL = null, BJ_ST = 5;
+function bjDraw() { const b = S.bj; return b.shoe.length ? b.shoe.shift() : bjCard(); } // vorab gemischter Schuh → Neu laden ändert keine Karte
+function renderBJ(el) {
+  BJ_EL = el;
+  el.innerHTML = `<button class="btn dark sm" id="back">${icon('left')} Minispiele</button>
+    <h1 class="t" style="margin-top:16px">Blackjack 🃏</h1><p class="sub">Komm näher an 21 als der Dealer – ohne drüber zu gehen. Blackjack zahlt 3:2.</p>
+    <div class="tbl"><div class="lb">DEALER <span id="bjDv"></span></div><div class="cds" id="bjD"></div><div class="lb" style="margin-top:14px">DU</div><div id="bjP"></div></div>
+    <div class="card" id="bjC"></div>
+    <p class="hint">Dealer zieht bis 16 und bleibt ab 17 stehen. Verdoppeln: nur mit den ersten 2 Karten. Teilen: bei 2 gleichen Karten (einmal). Glückstränke wirken hier nicht.</p>`;
+  $('#back', el).onclick = () => go('spiele');
+  bjRender();
+}
+function bjRender() {
+  const el = BJ_EL; if (!el || !el.isConnected) return;
+  const b = S.bj, live = b && b.ph === 'play';
+  $('#bjD', el).innerHTML = b ? b.d.map((c, i) => cardHTML(c, live && i === 1)).join('') : '';
+  $('#bjDv', el).innerHTML = b ? `<span class="bjv">${live ? cVal(b.d[0]) : hVal(b.d).v}</span>` : '';
+  $('#bjP', el).innerHTML = b ? b.h.map((h, i) => `<div class="bjh ${live && i === b.cur && b.h.length > 1 ? 'cur' : ''}"><div class="cds">${h.c.map(c => cardHTML(c)).join('')}</div><div style="margin-top:6px"><span class="bjv">${hVal(h.c).v}</span> <span class="bjv">${fmt(h.bet)}</span>${h.res ? ` <span class="bjv" style="background:${h.res === 'lose' ? '#7a1d1d' : h.res === 'push' ? '#555' : '#1d6b2a'}">${{ win: 'Gewonnen', bj: 'BLACKJACK!', push: 'Unentschieden', lose: hVal(h.c).v > 21 ? 'Überkauft' : 'Verloren' }[h.res]}</span>` : ''}</div></div>`).join('') : '<div class="cds"></div>';
+  const C = $('#bjC', el);
+  if (live) {
+    const h = b.h[b.cur], two = h.c.length === 2 && !h.sa;
+    const canSplit = two && b.h.length === 1 && cVal(h.c[0]) === cVal(h.c[1]);
+    C.innerHTML = `<div class="two"><button class="btn white" id="bjHit">Karte</button><button class="btn gold" id="bjSt">Stehen</button></div>
+      <div class="two" style="margin-top:10px"><button class="btn dark" id="bjDb" ${two ? '' : 'disabled'}>Verdoppeln (+${fmt(h.bet)})</button><button class="btn dark" id="bjSp" ${canSplit ? '' : 'disabled'}>Teilen (+${fmt(h.bet)})</button></div>`;
+    $('#bjHit', C).onclick = () => bjAct('hit'); $('#bjSt', C).onclick = () => bjAct('stand');
+    $('#bjDb', C).onclick = () => bjAct('dbl'); $('#bjSp', C).onclick = () => bjAct('split');
+  } else {
+    C.innerHTML = `${b && b.msg ? `<p style="font-size:20px;font-weight:800;text-align:center;margin:0 0 12px">${b.msg}</p>` : ''}${stakeUI('bjS', BJ_ST)}<button class="btn white w" id="bjGo" style="margin-top:16px;font-size:22px">Austeilen</button>`;
+    bindStake(C); $('#bjGo', C).onclick = bjStart;
+  }
+}
+function bjStart() {
+  if (S.bj && S.bj.ph === 'play') return;
+  const v = readStake($('#bjS', BJ_EL)); if (!v) return; BJ_ST = v;
+  if (!bet(v, 'Blackjack')) return;
+  S.bj = { ph: 'play', st: v, shoe: Array.from({ length: 24 }, bjCard), d: [], h: [{ c: [], bet: v }], cur: 0 };
+  const b = S.bj; b.h[0].c.push(bjDraw()); b.d.push(bjDraw()); b.h[0].c.push(bjDraw()); b.d.push(bjDraw());
+  persist(); SND.click();
+  if (isBJ(b.h[0].c) || isBJ(b.d)) return bjEnd();
+  bjRender();
+}
+let bjBusy = false;
+function bjAct(a) {
+  const b = S.bj; if (!b || b.ph !== 'play' || bjBusy) return; const h = b.h[b.cur];
+  if (a === 'hit') { h.c.push(bjDraw()); SND.click(); if (hVal(h.c).v >= 21) return bjNext(); }
+  else if (a === 'stand') { SND.click(); return bjNext(); }
+  else if (a === 'dbl') { if (h.c.length !== 2 || h.sa) return; if (!bet(h.bet, 'Blackjack', true)) return; h.bet = r2(h.bet * 2); h.dbl = 1; h.c.push(bjDraw()); SND.coin(); return bjNext(); }
+  else if (a === 'split') {
+    if (b.h.length !== 1 || h.c.length !== 2 || cVal(h.c[0]) !== cVal(h.c[1])) return; if (!bet(h.bet, 'Blackjack', true)) return;
+    const ace = h.c[0].r === 0, c2 = h.c.pop(); h.c.push(bjDraw()); b.h.push({ c: [c2, bjDraw()], bet: h.bet }); b.split = 1; SND.coin();
+    if (ace) { b.h.forEach(x => x.sa = 1); b.cur = b.h.length - 1; return bjNext(); } // geteilte Asse: je 1 Karte
+    if (hVal(h.c).v >= 21) return bjNext();
+  }
+  persist(); bjRender();
+}
+function bjNext() { const b = S.bj; if (b.cur < b.h.length - 1) { b.cur++; persist(); bjRender(); if (hVal(b.h[b.cur].c).v >= 21) bjNext(); return; } bjEnd(); }
+function bjEnd() {
+  const b = S.bj; if (!b || b.ph !== 'play') return;
+  const alive = b.h.some(h => hVal(h.c).v <= 21) && !(b.h.length === 1 && isBJ(b.h[0].c));
+  if (alive && !isBJ(b.d)) while (hVal(b.d).v < 17) b.d.push(bjDraw());
+  const dv = hVal(b.d).v, dBJ = isBJ(b.d);
+  let win = 0, back = 0, stake = 0;
+  b.h.forEach(h => {
+    const v = hVal(h.c).v, pBJ = isBJ(h.c) && !b.split; stake += h.bet;
+    if (pBJ && !dBJ) { h.res = 'bj'; win += h.bet * 2.5; S.st.bj21 = (S.st.bj21 || 0) + 1; }
+    else if (pBJ && dBJ) { h.res = 'push'; back += h.bet; }
+    else if (v > 21) h.res = 'lose';
+    else if (dBJ) h.res = 'lose';
+    else if (dv > 21 || v > dv) { h.res = 'win'; win += h.bet * 2; }
+    else if (v === dv) { h.res = 'push'; back += h.bet; }
+    else h.res = 'lose';
+  });
+  b.ph = 'done'; b.shoe = [];
+  win = r2(win); back = r2(back);
+  if (back) refund(back);
+  if (win) payout(win, 'Blackjack', stake);
+  const net = r2(win + back - stake);
+  b.msg = net > 0 ? `<span class="pos">+${fmt(net)} 🎉</span>` : net < 0 ? `<span class="neg">${fmt(net)}</span>` : 'Einsatz zurück';
+  persist(); hdr(true); checkAch();
+  if (win) { SND.win(); FX.burst(win >= stake * 2.5 ? 90 : 40, { coins: true }); } else if (net < 0) SND.lose();
+  bjBusy = true; setTimeout(() => { bjBusy = false; }, 300);
+  bjRender();
+}
+
+/* ================= 🎡 Roulette (europäisch, eine Null) ================= */
+const RED = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+const ROUT = [['lo', '1–18', 2, n => n >= 1 && n <= 18], ['ev', 'Gerade', 2, n => n > 0 && n % 2 === 0], ['rd', '🔴 Rot', 2, n => RED.has(n)], ['bk', '⚫ Schwarz', 2, n => n > 0 && !RED.has(n)], ['od', 'Ungerade', 2, n => n % 2 === 1], ['hi', '19–36', 2, n => n >= 19],
+  ['d1', '1.–12.', 3, n => n >= 1 && n <= 12], ['d2', '13.–24.', 3, n => n >= 13 && n <= 24], ['d3', '25.–36.', 3, n => n >= 25]];
+const RL = { bets: {}, last: {}, chip: 1, spin: false, hist: [] };
+const CHIPS = [.5, 1, 2, 5, 10, 25, 50, 100, 250, 500, 1e3, 2500, 5e3, 1e4, 25e3, 5e4, 1e5, 25e4, 5e5, 1e6];
+const rlTot = () => r2(Object.values(RL.bets).reduce((a, b) => a + b, 0));
+const rlCol = n => n === 0 ? '#1f8a45' : RED.has(n) ? '#d0242c' : '#e9e9ee';
+function rlWin(k, n) { if (/^n\d+$/.test(k)) return +k.slice(1) === n ? 36 : 0; const o = ROUT.find(x => x[0] === k); return o && o[3](n) ? o[2] : 0; }
+function renderRoul(el) {
+  const ch = CHIPS.filter(c => c <= stakeMax()).slice(-6); if (!ch.includes(RL.chip)) RL.chip = ch[Math.max(0, ch.length - 3)] || .5;
+  el.innerHTML = `<button class="btn dark sm" id="back">${icon('left')} Minispiele</button>
+    <h1 class="t" style="margin-top:16px">Roulette 🎡</h1><p class="sub">Setz Chips auf Zahlen oder Farben. Zahl zahlt 36×, Farbe 2×.</p>
+    <div class="row" id="rlH" style="gap:6px;flex-wrap:wrap;margin-top:8px"></div>
+    <div class="rlw num" id="rlW">🎡</div>
+    <div class="card"><div class="lbl2" style="margin-top:0">Chip wählen</div><div class="chs" id="rlC">${ch.map(c => `<button class="btn ${c === RL.chip ? 'gold' : 'dark'} xs" data-c="${c}">${fmt(c)}</button>`).join('')}</div>
+      <div class="rlb" id="rlB"><button class="gr" data-b="n0">0</button>${Array.from({ length: 36 }, (_, i) => `<button class="${RED.has(i + 1) ? 'rd' : 'bk'}" data-b="n${i + 1}">${i + 1}</button>`).join('')}
+      ${ROUT.map(([k, n]) => `<button class="ot" data-b="${k}">${n}</button>`).join('')}</div>
+      <div class="row sb" style="margin-top:12px"><span>Gesetzt: <b class="num" id="rlT"></b> <small style="color:var(--mut)">(max. ${fmt(stakeMax())})</small></span></div>
+      <div class="two" style="margin-top:10px"><button class="btn dark" id="rlX">Löschen</button><button class="btn dark" id="rlR">Nochmal setzen</button></div>
+      <button class="btn white w" id="rlGo" style="margin-top:12px;font-size:22px">Drehen</button></div>
+    <p class="hint">Europäisches Roulette mit einer 0. Glückstränke wirken hier nicht.</p>`;
+  $('#back', el).onclick = () => go('spiele');
+  const draw = () => {
+    $$('#rlB [data-b]', el).forEach(b => { const v = RL.bets[b.dataset.b]; const i = $('i', b); if (i) i.remove(); if (v) b.insertAdjacentHTML('beforeend', `<i>${v >= 1000 ? NF0.format(v / 1000) + 'k' : NF0.format(v)}</i>`); });
+    $('#rlT', el).textContent = fmt(rlTot());
+    $('#rlH', el).innerHTML = RL.hist.map(n => `<span class="chip num" style="color:${n === 0 ? '#4cc265' : RED.has(n) ? '#ff6b6b' : '#fff'}">${n}</span>`).join('');
+  };
+  $('#rlC', el).onclick = e => { const b = e.target.closest('[data-c]'); if (!b) return; RL.chip = +b.dataset.c; SND.click(); $$('#rlC [data-c]', el).forEach(x => x.className = 'btn ' + (+x.dataset.c === RL.chip ? 'gold' : 'dark') + ' xs'); };
+  $('#rlB', el).onclick = e => {
+    const b = e.target.closest('[data-b]'); if (!b || RL.spin) return;
+    if (rlTot() + RL.chip > stakeMax() + 1e-9) { toast(`Höchstens ${fmt(stakeMax())} pro Dreh`, 'bad'); SND.err(); return; }
+    RL.bets[b.dataset.b] = r2((RL.bets[b.dataset.b] || 0) + RL.chip); SND.coin(); draw();
+  };
+  $('#rlX', el).onclick = () => { if (RL.spin) return; RL.bets = {}; draw(); };
+  $('#rlR', el).onclick = () => { if (RL.spin) return; const t = r2(Object.values(RL.last).reduce((a, b) => a + b, 0)); if (!t) return; if (t > stakeMax() + 1e-9) return toast('Zu hoch für dein Level', 'bad'); RL.bets = { ...RL.last }; draw(); };
+  $('#rlGo', el).onclick = () => rlSpin(el, draw);
+  draw();
+}
+function rlSpin(el, draw) {
+  if (RL.spin) return; const tot = rlTot();
+  if (!(tot >= .1)) { toast('Setz zuerst Chips (mind. 0,10 €)', 'bad'); SND.err(); return; }
+  if (tot > stakeMax() + 1e-9) { toast(`Höchstens ${fmt(stakeMax())} pro Dreh`, 'bad'); return; }
+  const bets = { ...RL.bets };
+  if (!bet(tot, 'Roulette')) return;
+  persist(); RL.spin = true; RL.last = bets;
+  const n = Math.floor(Math.random() * 37);
+  let win = 0; Object.entries(bets).forEach(([k, v]) => { win += v * rlWin(k, n); }); win = r2(win);
+  const W = $('#rlW', el); let t = 0;
+  const iv = setInterval(() => { t++; const x = Math.floor(Math.random() * 37); if (W && W.isConnected) { W.textContent = x; W.style.color = rlCol(x); } SND.click(); }, 90);
+  setTimeout(() => {
+    clearInterval(iv); RL.spin = false; RL.hist.unshift(n); RL.hist.length = Math.min(RL.hist.length, 10);
+    if (win > 0) payout(win, 'Roulette', tot);
+    if (bets['n' + n]) S.st.rouHit = (S.st.rouHit || 0) + 1;
+    RL.bets = {}; persist(); hdr(true); checkAch();
+    const vis = W && W.isConnected;
+    if (vis) { W.textContent = n; W.style.color = rlCol(n); const hb = $(`#rlB [data-b="n${n}"]`, el); if (hb) hb.classList.add('hit'); draw(); }
+    if (win > 0) { SND.win(); FX.burst(win >= tot * 10 ? 120 : 40, { coins: true }); toast(`🎡 ${n} – Gewinn ${fmt(win)}`, 'good'); }
+    else { SND.lose(); toast(`🎡 ${n} – leider nichts`, 'bad', 1800); }
+  }, 2600);
+}
+
+/* ================= 🐎 Pferderennen (Quoten mit ~90 % Auszahlung) ================= */
+const HNAMES = ['Blitz', 'Donner', 'Kometa', 'Goldjunge', 'Schattenfell', 'Wüstenwind', 'Silberpfeil', 'Pechvogel', 'Turbo-Tina', 'Glücksklee', 'Mondschein', 'Sturmhuf'];
+const HR = { race: null, pick: 0, stake: 5, field: null };
+function hrField() {
+  const ps = [.32, .24, .17, .13, .09, .05].sort(() => Math.random() - .5);
+  const nm = [...HNAMES].sort(() => Math.random() - .5).slice(0, 6);
+  return ps.map((p, i) => ({ n: nm[i], p, q: Math.max(1.1, Math.floor(.9 / p * 10) / 10) }));
+}
+function renderPferd(el) {
+  if (!HR.field) HR.field = hrField();
+  const F = HR.field, run = HR.race && !HR.race.done;
+  el.innerHTML = `<button class="btn dark sm" id="back">${icon('left')} Minispiele</button>
+    <h1 class="t" style="margin-top:16px">Pferderennen 🐎</h1><p class="sub">Tipp auf ein Pferd. Je höher die Quote, desto größer der Gewinn – aber desto seltener.</p>
+    <div class="tbl" id="hrT">${F.map((h, i) => `<div class="hr"><span class="n">${i + 1}</span><span class="h" id="hr${i}" style="left:0%">🐎</span><span class="fin"></span></div>`).join('')}</div>
+    <div class="card"><div class="lbl2" style="margin-top:0">Dein Pferd</div><div class="hsel" id="hrS">${F.map((h, i) => `<button data-h="${i}" class="${i === HR.pick ? 'on' : ''}">${i + 1}. ${esc(h.n)}<br><span class="goldc num">Quote ${NF2.format(h.q)}</span></button>`).join('')}</div>
+      <div style="margin-top:14px">${stakeUI('hrSt', HR.stake)}</div>
+      <button class="btn white w" id="hrGo" style="margin-top:16px;font-size:22px" ${run ? 'disabled' : ''}>${run ? 'Rennen läuft …' : 'Rennen starten'}</button></div>
+    <p class="hint">Quote 3,0 heißt: 3× dein Einsatz zurück, wenn dein Pferd gewinnt. Glückstränke wirken hier nicht.</p>`;
+  $('#back', el).onclick = () => go('spiele'); bindStake(el);
+  $('#hrS', el).onclick = e => { const b = e.target.closest('[data-h]'); if (!b || (HR.race && !HR.race.done)) return; HR.pick = +b.dataset.h; SND.click(); $$('#hrS [data-h]', el).forEach(x => x.classList.toggle('on', +x.dataset.h === HR.pick)); };
+  $('#hrGo', el).onclick = () => hrStart(el);
+  if (run) HR.race.el = el;
+}
+function hrStart(el) {
+  if (HR.race && !HR.race.done) return;
+  const v = readStake($('#hrSt', el)); if (!v) return; HR.stake = v;
+  const F = HR.field, pick = HR.pick, h = F[pick];
+  if (!bet(v, 'Pferderennen')) return; persist();
+  let r = Math.random(), w = 0; for (let i = 0; i < F.length; i++) { r -= F[i].p; if (r < 0) { w = i; break; } w = i; }
+  const order = [w, ...F.map((_, i) => i).filter(i => i !== w).sort(() => Math.random() - .5)];
+  const T = 6500, fin = {}; order.forEach((i, k) => fin[i] = T * (1 + k * .045 + (k ? Math.random() * .02 : 0)));
+  const race = HR.race = { w, pick, stake: v, q: h.q, t0: performance.now(), done: false, el, fin };
+  SND.click(); $('#hrGo', el).disabled = true; $('#hrGo', el).textContent = 'Rennen läuft …';
+  const tick = () => {
+    if (race.done) return; const t = performance.now() - race.t0, E = race.el;
+    if (E && E.isConnected) F.forEach((_, i) => { const x = $('#hr' + i, E); if (!x) return; const f = Math.min(1, t / race.fin[i]), wob = Math.sin(t / 260 + i * 1.7) * .02 * (1 - f); x.style.left = (Math.max(0, Math.min(1, f + wob)) * 84) + '%'; });
+    if (t >= T) return hrEnd(race);
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  setTimeout(() => hrEnd(race), T + 1500); // falls der Tab im Hintergrund ist
+}
+function hrEnd(race) {
+  if (race.done) return; race.done = true;
+  const F = HR.field, won = race.w === race.pick, win = won ? r2(race.stake * race.q) : 0;
+  if (won) { payout(win, 'Pferderennen', race.stake); S.st.horseW = (S.st.horseW || 0) + 1; if (race.q >= 8) S.st.horseLong = (S.st.horseLong || 0) + 1; }
+  persist(); hdr(true); checkAch();
+  const vis = race.el && race.el.isConnected;
+  if (won) { if (vis) celebrate(win, race.q); else toast(`🐎 ${F[race.w].n} gewinnt – du bekommst ${fmt(win)}!`, 'good'); }
+  else { SND.lose(); toast(`🐎 ${F[race.w].n} hat gewonnen – dein Pferd leider nicht`, 'bad', 2500); }
+  HR.field = hrField();
+  setTimeout(() => { if (race.el && race.el.isConnected && curPage === 'pferd') go('pferd', true); }, won ? 2200 : 1400);
+}
+
+/* ================= 🥇 Wochen-Preise (Top 3 der letzten Woche, automatisch) ================= */
+const lastWeekKey = () => weekKey(new Date(Date.now() - 7 * 864e5));
+{ const W0 = wkAdd; wkAdd = v => { if (S && S.wk && S.wk.k && S.wk.k !== weekKey()) S.pw = { k: S.wk.k, v: S.wk.v }; W0(v); }; }
+function wpRows(all) {
+  const LW = lastWeekKey(), val = r => r.pwk === LW ? r.pw : r.wkk === LW ? r.wkRaw : null;
+  const me = S.pw && S.pw.k === LW ? S.pw.v : S.wk && S.wk.k === LW ? S.wk.v : null;
+  const hid = n => typeof lbhHas === 'function' && lbhHas(n);
+  const by = {};
+  all.filter(r => !r.me && r.k !== S.lbId && String(r.name).toLowerCase() !== meKey() && !hid(r.name)).forEach(r => { const v = val(r); if (v === null || v === undefined || !(v > 0)) return; const n = String(r.name).toLowerCase(); if (!by[n] || v > by[n].v) by[n] = { ...r, v }; });
+  const rows = Object.values(by); if (me > 0 && !hid(S.name)) rows.push({ ...rgMe(), v: me });
+  return rows.sort((a, b) => b.v - a.v).slice(0, 3);
+}
+const WP_PRIZE = [[[6, 3]], [[6, 2]], [[6, 1], [4, 2]]];
+function wpCheck() {
+  if (!S || !RG_C || !RG_C.d) return;
+  const LW = lastWeekKey(); if (S.wpClaim === LW) return;
+  const top = wpRows(RG_C.d); if (top.length < 3) return;
+  S.wpClaim = LW; const i = top.findIndex(r => r.me);
+  if (i < 0) { save(); return; }
+  WP_PRIZE[i].forEach(([m, n]) => S.pot[m] = (S.pot[m] || 0) + n);
+  S.titles = S.titles || []; const t = i === 0 ? 'wsieger' : 'wpod'; if (!S.titles.includes(t)) S.titles.push(t); if (!S.titles.includes('wpod')) S.titles.push('wpod');
+  S.st.wpod = (S.st.wpod || 0) + 1; persist(); checkAch(); pushScore(true);
+  whenFree(() => { SND.big(); FX.burst(160, { cols: ['#f5cf5a', '#fff'] }); sheet(`<h2>${['🥇', '🥈', '🥉'][i]} Wochen-Preis!</h2><p class="hint" style="font-size:18px">Du warst letzte Woche auf <b>Platz ${i + 1}</b> der Wochen-Bestenliste (${fmt(top[i].v, { sign: true })}).</p>
+    <p style="font-size:19px">Belohnung: ${WP_PRIZE[i].map(([m, n]) => `<b>${n}× Glückstrank ×${m}</b>`).join(' + ')} und der Titel <span class="titl">${esc(titName(t))}</span></p><button class="btn gold w" data-close>Super!</button>`); });
+}
+{ const R0 = PAGES.rang; PAGES.rang = async el => { await R0(el); try { wpCheck(); wpHint(el); } catch (e) { } }; PAGES.woche = el => { rgTab = 2; PAGES.rang(el); }; }
+function wpHint(el) {
+  const key = RG_TABS[rgTab] && RG_TABS[rgTab][1]; if (key !== 'wk') return; const body = $('#rgBody', el); if (!body) return;
+  const top = RG_C && RG_C.d ? wpRows(RG_C.d) : [];
+  const h = $('.hint', body); if (h) h.insertAdjacentHTML('afterend', `<div class="lhb"><span class="e">🥇</span><div>Jeden Montag bekommen die Top 3 Preise: 🥇 3× Trank ×6 + Titel „Wochensieger“ · 🥈 2× Trank ×6 · 🥉 1× ×6 + 2× ×4.${top.length >= 3 ? `<br><small>Letzte Woche: ${top.map((r, i) => `${['🥇', '🥈', '🥉'][i]} ${esc(r.disp)}`).join(' · ')}</small>` : ''}</div></div>`);
+}
+// einmal pro Woche automatisch prüfen (nutzt die gecachte Bestenliste)
+setTimeout(async () => { try { if (S && onlineOn() && S.wpClaim !== lastWeekKey()) { await rgFetch(); wpCheck(); } } catch (e) { } }, 45000);
+
+/* ================= 🏅 Neue Erfolge + Trank-Bonus bei großen Erfolgen ================= */
+ACH.push(
+  ['bj', 'Black Jack!', 'Bekomm einen Blackjack', 200, s => (s.st.bj21 || 0) >= 1],
+  ['horse', 'Aufs richtige Pferd', 'Gewinn ein Pferderennen', 150, s => (s.st.horseW || 0) >= 1],
+  ['rou', 'Volltreffer', 'Triff beim Roulette eine Zahl', 500, s => (s.st.rouHit || 0) >= 1],
+  ['horse8', 'Außenseiter-Tipp', 'Gewinn ein Rennen mit Quote 8 oder mehr', 1000, s => (s.st.horseLong || 0) >= 1],
+  ['up1', 'Stammkunde', 'Kauf ein Upgrade bei Händler Hugo', 1000, s => upTotal(s) >= 1],
+  ['lux1', 'Luxusleben', 'Kauf etwas im Luxus-Shop', 2500, s => luxCount(s) >= 1],
+  ['wpod', 'Siegertreppchen', 'Lande in den Top 3 der Woche', 5000, s => (s.st.wpod || 0) >= 1],
+  ['upMax', 'Hugos Liebling', 'Bring ein Upgrade auf die höchste Stufe', 25000, s => UPS.some(u => ((s.up || {})[u[0]] || 0) >= u[4])],
+);
+{ const C0 = checkAch; checkAch = () => {
+  if (!S) return C0(); const before = new Set(Object.keys(S.ach)); C0();
+  let p = 0; ACH.forEach(([id, n, d, rw]) => { if (!before.has(id) && S.ach[id] && rw >= 500) { const m = rw >= 5000 ? 6 : rw >= 1000 ? 4 : 2; S.pot[m] = (S.pot[m] || 0) + 1; p++; whenFree(() => setTimeout(() => toast(`🏅 Erfolgs-Bonus: Glückstrank ×${m}!`, 'good', 3500), 1600)); } });
+  if (p) save();
+}; }
+
+/* ================= Hooks: Upgrades + Glücksstunde ================= */
+{ const E0 = earn; earn = (a, why) => {
+  if (a > 0 && why && why !== 'Tutorial' && S) { a = r2(a * (1 + upN('fleiss') * .05)); a = r2(a + lhTake(a)); }
+  return E0(a, why);
+}; }
+{ const X0 = addXP; addXP = x => X0(Math.round(x * (1 + upN('schlau') * .1) * (S && lhState().on ? 2 : 1))); }
+{ const P0 = payout; payout = (a, game, stake) => {
+  if (a > 0 && stake > 0 && S && stake <= potCap() + 1e-9) { const b = lhTake(a); if (b > 0) { a = r2(a + b); whenFree(() => setTimeout(() => toast(`🌟 Glücksstunde: +${fmt(b)} Bonus`, 'good', 2500), 900)); } }
+  return P0(a, game, stake);
+}; }
+
+/* ================= 👑 Admin-Statistik ================= */
+async function openStats() {
+  const o = sheet(`<div class="row sb"><h2>📊 Statistik</h2><button class="x" data-close>${icon('x')}</button></div><div id="stB"><div class="empty">Lade …</div></div>`);
+  try {
+    const all = (await rgFetch()).filter(r => !r.me && r.k !== S.lbId); all.push(rgMe());
+    const by = {}; all.forEach(r => { const n = String(r.name).toLowerCase(); if (!by[n] || (r.ts || 0) > (by[n].ts || 0)) by[n] = r; });
+    const R = Object.values(by), N = R.length, bals = R.map(r => r.bal || 0).sort((a, b) => b - a);
+    const sum = r2(bals.reduce((a, b) => a + b, 0)), top3 = r2(bals.slice(0, 3).reduce((a, b) => a + b, 0)), med = N ? bals[Math.floor(N / 2)] : 0;
+    const act = R.filter(r => Date.now() - (r.ts || 0) < 864e5).length;
+    const list = (arr, f, lbl) => `<div class="sec">${lbl}</div><div class="card tight list rl">${arr.map((r, i) => `<div class="it"><span class="rn">${i + 1}</span>${avaHTML(r)}<div class="who"><b>${esc(r.disp)}</b><small>Lv. ${r.lvl} · @${esc(r.name)}</small></div><span class="val num">${f(r)}</span></div>`).join('') || '<div class="empty">–</div>'}</div>`;
+    const B = $('#stB', o); if (!B) return;
+    B.innerHTML = `<div class="two"><div class="stat"><small>Geld im Spiel</small><b class="num">${fmt(sum)}</b></div><div class="stat"><small>Spieler (21 Tage)</small><b class="num">${N}</b></div></div>
+      <div class="two" style="margin-top:10px"><div class="stat"><small>Aktiv letzte 24 Std.</small><b class="num">${act}</b></div><div class="stat"><small>Median-Vermögen</small><b class="num">${fmt(med)}</b></div></div>
+      <div class="two" style="margin-top:10px"><div class="stat"><small>Anteil Top 3</small><b class="num">${sum > 0 ? NF0.format(top3 / sum * 100) : 0} %</b></div><div class="stat"><small>Millionäre</small><b class="num">${bals.filter(b => b >= 1e6).length}</b></div></div>
+      ${list([...R].sort((a, b) => (b.bal || 0) - (a.bal || 0)).slice(0, 10), r => fmt(r.bal), '💰 Reichste')}
+      ${list(R.filter(r => r.wk !== null && r.wk !== undefined).sort((a, b) => b.wk - a.wk).slice(0, 5), r => fmt(r.wk, { sign: true }), '📈 Top-Verdiener diese Woche')}
+      ${list(R.filter(r => r.dy !== null && r.dy !== undefined).sort((a, b) => b.dy - a.dy).slice(0, 5), r => fmt(r.dy, { sign: true }), '⚡ Top-Verdiener heute')}`;
+  } catch (e) { const B = $('#stB', o); if (B) B.innerHTML = `<div class="empty">Fehler: ${esc(e.message)}</div>`; }
+}
+
+/* ================= Seiten + Karten ================= */
+PAGES.blackjack = renderBJ; PAGES.roulette = renderRoul; PAGES.pferd = renderPferd; PAGES.haendler = renderHaendler; PAGES.lux = renderLux;
+{ const Sp = PAGES.spiele; PAGES.spiele = el => {
+  Sp(el); const xg = $('.xg', el); if (!xg) return;
+  xg.insertAdjacentHTML('beforebegin', lhBanner());
+  xg.insertAdjacentHTML('afterend', `<div class="sec">Casino-Tische <small>neu in 0.4.1</small></div><div class="xg" style="margin-top:0">
+    <button class="card gm xcard" data-y="blackjack" style="position:relative"><span class="neu">NEU</span><div class="ibox" style="font-size:38px">🃏</div><h4>Blackjack</h4><p>Schlag den Dealer – 21 gewinnt!</p></button>
+    <button class="card gm xcard" data-y="roulette" style="position:relative"><span class="neu">NEU</span><div class="ibox" style="font-size:38px">🎡</div><h4>Roulette</h4><p>Rot oder Schwarz? Oder alles auf eine Zahl?</p></button>
+    <button class="card gm xcard" data-y="pferd" style="position:relative"><span class="neu">NEU</span><div class="ibox" style="font-size:38px">🐎</div><h4>Pferderennen</h4><p>Tipp auf den Sieger – Quoten bis über 15×</p></button></div>
+    <div class="sec">Shops</div><div class="xg" style="margin-top:0">
+    <button class="card gm xcard" data-y="haendler" style="position:relative"><div class="ibox" style="font-size:38px">🧔</div><h4>Händler Hugo</h4><p>Dauerhafte Upgrades · ${upTotal(S)} / ${UPS.reduce((a, u) => a + u[4], 0)} gekauft</p></button>
+    <button class="card gm xcard" data-y="lux" style="position:relative"><div class="ibox" style="font-size:38px">💎</div><h4>Luxus-Shop</h4><p>Goldene Namen, Rahmen &amp; Titel ab 50.000 €</p></button></div>`);
+  $$('[data-y]', el).forEach(b => b.onclick = () => { SND.click(); go(b.dataset.y); });
+}; }
+{ const H = PAGES.halle; PAGES.halle = el => { H(el); const t = $('.halle-top', el); if (t && lhState().on) t.insertAdjacentHTML('afterend', lhBanner()); }; }
+
+/* ================= 🛋️ Geschäfte einrichten (pro Laden einzeln) ================= */
+const SHX = [
+  ['ein', '🛋️', 'Einrichtung', .1, 'Neue Möbel & Theke', ['🪑', '🛋️', '🏛️']],
+  ['per', '👨‍🍳', 'Personal', .1, 'Mehr & bessere Mitarbeiter', ['🧑', '👨‍🍳', '🤵']],
+  ['wer', '📣', 'Werbung', .1, 'Plakate, Flyer, Influencer', ['📄', '📣', '📺']],
+  ['dek', '✨', 'Deko & Neon', .1, 'Leuchtschild, Pflanzen, Kunst', ['🪴', '💡', '🖼️']],
+];
+const SHX_F = [.4, 1.2, 3.6]; // Kosten × Preis des nächsten Ausbaus
+const shxL = (id, k) => (((S.shopX || {})[id] || {})[k] || 0);
+function shxIcons(id, side) { const ic = SHX.filter((x, i) => i % 2 === side && shxL(id, x[0]) > 0).map(x => x[5][shxL(id, x[0]) - 1]); return ic.join(''); }
+function openShopX(id, done) {
+  const s = SHOPS.find(x => x[0] === id); if (!s || !(S.shops[id] > 0)) return;
+  S.shopX = S.shopX || {}; S.shopX[id] = S.shopX[id] || {};
+  const l = S.shops[id];
+  const o = sheet(`<div class="row sb"><h2>${s[2]} ${esc(s[1])} einrichten</h2><button class="x" data-close>${icon('x')}</button></div>
+    <p class="hint">Jede Stufe bringt <b class="pos">+10 %</b> Einnahmen für diesen Laden. Jetzt: <b class="pos num">${fmt(r2(shopInc(s, l) * shopMul(id)))}/h</b> (+${Math.round((shopMul(id) - 1) * 100)} %)</p>
+    <div class="card tight list" style="background:#151517">${SHX.map(([k, e, n, p, d, ic]) => { const lv = shxL(id, k), mx = lv >= 3, c = r2(shopCost(s, l) * SHX_F[Math.min(2, lv)]);
+      return `<div class="it" style="align-items:flex-start"><div class="ibox" style="font-size:26px">${lv ? ic[lv - 1] : e}</div><div style="flex:1"><b style="font-size:18px">${n}</b> <small style="color:var(--mut)">Stufe ${lv} / 3</small><p class="hint" style="margin:3px 0 0">${d}</p><div class="upd">${[0, 1, 2].map(i => `<i class="${i < lv ? 'on' : ''}"></i>`).join('')}</div></div>
+      <button class="btn ${mx ? 'dark' : 'gold'} xs" data-k="${k}" ${mx ? 'disabled' : ''} style="align-self:center;white-space:nowrap">${mx ? '✓ Max' : fmt(c)}</button></div>`; }).join('')}</div>
+    <p class="hint">Tipp: Der Preis hängt von der Laden-Stufe ab – früh einrichten ist günstiger.</p>`, { onClose: () => done && done() });
+  $$('[data-k]', o).forEach(b => b.onclick = () => {
+    const k = b.dataset.k, x = SHX.find(y => y[0] === k), lv = shxL(id, k); if (lv >= 3) return;
+    const c = r2(shopCost(s, S.shops[id]) * SHX_F[lv]);
+    if (S.bal < c) { toast(`Dafür brauchst du ${fmt(c)} Guthaben (Dispo zählt nicht).`, 'bad'); SND.err(); return; }
+    collectShops(true); S.bal = r2(S.bal - c); S.shopX[id][k] = lv + 1; persist(); hdr(true); checkAch();
+    SND.big(); FX.burst(70, { cols: ['#f5cf5a', '#fff'] }); toast(`${x[5][lv]} ${x[2]} im ${s[1]} auf Stufe ${lv + 1}! +10 % Einnahmen`, 'good');
+    o.close(); setTimeout(() => openShopX(id, done), 320);
+  });
+}
 </script>
 </body>
 </html>

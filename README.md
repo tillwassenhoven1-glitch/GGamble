@@ -7,7 +7,7 @@ Eine Spielhalle im Browser – nur mit Spielgeld: Automaten mit Freispielen und 
 👉 **https://tillwassenhoven1-glitch.github.io/GGamble/**
 
 Keine Installation, keine Werbung, keine Käufe, kein echtes Geld – läuft auf Handy, iPad und PC. 🎮
-Version 0.3.0 · Open Beta
+Version 0.4.2 · Open Beta
 
 ## 🔐 Konto
 
@@ -23,6 +23,15 @@ Version 0.3.0 · Open Beta
 - 📈 Mit jedem Einsatz sammelst du XP – höhere Level schalten neue Automaten und Lose frei
 - 💸 Pleite? Du darfst bis **−180 € ins Minus** (0,5 % Zinsen pro Stunde). Darunter wird dein Konto gesperrt
 - 🔓 Raus aus den Schulden: Minispiele spielen, die Schulden ans **Inkasso Krause** verkaufen (Schuldschein über 130 % – bei jedem Spin gehen 10 % vom Einsatz und 40 % jedes Gewinns automatisch dorthin) oder **Privatinsolvenz** anmelden
+
+## Neu in 0.4.2
+
+- 🃏 **Blackjack** (Verdoppeln, Teilen, Blackjack zahlt 3:2) · 🎡 **Roulette** (europäisch) · 🐎 **Pferderennen** (6 Pferde, Quoten bis 18×)
+- 🧔 **Händler Hugo** – sehr teure, dauerhafte Upgrades (Fleiß, Köpfchen, Trankmeister, Glücksklee)
+- 💎 **Luxus-Shop** – Rahmen & Titel von 50.000 € bis 1 Mio. €, Luxus-Titel = goldener Name
+- 🛋️ **Geschäfte einrichten** – pro Laden Einrichtung, Personal, Werbung, Deko (je +10 %)
+- 🥇 **Wochen-Preise** für die Top 3 · 🌟 **Glücksstunde** täglich (×2, gedeckelt) · 🏅 neue Erfolge mit Trank-Bonus
+- 👑 Admin: Glücksstunde starten, Statistik
 
 ## Bereiche
 
@@ -82,7 +91,7 @@ service cloud.firestore {
     }
     match /rang/{id} {
       function ok() {
-        return request.resource.data.keys().hasOnly(['name','disp','bal','level','color','ts','big','net','bxp','wag','since','best','ach','own','tit','frm','clan','wk','wkk','dv','dk','mv','mk','hist','rbw','pt'])
+        return request.resource.data.keys().hasOnly(['name','disp','bal','level','color','ts','big','net','bxp','wag','since','best','ach','own','tit','frm','clan','wk','wkk','dv','dk','mv','mk','hist','rbw','pt','pw','pwk'])
           && request.resource.data.bal is number
           && request.resource.data.bal < 1000000000000000;
       }
