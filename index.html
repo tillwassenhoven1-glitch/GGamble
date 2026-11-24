@@ -6283,7 +6283,7 @@ const UPD = [
 ];
 function openUpd() {
   S.updSeen = UPD_V; save();
-  const o = sheet(`<div style="text-align:center"><div style="font-size:54px;line-height:1">🆕</div><h2 style="font-size:32px;margin:6px 0 2px">Neues Update!</h2><span class="chip gold">Version ${esc(VERSION)}</span></div>
+  const o = sheet(`<div class="row" style="justify-content:flex-end;margin-bottom:-34px;position:relative;z-index:2"><button class="x" data-close aria-label="Schließen">${icon('x')}</button></div><div style="text-align:center"><div style="font-size:54px;line-height:1">🆕</div><h2 style="font-size:32px;margin:6px 0 2px">Neues Update!</h2><span class="chip gold">Version ${esc(VERSION)}</span></div>
     <p class="hint" style="text-align:center;margin-top:10px">Das ist neu – tipp auf etwas, um es direkt auszuprobieren:</p>
     <div class="card tight list" style="background:#151517;margin-top:6px">${UPD.map(([e, n, d, pg], i) => `<div class="it" data-u="${i}" style="cursor:pointer;align-items:flex-start"><div class="ibox" style="font-size:26px">${e}</div><div style="flex:1"><b style="font-size:18px">${n}</b><p class="hint" style="margin:2px 0 0">${d}</p></div>${icon('right', 'chev')}</div>`).join('')}</div>
     <button class="btn gold w" data-close style="margin-top:14px;font-size:20px">Los geht's! 🎉</button>`);
@@ -6291,9 +6291,8 @@ function openUpd() {
 }
 function updAuto() {
   if (!S) return;
-  if ((S.tutV || 0) < TUT_V) { S.updSeen = UPD_V; save(); return; } // neue Spieler sehen das Tutorial (mit allen neuen Sachen)
   if (S.updSeen === UPD_V) return;
-  const w = () => { if (!S || S.updSeen === UPD_V) return; if (document.querySelector('.ov,#tutOv,.full,.game-ov,#banOv') || (typeof popBusy === 'function' && popBusy())) return setTimeout(w, 3000); SND.big(); FX.burst(100, { cols: ['#f5cf5a', '#fff'] }); openUpd(); };
+  const w = () => { if (!S || S.updSeen === UPD_V) return; if ((S.tutV || 0) < TUT_V || document.querySelector('.ov,#tutOv,.full,.game-ov,#banOv') || (typeof popBusy === 'function' && popBusy())) return setTimeout(w, 3000); SND.big(); FX.burst(100, { cols: ['#f5cf5a', '#fff'] }); openUpd(); };
   setTimeout(w, 3500);
 }
 { const H = PAGES.halle; PAGES.halle = el => { H(el); if (Date.now() > UPD_UNTIL) return; const t = $('.halle-top', el); if (!t) return;
