@@ -3776,7 +3776,8 @@ function fsCreate(col, id, fields) {
 }
 const fEq = (f, v) => ({ fieldFilter: { field: { fieldPath: f }, op: 'EQUAL', value: fstr(v) } });
 const myTag = () => S && S.clan ? S.clan.tag : '';
-const tagHTML = t => t ? `<span class="ctag">[${esc(t)}]</span>` : '';
+const clShow = t => String(t || '').split('~')[0]; // neu gegründeter Clan mit altem (gelöschtem) Kürzel hat die ID „KÜRZEL~xyz“
+const tagHTML = t => t ? `<span class="ctag">[${esc(clShow(t))}]</span>` : '';
 
 /* ---------- Start ---------- */
 function extInit() {
@@ -4141,7 +4142,7 @@ async function renderClan(el) {
         ${clInvHTML(c)}
         <button class="btn dark w" id="clLeave" style="margin-top:10px">Clan verlassen</button>`;
       clBind(B, c, mem, () => renderClan(el));
-      $('#clLeave', B).onclick = async () => { if (!await confirmBox('Clan verlassen?', `Du verlässt <b>[${esc(S.clan.tag)}]</b>. Du kannst später wieder beitreten.`, 'Verlassen', true)) return; S.clan = null; save(); lbLast = ''; pushScore(true); toast('Clan verlassen'); renderClan(el); };
+      $('#clLeave', B).onclick = async () => { if (!await confirmBox('Clan verlassen?', `Du verlässt <b>[${esc(clShow(S.clan.tag))}]</b>. Du kannst später wieder beitreten.`, 'Verlassen', true)) return; S.clan = null; save(); lbLast = ''; pushScore(true); toast('Clan verlassen'); renderClan(el); };
       return;
     }
     B.innerHTML = `<div class="card"><h3 style="font-size:24px">Clan gründen</h3><p class="hint">Kostet ${fmt(CLAN_COST)}. Das Kürzel (2–5 Buchstaben/Zahlen) steht dann vor dem Namen aller Mitglieder.</p>
@@ -4157,11 +4158,15 @@ async function renderClan(el) {
       if (S.bal < CLAN_COST) return toast(`Dafür brauchst du ${fmt(CLAN_COST)} Guthaben.`, 'bad');
       this.disabled = true;
       try {
-        const r = await fsCreate('clans', tag, { name: fstr(name), tag: fstr(tag), own: fstr(S.name), ts: fint(Date.now()) });
+        if (typeof lbhLoad === 'function') await lbhLoad(true);
+        const live = (await clanList()).some(c => clShow(c.id).toUpperCase() === tag);
+        if (live) { this.disabled = false; return toast('Das Kürzel gibt es schon – nimm ein anderes.', 'bad'); }
+        let id = tag, r = await fsCreate('clans', id, { name: fstr(name), tag: fstr(id), own: fstr(S.name), ts: fint(Date.now()) });
+        if (r.status === 409) { id = tag + '~' + Date.now().toString(36); r = await fsCreate('clans', id, { name: fstr(name), tag: fstr(id), own: fstr(S.name), ts: fint(Date.now()) }); } // altes Kürzel wurde gelöscht → neue ID
         if (r.status === 409) { this.disabled = false; return toast('Das Kürzel gibt es schon – nimm ein anderes.', 'bad'); }
         if (!r.ok) throw new Error('HTTP ' + r.status);
-        S.bal = r2(S.bal - CLAN_COST); S.clan = { tag, name }; save(); hdr(true); lbLast = ''; pushScore(true);
-        SND.big(); FX.burst(100); toast(`🏢 Clan [${esc(tag)}] gegründet!`, 'good'); renderClan(el);
+        FQ_C.clear(); S.bal = r2(S.bal - CLAN_COST); S.clan = { tag: id, name, ts: Date.now() }; save(); hdr(true); lbLast = ''; pushScore(true);
+        SND.big(); FX.burst(100); toast(`🏢 Clan [${esc(clShow(tag))}] gegründet!`, 'good'); renderClan(el);
       } catch (e) { this.disabled = false; toast('Hat nicht geklappt – Internet & Firebase-Regeln prüfen.', 'bad'); }
     };
     B.onclick = async e => {
@@ -4173,7 +4178,7 @@ async function renderClan(el) {
         const tag = b.dataset.j, mem = await clanMembers(tag);
         if (mem.length >= CLAN_MAX) { b.disabled = false; return toast(`Der Clan ist voll (${CLAN_MAX} Mitglieder).`, 'bad'); }
         S.clan = { tag, name: byTag[tag] ? byTag[tag].name : tag, ts: Date.now() }; if (S.clInv) delete S.clInv[tag]; save(); lbLast = ''; pushScore(true);
-        SND.win(); toast(`Willkommen bei [${esc(tag)}]! 🎉`, 'good'); setTimeout(() => renderClan(el), 1200);
+        SND.win(); toast(`Willkommen bei [${esc(clShow(tag))}]! 🎉`, 'good'); setTimeout(() => renderClan(el), 1200);
       } catch (er) { b.disabled = false; toast('Keine Verbindung', 'bad'); }
     };
   } catch (e) { if (B.isConnected) B.innerHTML = '<div class="empty">Clans gerade nicht erreichbar. Sind die neuen Firebase-Regeln veröffentlicht?</div>'; }
@@ -5741,7 +5746,7 @@ async function openRbTop() {
       <div class="it" id="xSty"><div class="ibox">🏷️</div><span class="lbl">Titel &amp; Profilrahmen</span><span class="val">${esc(titName(S.tit) || frName(S.frm) || 'auswählen')}</span>${icon('right', 'chev')}</div>
       <div class="it" id="xPass"><div class="ibox">🎟️</div><span class="lbl">Battle Pass</span><span class="val">Stufe ${bpLv()}</span>${icon('right', 'chev')}</div>
       <div class="it" id="xFr"><div class="ibox">👥</div><span class="lbl">Freunde &amp; Nachrichten</span><span class="val">${(S.friends || []).length}</span>${icon('right', 'chev')}</div>
-      <div class="it" id="xClan"><div class="ibox">🏢</div><span class="lbl">Clan</span><span class="val">${S.clan ? '[' + esc(S.clan.tag) + ']' : 'keiner'}</span>${icon('right', 'chev')}</div></div>`);
+      <div class="it" id="xClan"><div class="ibox">🏢</div><span class="lbl">Clan</span><span class="val">${S.clan ? '[' + esc(clShow(S.clan.tag)) + ']' : 'keiner'}</span>${icon('right', 'chev')}</div></div>`);
     const q = (id, f) => { const x = $(id, el); if (x) x.onclick = f; };
     q('#xSty', openStyle); q('#xPass', () => go('pass')); q('#xClan', () => go('clan')); q('#xFr', () => go('freunde'));
   };
@@ -6515,7 +6520,7 @@ function clBind(B, c, mem, redraw) {
   B.addEventListener('click', async e => {
     const k = e.target.closest('[data-ck]'), r = e.target.closest('[data-cr]');
     if (k) {
-      const n = k.dataset.ck; if (!await confirmBox('Mitglied kicken?', `<b>${esc(n)}</b> fliegt aus <b>[${esc(tag)}]</b> (sobald er/sie online ist).`, 'Kicken', true)) return;
+      const n = k.dataset.ck; if (!await confirmBox('Mitglied kicken?', `<b>${esc(n)}</b> fliegt aus <b>[${esc(clShow(tag))}]</b> (sobald er/sie online ist).`, 'Kicken', true)) return;
       try { await dmSend(n.toLowerCase(), `¤CKICK|${tag}`); S.clKick = S.clKick || {}; S.clKick[n] = Date.now(); save(); toast(`🚪 ${esc(n)} wurde gekickt`, 'good'); redraw(); } catch (er) { toast('Hat nicht geklappt', 'bad'); }
     } else if (r) {
       const n = r.dataset.cr, v = +r.dataset.v;
@@ -6526,20 +6531,20 @@ function clBind(B, c, mem, redraw) {
 function clAdmBind(o, B, tag, c) {
   B.addEventListener('click', async e => {
     const k = e.target.closest('[data-ak]');
-    if (k) { e.stopPropagation(); const n = k.dataset.ak; if (!await confirmBox('Als Admin kicken?', `<b>${esc(n)}</b> aus <b>[${esc(tag)}]</b> entfernen?`, 'Kicken', true)) return;
-      try { await giftSend(n.toLowerCase(), 0, `Aus Clan [${tag}] entfernt`, 'ck', tag); toast(`🚪 ${esc(n)} wird aus [${esc(tag)}] entfernt`, 'good'); k.disabled = true; } catch (er) { toast('Fehler: ' + (er.message === 'key' ? 'Admin-Schlüssel fehlt' : er.message), 'bad'); } return; }
+    if (k) { e.stopPropagation(); const n = k.dataset.ak; if (!await confirmBox('Als Admin kicken?', `<b>${esc(n)}</b> aus <b>[${esc(clShow(tag))}]</b> entfernen?`, 'Kicken', true)) return;
+      try { await giftSend(n.toLowerCase(), 0, `Aus Clan [${tag}] entfernt`, 'ck', tag); toast(`🚪 ${esc(n)} wird aus [${esc(clShow(tag))}] entfernt`, 'good'); k.disabled = true; } catch (er) { toast('Fehler: ' + (er.message === 'key' ? 'Admin-Schlüssel fehlt' : er.message), 'bad'); } return; }
     if (e.target.closest('#cvDel')) {
-      if (!await confirmBox('Clan löschen?', `<b>[${esc(tag)}] ${esc(c ? c.name : '')}</b> wird für alle gelöscht – alle Mitglieder fliegen raus.`, 'Löschen', true)) return;
+      if (!await confirmBox('Clan löschen?', `<b>[${esc(clShow(tag))}] ${esc(c ? c.name : '')}</b> wird für alle gelöscht – alle Mitglieder fliegen raus.`, 'Löschen', true)) return;
       if (!await confirmBox('Wirklich?', 'Das geht nicht rückgängig.', 'Ja, löschen', true)) return;
-      try { await lbhSet('c:' + tag, 1); toast(`🗑️ Clan [${esc(tag)}] gelöscht`, 'good'); o.close(); if (curPage === 'clan') go('clan', true); } catch (er) { toast('Fehler: ' + (er.message === 'key' ? 'Admin-Schlüssel fehlt' : er.message), 'bad'); }
+      try { await lbhSet('c:' + tag, 1); giftSend('*', 0, '', 'cdel', tag).catch(() => { }); toast(`🗑️ Clan [${esc(clShow(tag))}] gelöscht`, 'good'); o.close(); if (curPage === 'clan') go('clan', true); } catch (er) { toast('Fehler: ' + (er.message === 'key' ? 'Admin-Schlüssel fehlt' : er.message), 'bad'); }
     }
   });
 }
 function clDmText(t, mine) {
   const p = String(t).split('|');
-  if (p[0] === '¤CINV') return mine ? `📨 Einladung in Clan [${p[1]}] geschickt` : `📨 lädt dich in den Clan [${p[1]}] ${p.slice(2).join('|')} ein! → Bestenliste → Clans`;
-  if (p[0] === '¤CKICK') return mine ? `🚪 aus Clan [${p[1]}] gekickt` : `🚪 hat dich aus dem Clan [${p[1]}] gekickt`;
-  if (p[0] === '¤CROLE') return mine ? (p[2] === '1' ? `⭐ zum Admin von [${p[1]}] gemacht` : `Admin-Rolle in [${p[1]}] entfernt`) : (p[2] === '1' ? `⭐ hat dich zum Admin von [${p[1]}] gemacht!` : `hat dir die Admin-Rolle in [${p[1]}] entzogen`);
+  if (p[0] === '¤CINV') return mine ? `📨 Einladung in Clan [${clShow(p[1])}] geschickt` : `📨 lädt dich in den Clan [${clShow(p[1])}] ${p.slice(2).join('|')} ein! → Bestenliste → Clans`;
+  if (p[0] === '¤CKICK') return mine ? `🚪 aus Clan [${clShow(p[1])}] gekickt` : `🚪 hat dich aus dem Clan [${clShow(p[1])}] gekickt`;
+  if (p[0] === '¤CROLE') return mine ? (p[2] === '1' ? `⭐ zum Admin von [${clShow(p[1])}] gemacht` : `Admin-Rolle in [${clShow(p[1])}] entfernt`) : (p[2] === '1' ? `⭐ hat dich zum Admin von [${clShow(p[1])}] gemacht!` : `hat dir die Admin-Rolle in [${clShow(p[1])}] entzogen`);
   return t;
 }
 async function clSenderOk(tag, von, needOwner) {
@@ -6559,31 +6564,32 @@ async function clanCheck(list) {
     if (p[0] === '¤CINV') {
       if (S.clan && S.clan.tag === tag) continue;
       S.clInv = S.clInv || {}; S.clInv[tag] = { von: m.von, ts: +m.ts || Date.now() }; save();
-      whenFree(() => { SND.win(); toast(`📨 <b>${esc(m.disp || m.von)}</b> lädt dich in den Clan <b>[${esc(tag)}]</b> ein – tippen zum Annehmen`, 'good', 7000, () => { clanTab = 0; go('clan'); }); });
+      whenFree(() => { SND.win(); toast(`📨 <b>${esc(m.disp || m.von)}</b> lädt dich in den Clan <b>[${esc(clShow(tag))}]</b> ein – tippen zum Annehmen`, 'good', 7000, () => { clanTab = 0; go('clan'); }); });
     } else if (p[0] === '¤CKICK') {
       if (!S.clan || S.clan.tag !== tag || (+m.ts || 0) < (S.clan.ts || 0)) continue;
       const cl = (await clanList().catch(() => [])).find(c => c.id === tag); if (clIsOwn(cl)) continue; // Leiter kann nicht gekickt werden
       if (!await clSenderOk(tag, m.von, !!S.clan.role)) continue; // Admins kann nur der Leiter kicken
       S.clan = null; save(); lbLast = ''; pushScore(true);
-      whenFree(() => toast(`🚪 Du wurdest aus dem Clan [${esc(tag)}] gekickt`, 'bad', 6000));
+      whenFree(() => toast(`🚪 Du wurdest aus dem Clan [${esc(clShow(tag))}] gekickt`, 'bad', 6000));
       if (curPage === 'clan') go('clan', true);
     } else if (p[0] === '¤CROLE') {
       if (!S.clan || S.clan.tag !== tag || !await clSenderOk(tag, m.von, true)) continue;
       S.clan.role = p[2] === '1' ? 1 : 0; save(); lbLast = ''; pushScore(true);
-      whenFree(() => toast(S.clan.role ? `⭐ Du bist jetzt Admin im Clan [${esc(tag)}]!` : `Deine Admin-Rolle in [${esc(tag)}] wurde entfernt`, S.clan.role ? 'good' : '', 6000));
+      whenFree(() => toast(S.clan.role ? `⭐ Du bist jetzt Admin im Clan [${esc(clShow(tag))}]!` : `Deine Admin-Rolle in [${esc(clShow(tag))}] wurde entfernt`, S.clan.role ? 'good' : '', 6000));
     }
   }
 }
 { const P0 = payCheck; payCheck = list => { P0(list); clanCheck(list).catch(() => { }); }; }
-{ const C0 = clanList; clanList = async () => { if (typeof lbhLoad === 'function') await lbhLoad(); return (await C0()).filter(c => !clDel(c.id)); }; }
+{ const C0 = clanList; clanList = async () => { if (typeof lbhLoad === 'function') await lbhLoad(); if (S && S.clan && clDel(S.clan.tag)) { const t = S.clan.tag; S.clan = null; save(); lbLast = ''; pushScore(true); toast(`🗑️ Der Clan [${esc(clShow(t))}] wurde vom Admin gelöscht`, 'bad', 6000); } return (await C0()).filter(c => !clDel(c.id)); }; }
 { const T0 = clanTop; clanTop = async () => (await T0()).filter(c => !clDel(c.tag)); }
-GIFT_K.ck = ['🚪', 'Clan-Kick'];
+GIFT_K.ck = ['🚪', 'Clan-Kick']; GIFT_K.cdel = ['🗑️', 'Clan gelöscht'];
 { const G0 = giftReceive; giftReceive = (g, all) => {
-  if (g && g.k === 'ck') { if (S.clan && S.clan.tag === g.x) { S.clan = null; save(); lbLast = ''; pushScore(true); whenFree(() => toast(`🚪 Der Admin hat dich aus dem Clan [${esc(g.x)}] entfernt`, 'bad', 6000)); if (curPage === 'clan') go('clan', true); } return; }
+  if (g && g.k === 'cdel') { try { LBH.set.add('c:' + String(g.x).toLowerCase()); FQ_C.clear(); } catch (e) { } if (S.clan && S.clan.tag === g.x) { S.clan = null; save(); lbLast = ''; pushScore(true); whenFree(() => toast(`🗑️ Der Clan [${esc(clShow(g.x))}] wurde vom Admin gelöscht`, 'bad', 6000)); } if (curPage === 'clan') go('clan', true); return; }
+  if (g && g.k === 'ck') { if (S.clan && S.clan.tag === g.x) { S.clan = null; save(); lbLast = ''; pushScore(true); whenFree(() => toast(`🚪 Der Admin hat dich aus dem Clan [${esc(clShow(g.x))}] entfernt`, 'bad', 6000)); if (curPage === 'clan') go('clan', true); } return; }
   return G0(g, all);
 }; }
 // gelöschter Clan → Mitglieder fliegen raus
-setInterval(async () => { try { if (S && S.clan && onlineOn()) { await lbhLoad(); if (clDel(S.clan.tag)) { const t = S.clan.tag; S.clan = null; save(); lbLast = ''; pushScore(true); toast(`🗑️ Der Clan [${esc(t)}] wurde vom Admin gelöscht`, 'bad', 6000); if (curPage === 'clan') go('clan', true); } } } catch (e) { } }, 300000);
+setInterval(async () => { try { if (S && S.clan && onlineOn()) { await lbhLoad(); if (clDel(S.clan.tag)) { const t = S.clan.tag; S.clan = null; save(); lbLast = ''; pushScore(true); toast(`🗑️ Der Clan [${esc(clShow(t))}] wurde vom Admin gelöscht`, 'bad', 6000); if (curPage === 'clan') go('clan', true); } } } catch (e) { } }, 120000);
 </script>
 </body>
 </html>
