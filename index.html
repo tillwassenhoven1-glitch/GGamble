@@ -3126,6 +3126,7 @@ function wireConn(conn, toHost) {
     else if (d.t === 'filt') { T.filt[conn.peer] = d.f; refreshRoom(); }
     else if (d.t === 'callme') { if (T.stream) callPeer(conn.peer); }
     else if (d.t && d.t.startsWith('duel_')) duelMsg(conn.peer, d);
+    else if (d.t === 'tb') { if (typeof tbMsg === 'function') tbMsg(conn.peer, d); }
   });
   conn.on('close', () => { if (T.duel && T.duel.opp === conn.peer && !T.duel.end) duelEnd(T.peer && T.peer.id, 'left'); const n = T.names[conn.peer]; delete T.conns[conn.peer]; delete T.names[conn.peer]; if (T.calls[conn.peer]) { T.calls[conn.peer].close(); delete T.calls[conn.peer]; } if (n) sysMsg(`${esc(n)} ist gegangen`); if (toHost) { toast('Der Gastgeber hat den Raum geschlossen.'); leaveRoom(); } refreshRoom(); });
 }
@@ -6273,6 +6274,7 @@ const UPD_V = '0.4.2', UPD_UNTIL = new Date(2026, 11, 8).getTime();
 const UPD = [
   ['🃏', 'Blackjack', 'Schlag den Dealer! Verdoppeln, Teilen – Blackjack zahlt 3:2.', 'blackjack'],
   ['🎡', 'Roulette', 'Setz auf Rot, Schwarz oder eine Zahl (zahlt 36×).', 'roulette'],
+  ['👥', 'Mit Freunden spielen', 'Blackjack, Roulette & Pferderennen zusammen im Treff-Raum – alle sehen dieselbe Runde.', 'tisch'],
   ['🐎', 'Pferderennen', 'Tipp auf den Sieger – Quoten bis 18×.', 'pferd'],
   ['🧔', 'Händler Hugo', 'Dauerhafte Upgrades: mehr Geld, mehr XP, längere Tränke, mehr Glück. Richtig teuer!', 'haendler'],
   ['💎', 'Luxus-Shop', 'Rahmen & Titel ab 50.000 € – Luxus-Titel machen deinen Namen golden.', 'lux'],
@@ -6300,6 +6302,171 @@ function updAuto() {
   $('#updB', el).onclick = () => { SND.click(); openUpd(); }; }; }
 { const Pr = PAGES.profil; PAGES.profil = el => { Pr(el); const l = $('#xSty', el); if (l) { l.parentElement.insertAdjacentHTML('beforeend', `<div class="it" id="xUpd"><div class="ibox">🆕</div><span class="lbl">Was ist neu?</span><span class="val">${UPD_V}</span>${icon('right', 'chev')}</div>`); $('#xUpd', el).onclick = openUpd; } }; }
 (function updWait() { if (S && $('#main')) updAuto(); else setTimeout(updWait, 2000); })();
+
+/* ================= 👥 Gemeinsame Tische im Treff-Raum (Roulette, Pferderennen, Blackjack) =================
+   Alle im selben Treff-Raum spielen dieselben Runden. Die Ergebnisse hängen nur von Raum + Rundennummer ab
+   (Uhrzeit ist mit dem Server synchron) → alle sehen dasselbe, ohne dass Firebase gelesen werden muss.
+   Einsätze werden sofort abgebucht und gespeichert → Neuladen ändert nichts am Ergebnis. */
+const MT_P = { rl: 30000, hr: 40000, bj: 50000 }, MT_LOCK = { rl: 20000, hr: 25000, bj: 12000 }, MT_RES = { rl: 24000, hr: 33000, bj: 38000 };
+const MT_N = { rl: ['🎡', 'Roulette'], hr: ['🐎', 'Pferderennen'], bj: ['🃏', 'Blackjack'] };
+const mtRound = g => Math.floor(Date.now() / MT_P[g]);
+const mtIn = g => Date.now() - mtRound(g) * MT_P[g];
+function hstr(s) { let h = 2166136261 >>> 0; for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return h; }
+function rngOf(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const mtRng = (room, g, r, x = '') => rngOf(hstr(`gg41|${room}|${g}|${r}|${x}`));
+const mtRl = (room, r) => Math.floor(mtRng(room, 'rl', r)() * 37);
+function mtHr(room, r) {
+  const R = mtRng(room, 'hr', r), sh = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const ps = sh([.32, .24, .17, .13, .09, .05]), nm = sh(HNAMES).slice(0, 6);
+  const F = ps.map((p, i) => ({ n: nm[i], p, q: Math.max(1.1, Math.floor(.9 / p * 10) / 10) }));
+  let x = R(), w = 5; for (let i = 0; i < 6; i++) { x -= F[i].p; if (x < 0) { w = i; break; } }
+  const order = [w, ...sh([0, 1, 2, 3, 4, 5].filter(i => i !== w))];
+  return { F, w, order };
+}
+const mtCards = (room, r, x, n = 14) => { const R = mtRng(room, 'bj', r, x); return Array.from({ length: n }, () => ({ r: Math.floor(R() * 13), s: Math.floor(R() * 4) })); };
+function mtDealer(room, r) { const c = mtCards(room, r, '#dealer'), d = [c[0], c[1]]; let k = 2; if (!isBJ(d)) while (hVal(d).v < 17) d.push(c[k++]); return d; }
+const MT = { g: 'rl', sel: {}, chip: 1, hrPick: 0, stake: 5, others: {}, ph: '' };
+const mtCan = () => !!T.room;
+function mtBc(txt, w) { if (!T.room) return; const m = S.mt; try { broadcast({ t: 'tb', g: m ? m.g : MT.g, r: m ? m.r : 0, n: S.disp, txt, w: w ?? null }); } catch (e) { } }
+function tbMsg(pid, d) { if (!d || !MT_P[d.g]) return; MT.others[pid] = { n: String(d.n || '?').slice(0, 24), g: d.g, r: +d.r, txt: String(d.txt || '').slice(0, 80), w: d.w, t: Date.now() }; if (curPage === 'tisch') mtOthers(); }
+/* Einsatz in einer Runde (abgebucht + gespeichert) */
+function mtStake(g, a, label) {
+  const r = mtRound(g);
+  if (S.mt && !S.mt.paid && !(S.mt.g === g && S.mt.r === r)) { toast('Warte kurz – deine letzte Tisch-Runde wird noch ausgewertet.', 'bad'); return false; }
+  if (S.mt && S.mt.g === g && S.mt.r === r && !S.mt.paid) { if (r2(S.mt.st + a) > stakeMax() + 1e-9) { toast(`Höchstens ${fmt(stakeMax())} pro Runde`, 'bad'); SND.err(); return false; } }
+  else if (a > stakeMax() + 1e-9) { toast(`Höchstens ${fmt(stakeMax())} pro Runde`, 'bad'); SND.err(); return false; }
+  if (!bet(a, label)) return false;
+  if (!(S.mt && S.mt.g === g && S.mt.r === r && !S.mt.paid)) S.mt = { g, r, room: T.room, st: 0, paid: false };
+  S.mt.st = r2(S.mt.st + a); persist(); return true;
+}
+/* Auswertung – läuft auch, wenn man woanders ist oder neu lädt */
+function mtResolve() {
+  const m = S && S.mt; if (!m || m.paid) return;
+  if (Date.now() < m.r * MT_P[m.g] + MT_RES[m.g]) return;
+  let win = 0, back = 0, txt = '';
+  if (m.g === 'rl') {
+    const n = mtRl(m.room, m.r); Object.entries(m.bets || {}).forEach(([k, v]) => { win += v * rlWin(k, n); });
+    if ((m.bets || {})['n' + n]) S.st.rouHit = (S.st.rouHit || 0) + 1; txt = `🎡 ${n}`;
+  } else if (m.g === 'hr') {
+    const H = mtHr(m.room, m.r); if (m.h === H.w) { win = m.st * H.F[m.h].q; S.st.horseW = (S.st.horseW || 0) + 1; if (H.F[m.h].q >= 8) S.st.horseLong = (S.st.horseLong || 0) + 1; } txt = `🐎 ${H.F[H.w].n} gewinnt`;
+  } else if (m.g === 'bj') {
+    const pc = mtCards(m.room, m.r, S.name), h = pc.slice(0, m.k || 2), d = mtDealer(m.room, m.r), v = hVal(h).v, dv = hVal(d).v, pBJ = isBJ(h) && !m.dbl, dBJ = isBJ(d);
+    if (pBJ && !dBJ) { win = m.st * 2.5; S.st.bj21 = (S.st.bj21 || 0) + 1; } else if (pBJ && dBJ) back = m.st;
+    else if (v > 21 || dBJ) { } else if (dv > 21 || v > dv) win = m.st * 2; else if (v === dv) back = m.st;
+    txt = `🃏 Dealer ${dv > 21 ? 'überkauft' : dv}`;
+  }
+  m.paid = true; win = r2(win); back = r2(back);
+  if (back) refund(back);
+  if (win) payout(win, MT_N[m.g][1] + ' (Tisch)', m.st);
+  m.net = r2(win + back - m.st); persist(); hdr(true); checkAch();
+  mtBc(m.net > 0 ? `+${fmt(m.net)} 🎉` : m.net < 0 ? `${fmt(m.net)}` : '±0', m.net);
+  if (curPage === 'tisch' && MT.g === m.g) { if (win) { SND.win(); FX.burst(50, { coins: true }); } else if (m.net < 0) SND.lose(); }
+  else toast(`${txt} – ${m.net > 0 ? 'du gewinnst ' + fmt(m.net) : m.net < 0 ? 'leider verloren' : 'Einsatz zurück'}`, m.net > 0 ? 'good' : '', 3500);
+}
+setInterval(() => { try { mtResolve(); } catch (e) { } }, 1000);
+
+function renderTisch(el) {
+  MT.ph = '';
+  el.innerHTML = `<button class="btn dark sm" id="back">${icon('left')} Minispiele</button>
+    <h1 class="t" style="margin-top:16px">Mit Freunden 👥</h1><p class="sub">Alle im selben Treff-Raum spielen dieselben Runden – gleiche Kugel, gleiches Rennen, gleicher Dealer.</p>
+    <div class="tabs" id="mtT">${Object.entries(MT_N).map(([g, [e, n]]) => `<button data-g="${g}" class="${g === MT.g ? 'on' : ''}" style="flex:1 1 0;min-width:0;padding-left:4px;padding-right:4px;font-size:15px;white-space:nowrap">${e} ${g === 'hr' ? 'Pferde' : n}</button>`).join('')}</div>
+    <div id="mtR"></div><div id="mtB"></div><div class="sec">Am Tisch</div><div class="card tight list" id="mtO"></div>`;
+  $('#back', el).onclick = () => go('spiele');
+  $('#mtT', el).onclick = e => { const b = e.target.closest('[data-g]'); if (!b) return; MT.g = b.dataset.g; MT.sel = {}; SND.click(); go('tisch', true); };
+  if (!mtCan()) {
+    $('#mtB', el).innerHTML = `<div class="card" style="text-align:center"><div style="font-size:50px">📹</div><h3>Erst in einen Treff-Raum</h3><p class="hint">Geh mit deinen Freunden in denselben Treff-Raum (z. B. Lounge). Dann spielt ihr hier zusammen an einem Tisch.</p><button class="btn gold w" id="mtGo">Zum Treff</button></div>`;
+    $('#mtGo', el).onclick = () => go('treff'); $('#mtO', el).innerHTML = '<div class="empty">Noch niemand</div>'; return;
+  }
+  mtTick(el); pageTimer(() => mtTick(el), 250, 'mt');
+}
+function mtOthers() {
+  const o = $('#mtO'); if (!o) return; const g = MT.g, r = mtRound(g), m = S.mt && S.mt.g === g && S.mt.r === r ? S.mt : null;
+  const me = `<div class="it me"><span class="lbl"><b>${esc(S.disp)}</b> (du)</span><span class="val">${m ? (m.paid ? (m.net > 0 ? `<span class="pos">+${fmt(m.net)}</span>` : m.net < 0 ? `<span class="neg">${fmt(m.net)}</span>` : '±0') : fmt(m.st) + ' gesetzt') : '–'}</span></div>`;
+  const rows = Object.keys(T.names).map(pid => { const x = MT.others[pid], ok = x && x.g === g && x.r === r; return `<div class="it"><span class="lbl">${esc(T.names[pid])}</span><span class="val">${ok ? (x.w !== null && x.w !== undefined ? `<span class="${x.w > 0 ? 'pos' : x.w < 0 ? 'neg' : ''}">${esc(x.txt)}</span>` : esc(x.txt)) : '<small style="color:var(--mut)">schaut zu</small>'}</span></div>`; });
+  o.innerHTML = me + (rows.join('') || '<div class="empty" style="padding:12px">Noch keine Freunde im Raum – lad sie in den Treff ein!</div>');
+}
+function mtTick(el) {
+  if (!el.isConnected) return; if (!T.room) { go('tisch', true); return; } const g = MT.g, t = mtIn(g), r = mtRound(g);
+  const ph = t < MT_LOCK[g] ? 'bet' : t < MT_RES[g] ? 'run' : 'res';
+  const left = Math.ceil(((ph === 'bet' ? MT_LOCK[g] : ph === 'run' ? MT_RES[g] : MT_P[g]) - t) / 1000);
+  const R = $('#mtR', el); if (R) R.innerHTML = `<div class="lhb ${ph === 'bet' ? 'on' : ''}" style="margin-bottom:10px"><span class="e">${ph === 'bet' ? '⏳' : ph === 'run' ? (g === 'bj' ? '🃏' : '🎲') : '🏁'}</span><div><b>${ph === 'bet' ? 'Einsätze offen' : ph === 'run' ? (g === 'rl' ? 'Die Kugel rollt …' : g === 'hr' ? 'Das Rennen läuft …' : 'Spielt eure Hände!') : 'Ergebnis'}</b> · noch ${left} s<br><small>Raum: ${esc((ROOMS.find(x => x[0] === T.room) || [, T.room])[1])} · Runde #${r % 1000}</small></div></div>`;
+  const key = g + r + ph + (S.mt ? `${S.mt.r}${S.mt.paid}${S.mt.st}${S.mt.k || 0}${S.mt.done || 0}` : '');
+  if (MT.ph !== key) { MT.ph = key; ({ rl: mtRlUI, hr: mtHrUI, bj: mtBjUI })[g](el, ph, r, t); mtOthers(); }
+  else if (g === 'hr' && ph === 'run') mtHrAnim(el, r, t);
+  else if (g === 'rl' && ph === 'run') { const W = $('#rlW', el); if (W) { const x = Math.floor(Math.random() * 37); W.textContent = x; W.style.color = rlCol(x); } }
+}
+const mtMine = (g, r) => S.mt && S.mt.g === g && S.mt.r === r ? S.mt : null;
+function mtRlUI(el, ph, r) {
+  const B = $('#mtB', el), m = mtMine('rl', r), ch = CHIPS.filter(c => c <= stakeMax()).slice(-6); if (!ch.includes(MT.chip)) MT.chip = ch[Math.max(0, ch.length - 3)] || .5;
+  const n = ph === 'res' ? mtRl(T.room, r) : null, mine = m ? m.bets || {} : {};
+  B.innerHTML = `<div class="rlw num" id="rlW" style="margin-top:0;${n !== null ? 'color:' + rlCol(n) : ''}">${n !== null ? n : '🎡'}</div>
+    <div class="card">${ph === 'bet' ? `<div class="lbl2" style="margin-top:0">Chip wählen</div><div class="chs" id="rlC">${ch.map(c => `<button class="btn ${c === MT.chip ? 'gold' : 'dark'} xs" data-c="${c}">${fmt(c)}</button>`).join('')}</div>` : ''}
+      <div class="rlb" id="rlB"><button class="gr" data-b="n0">0</button>${Array.from({ length: 36 }, (_, i) => `<button class="${RED.has(i + 1) ? 'rd' : 'bk'}" data-b="n${i + 1}">${i + 1}</button>`).join('')}${ROUT.map(([k, nn]) => `<button class="ot" data-b="${k}">${nn}</button>`).join('')}</div>
+      <p style="margin:12px 0 0">Gesetzt: <b class="num">${fmt(m ? m.st : 0)}</b>${ph === 'bet' ? ` · neu ausgewählt: <b class="num" id="rlSel">${fmt(r2(Object.values(MT.sel).reduce((a, b) => a + b, 0)))}</b>` : ''}</p>
+      ${ph === 'bet' ? `<div class="two" style="margin-top:10px"><button class="btn dark" id="rlX">Auswahl löschen</button><button class="btn gold" id="rlOk">Setzen ✓</button></div>` : ''}</div>`;
+  const mark = () => $$('#rlB [data-b]', B).forEach(b => { const k = b.dataset.b, v = (mine[k] || 0) + (MT.sel[k] || 0); const i = $('i', b); if (i) i.remove(); if (v) b.insertAdjacentHTML('beforeend', `<i>${v >= 1000 ? NF0.format(v / 1000) + 'k' : NF0.format(v)}</i>`); if (n !== null && k === 'n' + n) b.classList.add('hit'); });
+  mark();
+  if (ph !== 'bet') return;
+  $('#rlC', B).onclick = e => { const b = e.target.closest('[data-c]'); if (!b) return; MT.chip = +b.dataset.c; SND.click(); $$('#rlC [data-c]', B).forEach(x => x.className = 'btn ' + (+x.dataset.c === MT.chip ? 'gold' : 'dark') + ' xs'); };
+  $('#rlB', B).onclick = e => { const b = e.target.closest('[data-b]'); if (!b) return; const tot = r2((m ? m.st : 0) + Object.values(MT.sel).reduce((a, x) => a + x, 0) + MT.chip); if (tot > stakeMax() + 1e-9) { toast(`Höchstens ${fmt(stakeMax())} pro Runde`, 'bad'); SND.err(); return; } MT.sel[b.dataset.b] = r2((MT.sel[b.dataset.b] || 0) + MT.chip); SND.coin(); mark(); $('#rlSel', B).textContent = fmt(r2(Object.values(MT.sel).reduce((a, x) => a + x, 0))); };
+  $('#rlX', B).onclick = () => { MT.sel = {}; MT.ph = ''; };
+  $('#rlOk', B).onclick = () => {
+    const sel = MT.sel, tot = r2(Object.values(sel).reduce((a, x) => a + x, 0)); if (!(tot > 0)) return toast('Tipp erst auf Felder, dann „Setzen“', 'bad');
+    if (mtIn('rl') >= MT_LOCK.rl || mtRound('rl') !== r) return toast('Zu spät – nächste Runde!', 'bad');
+    if (!mtStake('rl', tot, 'Roulette')) return;
+    S.mt.bets = S.mt.bets || {}; Object.entries(sel).forEach(([k, v]) => S.mt.bets[k] = r2((S.mt.bets[k] || 0) + v)); persist();
+    MT.sel = {}; MT.ph = ''; SND.coin(); mtBc(`${fmt(S.mt.st)} gesetzt`);
+  };
+}
+function mtHrUI(el, ph, r, t) {
+  const B = $('#mtB', el), m = mtMine('hr', r), H = mtHr(T.room, r);
+  B.innerHTML = `<div class="tbl" style="margin-top:0">${H.F.map((h, i) => `<div class="hr"><span class="n">${i + 1}</span><span class="h" id="hr${i}" style="left:${ph === 'res' ? (i === H.w ? 84 : 84 - (H.order.indexOf(i)) * 6) : 0}%">🐎</span><span class="fin"></span></div>`).join('')}</div>
+    <div class="card">${ph === 'res' ? `<p style="font-size:20px;font-weight:800;margin:0 0 10px">🏁 ${H.w + 1}. ${esc(H.F[H.w].n)} gewinnt!</p>` : ''}
+      <div class="hsel" id="hrS">${H.F.map((h, i) => `<button data-h="${i}" class="${(m ? m.h === i : MT.hrPick === i) ? 'on' : ''}" ${ph !== 'bet' || m ? 'disabled' : ''}>${i + 1}. ${esc(h.n)}<br><span class="goldc num">Quote ${NF2.format(h.q)}</span></button>`).join('')}</div>
+      ${m ? `<p style="margin:12px 0 0">Dein Tipp: <b>${m.h + 1}. ${esc(H.F[m.h].n)}</b> · ${fmt(m.st)}</p>` : ph === 'bet' ? `<div style="margin-top:14px">${stakeUI('hrSt', MT.stake)}</div><button class="btn gold w" id="hrOk" style="margin-top:14px">Tipp abgeben ✓</button>` : ''}</div>`;
+  if (ph === 'run') mtHrAnim(el, r, t);
+  if (ph !== 'bet' || m) return; bindStake(B);
+  $('#hrS', B).onclick = e => { const b = e.target.closest('[data-h]'); if (!b) return; MT.hrPick = +b.dataset.h; SND.click(); $$('#hrS [data-h]', B).forEach(x => x.classList.toggle('on', +x.dataset.h === MT.hrPick)); };
+  $('#hrOk', B).onclick = () => {
+    const v = readStake($('#hrSt', B)); if (!v) return; MT.stake = v;
+    if (mtIn('hr') >= MT_LOCK.hr || mtRound('hr') !== r) return toast('Zu spät – nächste Runde!', 'bad');
+    if (mtMine('hr', r)) return;
+    if (!mtStake('hr', v, 'Pferderennen')) return; S.mt.h = MT.hrPick; persist(); MT.ph = ''; SND.coin();
+    mtBc(`${fmt(v)} auf ${H.F[MT.hrPick].n}`);
+  };
+}
+function mtHrAnim(el, r, t) {
+  const H = mtHr(T.room, r), T0 = MT_LOCK.hr, D = MT_RES.hr - T0 - 600, x = Math.max(0, t - T0);
+  H.F.forEach((_, i) => { const e = $('#hr' + i, el); if (!e) return; const k = H.order.indexOf(i), fin = D * (1 + k * .05), f = Math.min(1, x / fin), wob = Math.sin(x / 260 + i * 1.7) * .02 * (1 - f); e.style.left = Math.max(0, Math.min(1, f + wob)) * 84 + '%'; });
+}
+function mtBjUI(el, ph, r) {
+  const B = $('#mtB', el), m = mtMine('bj', r), d = mtDealer(T.room, r);
+  let pc = null, h = null; if (m && ph !== 'bet') { pc = mtCards(T.room, r, S.name); h = pc.slice(0, m.k || 2); }
+  const showD = ph === 'res' ? d : ph === 'run' ? [d[0], d[1]] : [];
+  B.innerHTML = `<div class="tbl" style="margin-top:0"><div class="lb">DEALER ${showD.length ? `<span class="bjv">${ph === 'res' ? hVal(d).v : cVal(d[0])}</span>` : ''}</div><div class="cds">${showD.map((c, i) => cardHTML(c, ph === 'run' && i === 1)).join('')}</div>
+      <div class="lb" style="margin-top:14px">DU ${h ? `<span class="bjv">${hVal(h).v}</span> <span class="bjv">${fmt(m.st)}</span>` : ''}</div><div class="cds">${h ? h.map(c => cardHTML(c)).join('') : ''}</div></div>
+    <div class="card" id="bjC2"></div>`;
+  const C = $('#bjC2', B);
+  if (ph === 'bet') {
+    if (m) { C.innerHTML = `<p style="margin:0;font-size:18px">✅ Du sitzt am Tisch mit <b>${fmt(m.st)}</b>. Gleich wird ausgeteilt …</p>`; return; }
+    C.innerHTML = `${stakeUI('bjS2', MT.stake)}<button class="btn gold w" id="bjOk" style="margin-top:14px">Platz nehmen ✓</button>`; bindStake(C);
+    $('#bjOk', C).onclick = () => { const v = readStake($('#bjS2', C)); if (!v) return; MT.stake = v; if (mtIn('bj') >= MT_LOCK.bj || mtRound('bj') !== r) return toast('Zu spät – nächste Runde!', 'bad'); if (mtMine('bj', r)) return; if (!mtStake('bj', v, 'Blackjack')) return; S.mt.k = 2; persist(); MT.ph = ''; SND.coin(); mtBc(`sitzt mit ${fmt(v)}`); };
+    return;
+  }
+  if (!m) { C.innerHTML = '<p class="hint" style="margin:0">Du schaust diese Runde zu. Nächste Runde kannst du Platz nehmen.</p>'; return; }
+  const v = hVal(h).v, done = m.done || v >= 21 || isBJ(d) || ph === 'res';
+  if (!done && !m.paid) {
+    C.innerHTML = `<div class="two"><button class="btn white" id="mH">Karte</button><button class="btn gold" id="mS">Stehen</button></div><button class="btn dark w" id="mD" style="margin-top:10px" ${h.length === 2 ? '' : 'disabled'}>Verdoppeln (+${fmt(m.st)})</button>`;
+    $('#mH', C).onclick = () => { if (mtIn('bj') >= MT_RES.bj) return; m.k = (m.k || 2) + 1; if (hVal(pc.slice(0, m.k)).v >= 21) m.done = 1; persist(); SND.click(); MT.ph = ''; mtBc(`${hVal(pc.slice(0, m.k)).v} Punkte`); };
+    $('#mS', C).onclick = () => { m.done = 1; persist(); SND.click(); MT.ph = ''; mtBc(`steht bei ${v}`); };
+    $('#mD', C).onclick = () => { if (h.length !== 2 || mtIn('bj') >= MT_RES.bj) return; if (!bet(m.st, 'Blackjack', true)) return; m.st = r2(m.st * 2); m.dbl = 1; m.k = 3; m.done = 1; persist(); SND.coin(); MT.ph = ''; mtBc(`verdoppelt: ${hVal(pc.slice(0, 3)).v}`); };
+  } else C.innerHTML = m.paid ? `<p style="font-size:20px;font-weight:800;text-align:center;margin:0">${m.net > 0 ? `<span class="pos">+${fmt(m.net)} 🎉</span>` : m.net < 0 ? `<span class="neg">${fmt(m.net)}</span>` : 'Einsatz zurück'}</p>` : `<p class="hint" style="margin:0">${v > 21 ? 'Überkauft 💥' : 'Du stehst'} – warte auf den Dealer …</p>`;
+}
+PAGES.tisch = renderTisch;
+{ const Sp = PAGES.spiele; PAGES.spiele = el => { Sp(el); const c = $('[data-y="pferd"]', el); if (!c) return;
+  c.insertAdjacentHTML('afterend', `<button class="card gm xcard" data-y="tisch" style="position:relative"><span class="neu">NEU</span><div class="ibox" style="font-size:38px">👥</div><h4>Mit Freunden spielen</h4><p>${T.room ? 'Du bist im Treff-Raum – ab an den Tisch!' : 'Blackjack, Roulette & Pferde zusammen im Treff-Raum'}</p></button>`);
+  $('[data-y="tisch"]', el).onclick = () => { SND.click(); go('tisch'); }; }; }
+{ const RU = roomUI; roomUI = () => { RU(); const o = T.ov; if (!o) return; const d = $('#rDuel', o); if (d && d.parentElement) { d.parentElement.insertAdjacentHTML('afterend', `<button class="btn gold w" id="rTisch" style="margin:4px 0 6px">👥 Zusammen spielen: 🃏 🎡 🐎</button>`); $('#rTisch', o).onclick = () => { o.close(); go('tisch'); }; } }; }
 </script>
 </body>
 </html>
