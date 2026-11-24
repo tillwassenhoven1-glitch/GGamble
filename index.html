@@ -3471,13 +3471,13 @@ function openSettings() {
   };
   const bindCheat = () => {
     const box = $('#cheatBox', o), g = $('#cGo2', o);
-    if (g) g.onclick = () => { if (fnv('gg-cheat|' + $('#cCode', o).value.trim()) === '1c78nwo') { admUnlock($('#cCode', o).value.trim()); S.cheat = true; save(); toast('😎 Cheat-Menü freigeschaltet!', 'good'); SND.win(); box.innerHTML = cheatHTML(); bindCheat(); } else { toast('❌ Falscher Code', 'bad'); SND.err(); } };
+    if (g) g.onclick = async () => { g.disabled = true; const ok = await admUnlock($('#cCode', o).value.trim()); g.disabled = false; if (ok) { S.cheat = true; S.cheatV = CHEAT_V; save(); toast('😎 Cheat-Menü freigeschaltet!', 'good'); SND.win(); box.innerHTML = cheatHTML(); bindCheat(); } else { toast('❌ Falscher Code', 'bad'); SND.err(); } };
     box.onclick = e => { const b = e.target.closest('[data-ch]'); if (!b) return; doCheat(b.dataset.ch); box.innerHTML = S.cheat ? cheatHTML() : `<div class="row"><input class="inp" id="cCode" placeholder="Code…" autocomplete="off"><button class="btn dark sm" id="cGo2">OK</button></div>`; bindCheat(); };
   };
   bindCheat();
   $('#rst', o).onclick = async () => {
     if (!await confirmBox('Konto zurücksetzen?', `Der Spielstand von <b>${esc(S.disp)}</b> startet komplett neu mit ${fmt(500)} – Geld, Level, Erfolge, Geschäfte und Börse sind weg. Name, Passwort, Profilbild und Einstellungen bleiben. Das geht nicht rückgängig.`, 'Zurücksetzen', true)) return;
-    const keep = { name: S.name, disp: S.disp, photo: S.photo, color: S.color, lbId: S.lbId, owner: S.owner, cheat: S.cheat, set: S.set, titles: S.titles, frames: S.frames, tit: S.tit, frm: S.frm, clan: S.clan, friends: S.friends, dmRead: S.dmRead };
+    const keep = { name: S.name, disp: S.disp, photo: S.photo, color: S.color, lbId: S.lbId, owner: S.owner, cheat: S.cheat, cheatV: S.cheatV, set: S.set, titles: S.titles, frames: S.frames, tit: S.tit, frm: S.frm, clan: S.clan, friends: S.friends, dmRead: S.dmRead };
     S = Object.assign(newState(S.name), keep); persist();
     const a = Accounts.all()[ACC];
     try { if (onlineOn() && a && a.cid) { await cloudPut(a.cid, a, S); lbLast = ''; pushScore(true); } } catch (e) { }
@@ -3655,7 +3655,7 @@ function startApp(key) {
   const sv0 = all[key].save || {};
   // zurücksetzen, wenn: alter Spielstand ohne ep ODER Konto wurde vor dem Neustart angelegt (kurzzeitiger Fehler hatte ep zu früh gesetzt)
   if (sv0.ep !== RESET_EP || (sv0.created || 0) < RESET_TS) {
-    const keep = { name: S.name, disp: S.disp, photo: S.photo, color: S.color, lbId: S.lbId, owner: S.owner, cheat: S.cheat, set: S.set, clan: S.clan };
+    const keep = { name: S.name, disp: S.disp, photo: S.photo, color: S.color, lbId: S.lbId, owner: S.owner, cheat: S.cheat, cheatV: S.cheatV, set: S.set, clan: S.clan };
     S = Object.assign(newState(all[key].name), keep); all[key].save = S; all[key].ts = Date.now(); Accounts.put(all);
     setTimeout(() => { try { cloudLast = ''; cloudPush(true); lbLast = ''; pushScore(true); } catch (e) { } }, 2500);
     setTimeout(() => sheet(`<h2>🔄 Neustart!</h2><p class="hint" style="font-size:18px">Alle Konten wurden zurückgesetzt – jeder startet wieder mit ${fmt(500)}. Die Spielhalle hat neue, fairere Regeln: All-In heißt jetzt „Max“ und setzt höchstens deinen Level-Höchsteinsatz, Level steigen langsamer und die Börse hat höchstens Hebel 1:20.<br><br>Name, Passwort, Profilbild und Clan bleiben. Viel Glück! 🍀</p><button class="btn white w" data-close>Los geht's</button>`, { center: true }), 600);
@@ -5116,8 +5116,10 @@ async function onlShow() {
 }
 
 /* ================= 💸 Admin: Spielern Geld geben (signiert – nur mit Cheat-Code möglich) ================= */
-const ADM_PUB = {"kty": "EC", "crv": "P-256", "x": "WsbNQk6Q3CtimW7IEjIA4oFqBrbPMd-5NkzTLyCBiW8", "y": "kmLP6NjbamjbhndENjFBkxmzXSaI4JNT8RfOuUYNhR8"};
-const ADM_ENC = {"s": "hpqMZdy63c4/24XzmG8ARg==", "i": "3KpgCM0IX4DMa5i6", "c": "b7oRAJ6ZwlMQcxLOy7o2+LXM290IhMfqurImc4z7NqkyCSYLqpQzl9U3Kb3IiM7xBwTC3FuVuhnfjFklC1omyB1FtdlU1R+apIQ1drBiJQ5wLFH8D47eXLu41ax27+ui+87WI/AL0G2g31PUF4KTAH4nuBP4FgyjmpHNFsjOo4WM5mvvwsMvGYJDacxPz6Gi3nZVRZURwYUjXuoqbANsxpeETUkIldlRTvtMJIMVTMEKmHL5IFWZUXYC31zC6RHxVuQstDeft8J4VdZCZDRbpSWmpqDRdgTIOxUa75O4"};
+const ADM_PUB = {"kty": "EC", "crv": "P-256", "x": "W0pQPk4giPMDMrM82y_lVmgRgGNg_n9s-6pyh02o1dQ", "y": "PIPfkpHj3oABv_bdjtqH3HtWhLmVpoHMJR5xpacU0RQ"}; // neuer Schlüssel (Cheatcode geändert)
+const ADM_PUB_OLD = {"kty": "EC", "crv": "P-256", "x": "WsbNQk6Q3CtimW7IEjIA4oFqBrbPMd-5NkzTLyCBiW8", "y": "kmLP6NjbamjbhndENjFBkxmzXSaI4JNT8RfOuUYNhR8"}; // alter Schlüssel – nur noch für Sperren/Abzeichen von vor dem Wechsel
+const ADM_CUT = 1795516653105;
+const ADM_ENC = {"s": "4d2hc3+fzqFDCOV019CE3A==", "i": "z9yo+PGTbZo6s5jZ", "c": "oHHvEFNt44tCncyTtvD861FwqsNWKJZq1iLexZZwHnOirNLyv2Xq0ritYCsDAw2xvD5nYTN4GtYm5D0RUCKUf6Gw/EyGz5lp74yVtogFTsr3r7tlZP9JUR89LqprByjxukFJDFu/X/fGsXl3HHt7R8OIYnsjNNz4F7NZLyb8lOQMkhelmzUcjY1+EpLWBJJkyAuitV/43kYY+d8whIHMLs6Gll+9nLuXnSYie9+MKfqJVmR+vhqifNg+a/Kk4ZtT4s+5L/l7mRRq"};
 const b64u = { to: u => btoa(String.fromCharCode(...new Uint8Array(u))), from: b => Uint8Array.from(atob(b), ch => ch.charCodeAt(0)) };
 let ADM_KEY = null;
 async function admUnlock(code) {
@@ -5271,11 +5273,12 @@ async function lbhLoad(force) {
   try {
     const docs = await fsQuery({ from: [{ collectionId: 'lbsperre' }], limit: 500 });
     const pk = await crypto.subtle.importKey('jwk', ADM_PUB, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+    const pkOld = await crypto.subtle.importKey('jwk', ADM_PUB_OLD, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
     const best = {};
     for (const d of docs) {
       const g = { id: d.id, n: String(d.n || '').toLowerCase(), h: +d.h || 0, ts: +d.ts || 0 };
       if (!g.n || (best[g.n] && best[g.n].ts >= g.ts)) continue;
-      try { if (await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pk, b64u.from(d.sig || ''), new TextEncoder().encode(lbhMsg(g)))) best[g.n] = g; } catch (e) { }
+      try { const sg = b64u.from(d.sig || ''), msg = new TextEncoder().encode(lbhMsg(g)); if (await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pk, sg, msg) || (g.ts < ADM_CUT && await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pkOld, sg, msg))) best[g.n] = g; } catch (e) { }
     }
     const vals = Object.values(best);
     LBH.set = new Set(vals.filter(g => g.h && !g.n.startsWith('b:')).map(g => g.n)); LBH.t = Date.now();
@@ -6487,7 +6490,7 @@ PAGES.tisch = renderTisch;
 { const RU = roomUI; roomUI = () => { RU(); const o = T.ov; if (!o) return; const d = $('#rDuel', o); if (d && d.parentElement) { d.parentElement.insertAdjacentHTML('afterend', `<button class="btn gold w" id="rTisch" style="margin:4px 0 6px">👥 Zusammen spielen: 🃏 🎡 🐎</button>`); $('#rTisch', o).onclick = () => { o.close(); go('tisch'); }; } }; }
 
 /* ================= 🏢 Clans 0.4.3: Einladungen, Rollen, Kicken, Admin-Löschen ================= */
-const isAdm = () => !!(typeof ADM_KEY !== 'undefined' && ADM_KEY) || !!localStorage.getItem('gg_adm');
+const isAdm = () => !!(typeof ADM_KEY !== 'undefined' && ADM_KEY);
 const clDel = tag => !!(LBH && LBH.set && LBH.set.has('c:' + String(tag).toLowerCase()));
 const clInvOk = tag => !!(S.clInv && S.clInv[tag] && Date.now() - S.clInv[tag].ts < 7 * 864e5);
 const clIsOwn = (c, name = S.name) => !!c && String(c.own).toLowerCase() === String(name).toLowerCase();
@@ -6595,6 +6598,17 @@ GIFT_K.ck = ['🚪', 'Clan-Kick']; GIFT_K.cdel = ['🗑️', 'Clan gelöscht'];
 }; }
 // gelöschter Clan → Mitglieder fliegen raus
 setInterval(async () => { try { if (S && S.clan && onlineOn()) { await lbhLoad(); if (clDel(S.clan.tag)) { const t = S.clan.tag; S.clan = null; save(); lbLast = ''; pushScore(true); toast(`🗑️ Der Clan [${esc(clShow(t))}] wurde vom Admin gelöscht`, 'bad', 6000); if (curPage === 'clan') go('clan', true); } } } catch (e) { } }, 120000);
+
+/* ================= 🔐 Neuer Cheatcode: alle müssen ihn neu eingeben ================= */
+const CHEAT_V = 2;
+(async () => {
+  const c = localStorage.getItem('gg_adm'); if (c && !await admUnlock(c)) { try { localStorage.removeItem('gg_adm'); } catch (e) { } } // alter Code gilt nicht mehr
+})();
+(function cheatReset() {
+  if (!S) return setTimeout(cheatReset, 1500);
+  if (S.cheat && S.cheatV !== CHEAT_V) { S.cheat = false; save(); }
+  setTimeout(cheatReset, 30000);
+})();
 </script>
 </body>
 </html>
