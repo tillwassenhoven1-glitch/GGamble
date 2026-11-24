@@ -1219,9 +1219,22 @@ function newState(name) {
     bets: [], shops: {}, shopTs: now, ach: {}, tasks: null, lastSlot: 0,
   };
 }
+/* 🗂️ Nur EIN Tab darf speichern: ein alter, vergessener Tab hat sonst den neueren Spielstand überschrieben (Fortschritt weg) */
+const TAB_ID = Math.random().toString(36).slice(2); let TAB_DEAD = false;
+function tabClaim() { try { localStorage.setItem('gg_tab', TAB_ID + '|' + Date.now()); } catch (e) { } }
+function tabKill() {
+  if (TAB_DEAD) return; TAB_DEAD = true; clearTimeout(saveT);
+  document.body.insertAdjacentHTML('beforeend', `<div id="tabDead" style="position:fixed;inset:0;z-index:99999;background:rgba(5,5,6,.96);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:30px;color:#fff">
+    <div style="font-size:64px">🗂️</div><h2 style="font-size:28px;margin:0">GGamble ist in einem anderen Tab offen</h2><p class="hint" style="font-size:17px;max-width:420px">Damit dein Spielstand nicht überschrieben wird, spielt nur ein Tab gleichzeitig.</p>
+    <button class="btn gold" style="font-size:20px;padding:16px 26px" onclick="location.reload()">Hier weiterspielen</button></div>`);
+}
+addEventListener('storage', e => { if (e.key === 'gg_tab' && e.newValue && !e.newValue.startsWith(TAB_ID) && S) tabKill(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !TAB_DEAD && S) tabClaim(); });
 function persist() {
-  if (!S || !ACC) return;
+  if (!S || !ACC || TAB_DEAD) return;
   const all = Accounts.all(); if (!all[ACC]) return;
+  // Sicherheitsnetz: liegt auf dem Gerät schon ein Stand mit MEHR Fortschritt (anderer Tab), nicht überschreiben
+  const ex = all[ACC].save; if (ex && ex !== S && typeof svProg === 'function' && svProg(ex) > svProg(S) + 5 && (all[ACC].ts || 0) > Date.now() - 864e5) { tabKill(); return; }
   all[ACC].save = S; all[ACC].bal = S.bal; all[ACC].level = S.level; all[ACC].disp = S.disp; all[ACC].photo = S.photo; all[ACC].ts = Date.now();
   Accounts.put(all); cloudPush();
 }
@@ -1261,7 +1274,7 @@ async function cloudSync(allowAdopt = true) { // true = anderes Gerät ist neuer
 async function syncTick() { if (!S || !ACC || syncing || document.hidden) return; syncing = true; try { await cloudSync(true); } finally { syncing = false; } }
 setInterval(syncTick, 120000); document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(syncTick, 300); });
 function cloudPush(now) {
-  if (typeof ONLINE === 'undefined' || !onlineOn() || !S || !ACC) return;
+  if (TAB_DEAD || typeof ONLINE === 'undefined' || !onlineOn() || !S || !ACC) return;
   const run = async () => {
     cloudT = 0; const a = Accounts.all()[ACC]; if (!a || !a.cid || !S) return; const sig = JSON.stringify(S); if (sig === cloudLast) return;
     if (!now && await cloudSync(true)) return; // anderes Gerät ist neuer → nicht überschreiben
@@ -2877,7 +2890,7 @@ function lbId() { if (!S.lbId) { S.lbId = (ACC.replace(/[^a-z0-9]/g, '') || 'x')
 let lbLast = '';
 let lbFull = true;
 let lbOwn = true, lbTier = 0;
-function pushScore(force) {
+function pushScore(force) { if (TAB_DEAD) return;
   if (!onlineOn() || !S) return;
   const sig = [S.bal, S.level, S.disp, S.color, S.st.biggest, S.st.rbWag || 0, Object.keys(S.ach).length, S.owner ? 1 : 0, S.wk && S.wk.v, S.dy && S.dy.v, S.tit, S.frm, S.clan ? S.clan.tag : ''].join('|'); if (!force && sig === lbLast) return; lbLast = sig;
   const f = { name: { stringValue: S.name }, disp: { stringValue: S.disp }, bal: { doubleValue: S.bal }, level: { integerValue: String(S.level) }, color: { integerValue: String(S.color || 0) }, ts: { integerValue: String(Date.now()) } };
@@ -3626,6 +3639,7 @@ function cloudLink(key) {
   };
 }
 function startApp(key) {
+  tabClaim();
   const all = Accounts.all(); ACC = key;
   S = Object.assign(newState(all[key].name), all[key].save || {});
   const sv0 = all[key].save || {};
