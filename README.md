@@ -7,7 +7,7 @@ Eine Spielhalle im Browser – nur mit Spielgeld: Automaten mit Freispielen und 
 👉 **https://tillwassenhoven1-glitch.github.io/GGamble/**
 
 Keine Installation, keine Werbung, keine Käufe, kein echtes Geld – läuft auf Handy, iPad und PC. 🎮
-Version 1.0.1
+Version 1.0.2
 
 ## 🔐 Konto
 
