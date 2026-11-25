@@ -5941,7 +5941,7 @@ function renderHaendler(el) {
         <div class="upd">${Array.from({ length: max }, (_, i) => `<i class="${i < l ? 'on' : ''}"></i>`).join('')}</div></div>
         <button class="btn ${done ? 'dark' : lk ? 'dark' : 'gold'} xs" data-up="${id}" ${done || lk ? 'disabled' : ''} style="align-self:center;white-space:nowrap">${done ? '✓ Max' : lk ? `🔒 Lv. ${rq}` : fmt(c)}</button></div>`;
     }).join('')}</div>
-    <p class="hint">Nur mit echtem Guthaben bezahlbar (kein Dispo). Bei „Konto zurücksetzen“ sind die Upgrades weg.</p>`;
+    <p class="hint">Nur mit echtem Guthaben bezahlbar (kein Dispo). Bleibt auch bei der Wiedergeburt 🔥 (nur „Konto zurücksetzen“ löscht sie).</p>`;
   $('#back', el).onclick = () => go('spiele');
   $$('[data-up]', el).forEach(b => b.onclick = async () => {
     const u = UPS.find(x => x[0] === b.dataset.up); if (!u) return; const l = upN(u[0]); if (l >= u[4]) return;
@@ -6997,7 +6997,7 @@ function openPhoenix() {
     <div class="phxC" style="margin-top:12px"><div class="phxBig">🔥</div>
       <p style="text-align:center;font-size:18px;margin:6px 0">Du bist <b>${S.reb || 0}×</b> wiedergeboren · <b style="color:#ffb36b">${S.phx.pts} Phönix-Punkte</b></p>
       <p class="hint" style="text-align:center;margin:0 0 12px">Ohne Wiedergeburt ist bei <b>Level ${need}</b> Schluss – danach geht's bis Level ${need + 25}. Jede Wiedergeburt: <b>+${REB_PTS} Phönix-Punkte</b>, ein Stern neben deinem Namen, ab 1× Titel „Phönix 🔥“, ab 3× Feuer-Rahmen, ab 5× Titel „Unsterblich 👑“.</p>
-      <div class="hint" style="background:#0006;border-radius:14px;padding:10px 12px;margin-bottom:12px">🔄 <b>Zurückgesetzt:</b> Geld (auf ${fmt(START_BY[phxN('start')])}), Level, Geschäfte${phxN('shops') ? ` (außer den besten ${phxN('shops')})` : ''}, Händler-Upgrades, Tränke<br>✅ <b>Bleibt:</b> Erfolge, Titel, Rahmen, Luxus-Sachen, Clan, Freunde, Phönix-Shop</div>
+      <div class="hint" style="background:#0006;border-radius:14px;padding:10px 12px;margin-bottom:12px">🔄 <b>Zurückgesetzt:</b> Geld (auf ${fmt(START_BY[phxN('start')])}), Level, Geschäfte${phxN('shops') ? ` (außer den besten ${phxN('shops')})` : ''}, Tränke<br>✅ <b>Bleibt:</b> Händler-Upgrades, Erfolge, Titel, Rahmen, Luxus-Sachen, Clan, Freunde, Phönix-Shop</div>
       <button class="btn gold w" id="phxGo" ${can ? '' : 'disabled'} style="font-size:20px">${can ? '🔥 Jetzt wiedergeboren werden' : `🔒 Ab Level ${need} (du: ${S.level})`}</button></div>
     <h3 style="margin:18px 0 8px">🛒 Phönix-Shop</h3><p class="hint" style="margin-top:0">Dauerhaft – bleibt bei jeder Wiedergeburt.</p>
     <div class="card tight list" style="background:#151517">${PHX.map(([id, ic, n, d, c]) => { const l = phxN(id), mx = l >= c.length;
@@ -7019,7 +7019,7 @@ function doRebirth() {
   if (S.level < rebNeed()) return;
   const keepShops = phxN('shops'), best = Object.entries(S.shops || {}).filter(([k, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, keepShops);
   const shops = {}, shopX = {}; best.forEach(([k, v]) => { shops[k] = v; if (S.shopX && S.shopX[k]) shopX[k] = S.shopX[k]; });
-  const keepKeys = ['name', 'disp', 'photo', 'color', 'lbId', 'owner', 'cheat', 'cheatV', 'set', 'titles', 'frames', 'tit', 'frm', 'clan', 'friends', 'dmRead', 'created', 'ep', 'ach', 'st', 'tutV', 'tutGift', 'updSeen', 'gifts', 'payGot', 'clGot', 'clInv', 'frSent', 'dmNoteTs', 'wk', 'dy', 'mo', 'pw', 'wpClaim', 'bp', 'cal', 'favs', 'phx', 'lhSeen', 'lhB', 'lhAdm', 'tasks', 'bonus'];
+  const keepKeys = ['name', 'disp', 'photo', 'color', 'lbId', 'owner', 'cheat', 'cheatV', 'set', 'titles', 'frames', 'tit', 'frm', 'clan', 'friends', 'dmRead', 'created', 'ep', 'ach', 'st', 'tutV', 'tutGift', 'updSeen', 'gifts', 'payGot', 'clGot', 'clInv', 'frSent', 'dmNoteTs', 'wk', 'dy', 'mo', 'pw', 'wpClaim', 'bp', 'cal', 'favs', 'phx', 'up', 'lhSeen', 'lhB', 'lhAdm', 'tasks', 'bonus'];
   const keep = {}; keepKeys.forEach(k => { if (S[k] !== undefined) keep[k] = S[k]; });
   const start = START_BY[phxN('start')], reb = (S.reb || 0) + 1, oldBal = S.bal;
   keep.phx = keep.phx || { pts: 0, up: {} }; keep.phx.pts = (keep.phx.pts || 0) + REB_PTS;
