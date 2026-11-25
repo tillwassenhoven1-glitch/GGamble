@@ -1236,23 +1236,37 @@ function persist() {
   // Sicherheitsnetz: liegt auf dem Gerät schon ein Stand mit MEHR Fortschritt (anderer Tab), nicht überschreiben
   const ex = all[ACC].save; if (ex && ex !== S && typeof svProg === 'function' && svProg(ex) > svProg(S) + 5 && (all[ACC].ts || 0) > Date.now() - 864e5) { tabKill(); return; }
   all[ACC].save = S; all[ACC].bal = S.bal; all[ACC].level = S.level; all[ACC].disp = S.disp; all[ACC].photo = S.photo; all[ACC].ts = Date.now();
-  Accounts.put(all); cloudPush();
+  Accounts.put(all); cloudPush(); zcSched();
 }
 /* ☁️ Cloud-Konten: mit Name + Passwort auf jedem Gerät anmelden */
 const cloudId = async (key, pw) => 'k' + (await Accounts.hash(pw, 'gg-cloud1|' + key)).slice(0, 40);
 const fsDoc = p => `${FS()}/${p}?key=${ONLINE.apiKey}`;
 async function cloudGet(cid) {
   const r = await fetch(fsDoc('konten/' + cid), { cache: 'no-store' }); if (r.status === 404) return null; if (!r.ok) throw new Error('HTTP ' + r.status);
-  const f = (await r.json()).fields || {}; return { d: JSON.parse(f.data.stringValue), ts: +(f.ts?.integerValue || 0) };
+  const f = (await r.json()).fields || {}, raw = f.data.stringValue;
+  return { d: JSON.parse(raw.startsWith('z:') ? await gunzStr(raw.slice(2)) : raw), ts: +(f.ts?.integerValue || 0) };
 }
+/* 🗜️ Spielstand gepackt hochladen: große Stände (> 60 KB) wurden beim App-Wechsel auf iPhone/iPad nicht mehr gesendet
+   (Browser-Limit für „beim Schließen senden“) → das andere Gerät hatte einen alten Stand. Gepackt sind es nur ~15–25 KB. */
+const GZ_OK = typeof CompressionStream === 'function' && typeof DecompressionStream === 'function';
+const ab2b64 = b => { const u = new Uint8Array(b); let s = ''; for (let i = 0; i < u.length; i += 8192) s += String.fromCharCode.apply(null, u.subarray(i, i + 8192)); return btoa(s); };
+async function gzStr(str) { const b = await new Response(new Blob([str]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer(); return 'z:' + ab2b64(b); }
+async function gunzStr(s) { return await new Response(new Blob([Uint8Array.from(atob(s), c => c.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream('gzip'))).text(); }
+const cloudData = (a, sv) => JSON.stringify({ name: a.name, created: a.created, save: sv, dev: DEV_ID });
+let ZC = { src: '', z: '' }, zcT = 0;
+function zcSched() { if (!GZ_OK) return; clearTimeout(zcT); zcT = setTimeout(async () => { try { const a = Accounts.all()[ACC]; if (!a || !S || isOldSave(S)) return; const src = cloudData(a, S); if (src === ZC.src) return; const z = await gzStr(src); ZC = { src, z }; } catch (e) { } }, 400); }
 async function nameTaken(key) { const r = await fetch(fsDoc('namen/' + encodeURIComponent(key)), { cache: 'no-store' }); if (r.status === 404) return false; if (!r.ok) throw new Error('HTTP ' + r.status); return true; }
 const newRid = key => (key.replace(/[^a-z0-9]/g, '') || 'x').slice(0, 12) + '-' + Math.random().toString(36).slice(2, 10);
 function claimName(key, rid) { return fetch(`${FS()}/namen?documentId=${encodeURIComponent(key)}&key=${ONLINE.apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: { t: { integerValue: String(Date.now()) }, rid: { stringValue: rid || '' } } }) }).then(() => loadOwner()).catch(() => { }); }
 const isOldSave = sv => !sv || sv.ep !== RESET_EP || (sv.created || 0) < RESET_TS; // Spielstand von vor dem Neustart
 function cloudPut(cid, a, sv) {
   if (isOldSave(sv)) return Promise.resolve({ ok: true, status: 200, skipped: true }); // alte Stände nie mehr hochladen
-  const data = JSON.stringify({ name: a.name, created: a.created, save: sv, dev: DEV_ID }), body = JSON.stringify({ fields: { data: { stringValue: data }, ts: { integerValue: String(Date.now()) } } });
-  return fetch(fsDoc('konten/' + cid), { method: 'PATCH', keepalive: body.length < 60000, headers: { 'Content-Type': 'application/json' }, body });
+  const data = cloudData(a, sv);
+  const send = val => { const body = JSON.stringify({ fields: { data: { stringValue: val }, ts: { integerValue: String(Date.now()) } } }); return fetch(fsDoc('konten/' + cid), { method: 'PATCH', keepalive: body.length < 60000, headers: { 'Content-Type': 'application/json' }, body }); };
+  if (ZC.src === data) return send(ZC.z); // fertig gepackt → klappt auch beim Schließen der App
+  if (GZ_OK && data.length > 8000 && document.visibilityState === 'visible') return gzStr(data).then(z => { ZC = { src: data, z }; return send(z); }, () => send(data));
+  if (data.length > 55000 && ZC.z) return send(ZC.z); // App wird geschlossen & Stand zu groß → der gepackte von vor wenigen Sekunden (sonst käme gar nichts an)
+  return send(data);
 }
 let cloudT = 0, cloudLast = '', cloudMine = Date.now(); const DIAG = { cloud: '–', rang: '–' };
 /* 📱📱 Gleiches Konto auf 2 Geräten: Vor dem Hochladen prüfen, ob ein anderes Gerät inzwischen neuer gespeichert hat → dann dessen Stand übernehmen statt ihn zu überschreiben */
@@ -1281,7 +1295,7 @@ function cloudPush(now) {
     if (!S) return;
     cloudPut(a.cid, a, S).then(r => { DIAG.cloud = (r.skipped ? 'übersprungen (alter Stand)' : r.status) + ' · ' + new Date().toLocaleTimeString(); if (r.ok) { cloudLast = sig; cloudMine = Date.now(); } }).catch(e => { DIAG.cloud = 'Fehler ' + (e.message || '') + ' · ' + new Date().toLocaleTimeString(); });
   };
-  if (now) { clearTimeout(cloudT); run(); } else if (!cloudT) cloudT = setTimeout(run, 90000); // seltener speichern (Firebase-Kontingent); beim Schließen wird sofort gespeichert
+  if (now) { clearTimeout(cloudT); run(); } else if (!cloudT) cloudT = setTimeout(run, 45000); // seltener speichern (Firebase-Kontingent); beim Schließen wird sofort gespeichert
 }
 let saveT = 0; function save() { clearTimeout(saveT); saveT = setTimeout(persist, 250); }
 addEventListener('pagehide', () => { persist(); cloudPush(true); try { pushScore(); } catch (e) { } }); document.addEventListener('visibilitychange', () => { if (document.hidden) { persist(); cloudPush(true); } });
