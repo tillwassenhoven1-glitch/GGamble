@@ -2612,7 +2612,7 @@ function tasksHTML(list) {
 function untilMidnight() { const n = new Date(Date.now()), m = new Date(n); m.setHours(24, 0, 0, 0); const s = (m - n) / 1000; return `${Math.floor(s / 3600)} Std. ${Math.floor(s % 3600 / 60)} Min.`; }
 
 /* ================= Glückstränke ================= */
-const POT_R = { 2: 10, 4: 6, 6: 4, 50: 10, 100: 10 }; // ×50 = ⚫ Schwarzer Trank (nur aus dem Schwarzen Los, 1 : 10.000)
+const POT_R = { 2: 10, 4: 6, 6: 4, 50: 10, 100: 10 }; // ×50 = ⚫ Schwarzer Trank (nur aus dem Schwarzen Los, 1 : 50.000)
 const potCap = () => r2(base() * 1.5);
 function potionsHTML() {
   return `<div class="pots">${[2, 4, 6, ...((S.pot[50] || 0) > 0 ? [50] : [])].map(m => `<div><div class="pot p${m}"><i>×${m}</i></div><b class="num">${S.pot[m]}×</b><button class="btn dark sm w" data-drink="${m}" ${S.pot[m] < 1 || S.potAct ? 'disabled' : ''}>Trinken</button></div>`).join('')}</div>`;
@@ -6312,7 +6312,7 @@ function openShopX(id, done) {
 /* ================= 🆕 Update-Hinweis (einmal pro Version, jederzeit wieder aufrufbar) ================= */
 const UPD_V = '0.4.5', UPD_UNTIL = new Date(2026, 11, 8).getTime();
 const UPD = [ // nur, was im LETZTEN Update neu ist
-  ['⚫', 'Schwarzes Los', 'Neuer Automat ganz oben in der Halle: 1.000 € pro Dreh – mit 1 : 10.000 der Schwarze Trank ×50! (Der Regenbogen-Trank ist weg.)', 'schwarz'],
+  ['⚫', 'Schwarzes Los', 'Neuer Automat ganz oben in der Halle: 1.000 € pro Dreh – mit 1 : 50.000 der Schwarze Trank ×50! (Der Regenbogen-Trank ist weg.)', 'schwarz'],
   ['🏆', 'Größte Zocker', 'Neue Bestenliste: Wer hat am meisten ins Schwarze Los gesteckt?', 'schwarz'],
   ['🔎', 'Namensvorschläge', 'Beim Freunde-Hinzufügen und Clan-Einladen werden passende Spieler schon beim Tippen vorgeschlagen.', 'freunde'],
   ['⛔', 'Gebannte Spieler', 'Gebannte sieht man jetzt in der Bestenliste: rot gestreift, Name durchgestrichen – mit Grund im Profil.', 'rang'],
@@ -6780,10 +6780,10 @@ let LBS = (() => { try { return JSON.parse(localStorage.getItem('gg_lbs') || 'nu
   return LBS_P;
 }; }
 
-/* ================= ⚫ Schwarzes Los: 1.000 € pro Los · 1 : 10.000 Schwarzer Trank ×50 ================= */
+/* ================= ⚫ Schwarzes Los: 1.000 € pro Los · 1 : 50.000 Schwarzer Trank ×50 ================= */
 // 🌈 Regenbogen-Trank gibt's nicht mehr → alte ×100-Tränke verschwinden
 (function rbGone() { if (!S) return setTimeout(rbGone, 1500); let ch = false; if (S.pot && S.pot[100]) { delete S.pot[100]; ch = true; } if (S.potAct && S.potAct.m === 100) { S.potAct = null; ch = true; } if (ch) save(); })();
-const SB_ST = 1000, SB_CH = 1 / 10000, SB_LV = 3;
+const SB_ST = 1000, SB_CH = 1 / 50000, SB_LV = 3;
 // Gewinne (ohne Trank ~35 % zurück – das Los ist für den Traum vom Schwarzen Trank)
 const SB_P = [[5000, .01, '💰 5.000 €'], [2000, .05, '💵 2.000 €'], [1000, .10, '🎟️ 1.000 € zurück'], [500, .20, '🪙 500 €']];
 (() => { const st = document.createElement('style'); st.dataset.dyn = '1'; st.textContent = `
@@ -6838,7 +6838,7 @@ function renderSchwarz(el) {
     <div class="sbM"><div class="top">⚫ SCHWARZ ⚫</div><div class="sbR" id="sbR"><div>⚫</div><div>⚫</div><div>⚫</div></div><div class="sbMsg" id="sbMsg">3× 🧪 = Schwarzer Trank ×50</div>
       <button class="btn gold w" id="sbGo" style="margin-top:12px;font-size:22px" ${lk ? 'disabled' : ''}>${lk ? `🔒 Ab Level ${SB_LV}` : `Drehen · ${fmt(SB_ST)}`}</button></div>
     <div class="card" style="margin-top:16px"><h3 style="font-size:20px;margin:0 0 10px">Gewinne</h3><div class="sbTbl">
-      <span>🧪🧪🧪 <b style="text-align:left;color:#f5cf5a">Schwarzer Trank ×50</b></span><b>1 : 10.000</b>
+      <span>🧪🧪🧪 <b style="text-align:left;color:#f5cf5a">Schwarzer Trank ×50</b></span><b>1 : 50.000</b>
       ${SB_P.map(([a, p, n]) => `<span>${SB_SYM[a]}${SB_SYM[a]}${SB_SYM[a]} ${fmt(a)}</span><b>${NF0.format(p * 100)} %</b>`).join('')}</div>
       <p class="hint" style="margin:12px 0 0">⚠️ Ehrlich: Ohne Trank bekommst du im Schnitt nur ca. 35 % zurück – man spielt hier für den Traum vom Trank.<br>⚫ <b>Schwarzer Trank ×50:</b> 50-fach Glück für ${POT_R[50]} Drehs an jedem Automaten (Einsatz bis ${fmt(potCap())}). Trinken im Glückslabor.</p></div>
     <div class="card tight" style="margin-top:14px" id="sbTop"><h3 style="font-size:20px;margin:0 0 6px">🏆 Größte Zocker</h3><div class="hint">Lade …</div></div>
@@ -6896,19 +6896,19 @@ async function sbBuy(el) {
 function sbFound() {
   flash(); SND.big(); vib([100, 50, 100, 50, 300]); FX.burst(260, { cols: ['#000', '#f5cf5a', '#b06aff', '#fff'] });
   sheet(`<div style="text-align:center"><div class="sbTr">⚫🧪</div><h2 style="font-size:36px;margin:6px 0;background:linear-gradient(90deg,#fff,#f5cf5a,#b06aff);-webkit-background-clip:text;background-clip:text;color:transparent">SCHWARZER TRANK ×50!</h2>
-    <p class="hint" style="font-size:18px">Unfassbar – die Chance war <b>1 : 10.000</b>!<br>Er gibt dir <b>50-fach Glück für ${POT_R[50]} Drehs</b> an jedem Automaten (Einsatz bis ${fmt(potCap())}).</p>
+    <p class="hint" style="font-size:18px">Unfassbar – die Chance war <b>1 : 50.000</b>!<br>Er gibt dir <b>50-fach Glück für ${POT_R[50]} Drehs</b> an jedem Automaten (Einsatz bis ${fmt(potCap())}).</p>
     <button class="btn gold w" data-close style="font-size:20px">Mega! 🔥 (trinken im Glückslabor)</button></div>`);
-  try { fsCreate('feed', null, { name: fstr(S.name), disp: fstr(S.disp), txt: fstr('hat den ⚫ Schwarzen Trank ×50 gefunden! (1 : 10.000)'), ts: fint(Date.now()), clan: fstr(S.clan ? S.clan.tag : '') }); } catch (e) { }
+  try { fsCreate('feed', null, { name: fstr(S.name), disp: fstr(S.disp), txt: fstr('hat den ⚫ Schwarzen Trank ×50 gefunden! (1 : 50.000)'), ts: fint(Date.now()), clan: fstr(S.clan ? S.clan.tag : '') }); } catch (e) { }
 }
 function sbAnnounce(who) {
   if (typeof popBusy === 'function' && popBusy()) return setTimeout(() => sbAnnounce(who), 2000);
   SND.big(); FX.burst(200, { cols: ['#000', '#f5cf5a', '#b06aff', '#fff'] });
   sheet(`<div style="text-align:center"><div class="sbTr">⚫🧪</div><h2 style="font-size:32px;margin:6px 0">${esc(who)} hat den<br><span style="background:linear-gradient(90deg,#fff,#f5cf5a,#b06aff);-webkit-background-clip:text;background-clip:text;color:transparent">SCHWARZEN TRANK ×50</span> gefunden!</h2>
-    <p class="hint">Chance 1 : 10.000 · nur im ⚫ Schwarzen Los</p><button class="btn gold w" data-close>Krass! 🔥</button></div>`);
+    <p class="hint">Chance 1 : 50.000 · nur im ⚫ Schwarzen Los</p><button class="btn gold w" data-close>Krass! 🔥</button></div>`);
 }
 PAGES.schwarz = renderSchwarz;
 { const H = PAGES.halle; PAGES.halle = el => { H(el); el.insertAdjacentHTML('afterbegin', `<div class="sbAd" id="sbAd"><span class="t1">⚫ NEU</span><div class="t2">Schwarzes Los</div>
-    <div class="t3">Der seltenste Schatz im Casino: der <b style="color:#f5cf5a">Schwarze Trank ×50</b>.<br>1.000 € pro Dreh · Chance <b>1 : 10.000</b> 🤯</div>
+    <div class="t3">Der seltenste Schatz im Casino: der <b style="color:#f5cf5a">Schwarze Trank ×50</b>.<br>1.000 € pro Dreh · Chance <b>1 : 50.000</b> 🤯</div>
     <div class="go">${S.level < SB_LV ? `🔒 Ab Level ${SB_LV}` : '⚫ Jetzt drehen · 1.000 €'}</div><div class="ic">⚫🧪</div></div>`);
   $('#sbAd', el).onclick = () => { SND.click(); go('schwarz'); }; }; }
 ACH.push(['sb50', 'Schwarze Magie', 'Finde den Schwarzen Trank ×50', 50000, s => (s.st.sb50 || 0) >= 1]);
