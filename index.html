@@ -6311,19 +6311,13 @@ function openShopX(id, done) {
 
 /* ================= 🆕 Update-Hinweis (einmal pro Version, jederzeit wieder aufrufbar) ================= */
 const UPD_V = '0.4.5', UPD_UNTIL = new Date(2026, 11, 8).getTime();
-const UPD = [
-  ['⚫', 'Schwarzes Los', 'Neu: 1.000 € pro Los – mit 1 : 10.000 der Schwarze Trank ×50! (Der Regenbogen-Trank ist weg.)', 'schwarz'],
-  ['🏢', 'Clans neu', 'Beitreten nur noch mit Einladung. Der Leiter ernennt Admins (⭐) – Leiter & Admins können einladen und kicken.', 'clan'],
-  ['🃏', 'Blackjack', 'Schlag den Dealer! Verdoppeln, Teilen – Blackjack zahlt 3:2.', 'blackjack'],
-  ['🎡', 'Roulette', 'Setz auf Rot, Schwarz oder eine Zahl (zahlt 36×).', 'roulette'],
-  ['👥', 'Mit Freunden spielen', 'Blackjack, Roulette & Pferderennen zusammen im Treff-Raum – alle sehen dieselbe Runde.', 'tisch'],
-  ['🐎', 'Pferderennen', 'Tipp auf den Sieger – Quoten bis 18×.', 'pferd'],
-  ['🧔', 'Händler Hugo', 'Dauerhafte Upgrades: mehr Geld, mehr XP, längere Tränke, mehr Glück. Richtig teuer!', 'haendler'],
-  ['💎', 'Luxus-Shop', 'Rahmen & Titel ab 50.000 € – Luxus-Titel machen deinen Namen golden.', 'lux'],
-  ['🛋️', 'Geschäfte einrichten', 'Einrichtung, Personal, Werbung & Deko – je +10 % Einnahmen pro Laden.', 'imperium'],
-  ['🌟', 'Glücksstunde', 'Jeden Tag eine Stunde mit doppelten Gewinnen und doppelten XP.', 'spiele'],
-  ['🥇', 'Wochen-Preise', 'Die Top 3 der Wochen-Bestenliste bekommen jeden Montag Tränke + Titel.', 'woche'],
-  ['🏅', 'Neue Erfolge', '8 neue Erfolge – große Erfolge geben jetzt auch einen Glückstrank.', 'profil'],
+const UPD = [ // nur, was im LETZTEN Update neu ist
+  ['⚫', 'Schwarzes Los', 'Neuer Automat ganz oben in der Halle: 1.000 € pro Dreh – mit 1 : 10.000 der Schwarze Trank ×50! (Der Regenbogen-Trank ist weg.)', 'schwarz'],
+  ['🏆', 'Größte Zocker', 'Neue Bestenliste: Wer hat am meisten ins Schwarze Los gesteckt?', 'schwarz'],
+  ['🔎', 'Namensvorschläge', 'Beim Freunde-Hinzufügen und Clan-Einladen werden passende Spieler schon beim Tippen vorgeschlagen.', 'freunde'],
+  ['⛔', 'Gebannte Spieler', 'Gebannte sieht man jetzt in der Bestenliste: rot gestreift, Name durchgestrichen – mit Grund im Profil.', 'rang'],
+  ['🎰', 'Freispiele', 'In Freispielen erscheinen keine 3 Freispiel-Symbole mehr (sah nach Freispielen aus, gab aber keine).', 'halle'],
+  ['📱', 'Handy ↔ iPad', 'Dein Spielstand kommt jetzt zuverlässig auf dem anderen Gerät an.', 'halle'],
 ];
 function openUpd() {
   S.updSeen = UPD_V; save();
@@ -6340,7 +6334,7 @@ function updAuto() {
   setTimeout(w, 3500);
 }
 { const H = PAGES.halle; PAGES.halle = el => { H(el); if (Date.now() > UPD_UNTIL) return; const t = $('.halle-top', el); if (!t) return;
-  t.insertAdjacentHTML('afterend', `<button class="lhb" id="updB" style="width:100%;text-align:left;color:#fff;cursor:pointer;font:inherit"><span class="e">🆕</span><div style="flex:1"><b>Update ${UPD_V}:</b> ⚫ Schwarzes Los mit Trank ×50, Clans mit Einladung, Blackjack, Roulette, Pferderennen, Händler Hugo & mehr<br><small style="color:var(--gold2)">Antippen: Was ist neu?</small></div></button>`);
+  t.insertAdjacentHTML('afterend', `<button class="lhb" id="updB" style="width:100%;text-align:left;color:#fff;cursor:pointer;font:inherit"><span class="e">🆕</span><div style="flex:1"><b>Update ${UPD_V}:</b> ⚫ Schwarzes Los mit Trank ×50, Größte Zocker, Namensvorschläge & Bugfixes<br><small style="color:var(--gold2)">Antippen: Was ist neu?</small></div></button>`);
   $('#updB', el).onclick = () => { SND.click(); openUpd(); }; }; }
 { const Pr = PAGES.profil; PAGES.profil = el => { Pr(el); const l = $('#xSty', el); if (l) { l.parentElement.insertAdjacentHTML('beforeend', `<div class="it" id="xUpd"><div class="ibox">🆕</div><span class="lbl">Was ist neu?</span><span class="val">${UPD_V}</span>${icon('right', 'chev')}</div>`); $('#xUpd', el).onclick = openUpd; } }; }
 (function updWait() { if (S && $('#main')) updAuto(); else setTimeout(updWait, 2000); })();
