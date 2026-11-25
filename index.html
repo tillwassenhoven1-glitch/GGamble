@@ -1433,10 +1433,14 @@ const MACH = [
   { n: 'Book of Gold', s: '5 Walzen · Buch-Freispiele', c: '#f2c94c', c2: '#2a1a05', ic: '📖', lvl: 21, t: 'v', mx: 500, hi: ['🦅', '🗿', '🏺', '🧭'], wild: '📖', scat: '📖' },
   { n: 'Royal Crown', s: 'Mit Grand-Jackpot', c: '#ffd65a', c2: '#2a1450', ic: '👑', lvl: 24, t: 'j', jp: 'grand', top: 200, syms: ['🍒', '🔔', '💍', '💰', '👑', '7'] },
   { n: 'Black Diamond', s: '5 Walzen · High Roller', c: '#d0d0d0', c2: '#101010', ic: '🖤', lvl: 28, t: 'v', mx: 1000, hi: ['🎩', '🥂', '🏎️', '🖤'], wild: '💎', scat: '🎰' },
+  // 🔥 Nur für Wiedergeborene
+  { n: 'Phönix-Feuer', s: '5 Walzen · nur für Wiedergeborene', c: '#ff6a00', c2: '#2a0800', ic: '🔥', t: 'v', mx: 800, hi: ['🦅', '🌋', '☀️', '👑'], wild: '🔥', scat: '🪶', reb: 1, lvlx: 1 },
+  { n: 'Asche & Glut', s: 'Klassisch · nur für Wiedergeborene', c: '#ffb300', c2: '#1a0a00', ic: '🌋', t: 'c', top: 300, syms: ['🪵', '🕯️', '🧨', '🌋', '☄️', '🔥'], reb: 1, lvlx: 1 },
+  { n: 'Unsterbliche Krone', s: 'Grand-Jackpot · ab 2 Wiedergeburten', c: '#f5cf5a', c2: '#2a1000', ic: '👑', t: 'j', jp: 'grand', top: 250, syms: ['🍷', '🗝️', '💍', '🏺', '👑', '🐉'], reb: 2, lvlx: 1 },
 ];
 const RB_ST = 1000, RB_CH = 1 / 100000; // Einsatz Regenbogen-Automat, Chance auf Trank ×100 (1 : 100.000)
 const MLVL = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 50];
-MACH.forEach((m, i) => { m.i = i; m.t = m.t || 'c'; m.lvl = m.rb ? 3 : MLVL[i]; });
+MACH.forEach((m, i) => { m.i = i; m.t = m.t || 'c'; m.lvl = m.rb ? 3 : m.lvlx || MLVL[i] || 1; });
 const JP = { mini: { n: 'Mini', seed: 500, ch: 1 / 1500, ref: 2 }, major: { n: 'Major', seed: 5000, ch: 1 / 6000, ref: 10 }, grand: { n: 'Grand', seed: 50000, ch: 1 / 25000, ref: 50 } };
 const LINES3 = [[1, 1, 1], [0, 0, 0], [2, 2, 2], [0, 1, 2], [2, 1, 0]];
 const LINES5 = [[1, 1, 1, 1, 1], [0, 0, 0, 0, 0], [2, 2, 2, 2, 2], [0, 1, 2, 1, 0], [2, 1, 0, 1, 2], [0, 0, 1, 2, 2], [2, 2, 1, 0, 0], [1, 0, 0, 0, 1], [1, 2, 2, 2, 1], [1, 0, 1, 2, 1]];
@@ -1553,7 +1557,8 @@ function cabHTML(m, sm) {
       <div class="deck"><i>BET</i><i>MAX</i><i>INFO</i><b ${sm ? '' : 'id="deckSpin"'}>SPIN</b></div>
     </div><div class="tray"></div><div class="base"></div></div>`;
 }
-const isLockedM = m => S.level < m.lvl;
+const isLockedM = m => S.level < m.lvl || !!(m.reb && (S.reb || 0) < m.reb);
+const lockTxt = m => m.reb && (S.reb || 0) < m.reb ? `Ab ${m.reb}. Wiedergeburt 🔥` : `Ab Level ${m.lvl}`;
 function payChips(m) {
   prep(m);
   const xf = v => (v >= 10 ? Math.round(v) : Math.round(v * 10) / 10).toLocaleString('de-DE') + '×';
@@ -1585,7 +1590,7 @@ function renderHalle(el) {
        <div class="row sb" style="align-items:flex-start"><h3>${esc(m.n)}</h3><span class="chip gold" style="margin-top:24px;white-space:nowrap">${m.t === 'j' ? 'Jackpot' : m.t === 'v' ? 'bis ' + m.mx + '×' : 'bis ' + m.top + '×'}</span></div>
        <p class="sub" style="margin:6px 0 0;font-size:20px">${esc(m.s)}</p>
        <div class="paychips ${m.t === 'v' ? 'v' : ''}">${payChips(m)}</div>
-       ${lk ? `<button class="btn dark w" disabled>${icon('lock')} Ab Level ${m.lvl}</button>` : `<button class="btn white w" id="sPlay" style="font-size:22px;padding:20px">Spielen</button>`}`;
+       ${lk ? `<button class="btn dark w" disabled>${icon('lock')} ${lockTxt(m)}</button>` : `<button class="btn white w" id="sPlay" style="font-size:22px;padding:20px">Spielen</button>`}`;
     $('#sFav', el).onclick = () => { const k = S.favs.indexOf(i); k < 0 ? S.favs.push(i) : S.favs.splice(k, 1); save(); SND.click(); cur = -1; setCur(i); };
     $('#sAll', el).onclick = openSlotList;
     const p = $('#sPlay', el); if (p) p.onclick = () => openMachine(i);
@@ -1601,13 +1606,13 @@ function openSlotList() {
   const ord = [...MACH].sort((a, b) => (S.favs.includes(b.i) - S.favs.includes(a.i)) || (isLockedM(a) - isLockedM(b)) || a.lvl - b.lvl);
   const o = sheet(`<div class="row sb" style="margin-bottom:16px"><h2>Alle Automaten</h2><button class="x" data-close>${icon('x')}</button></div>
     <div class="sl-list">${ord.map(m => { const lk = isLockedM(m); return `<div class="sl ${lk ? 'locked' : ''} ${m.i === S.lastSlot ? 'sel' : ''}" data-i="${m.i}" style="color:${m.c};background:linear-gradient(90deg,${m.c}22,${m.c}08)">
-      <div class="ico">${symHTML(m.ic)}</div><div style="flex:1;min-width:0;color:#fff"><div class="nm">${esc(m.n)}</div><div class="ds">${esc(m.s)}</div><div class="mx" style="color:${m.c}">${lk ? 'Ab Level ' + m.lvl : maxLabel(m)}</div></div>
+      <div class="ico">${symHTML(m.ic)}</div><div style="flex:1;min-width:0;color:#fff"><div class="nm">${esc(m.n)}</div><div class="ds">${esc(m.s)}</div><div class="mx" style="color:${m.c}">${lk ? lockTxt(m) : maxLabel(m)}</div></div>
       <button class="star ${S.favs.includes(m.i) ? 'on' : ''}" data-f="${m.i}" style="color:#ddd">${icon('star')}</button></div>`; }).join('')}</div>`);
   o.querySelector('.sl-list').onclick = e => {
     const f = e.target.closest('[data-f]');
     if (f) { const i = +f.dataset.f, k = S.favs.indexOf(i); k < 0 ? S.favs.push(i) : S.favs.splice(k, 1); f.classList.toggle('on'); save(); return; }
     const d = e.target.closest('.sl'); if (!d) return; const i = +d.dataset.i;
-    if (isLockedM(MACH[i])) { toast(`${MACH[i].n} gibt's ab Level ${MACH[i].lvl}`); return; }
+    if (isLockedM(MACH[i])) { toast(`${MACH[i].n}: ${lockTxt(MACH[i])}`); return; }
     o.close(); S.lastSlot = i; setTimeout(() => openMachine(i), 200);
   };
 }
@@ -2013,6 +2018,8 @@ const LOSE = [
   { id: 'dm', n: 'Diamantmine', p: 250, top: 250000, ic: 'diamond', ty: 'num', a: '#4b5056', b: '#8c9298', lvl: 12, dark: 1 },
   { id: 'kj', n: 'Kronjuwel', p: 2000, top: 2e6, ic: 'crown', ty: '3', a: '#5a5450', b: '#9d958c', lvl: 16, dark: 1 },
   { id: 'ml', n: 'Millionenlos', p: 20000, top: 20e6, ic: 'cash', ty: 'num', a: '#474747', b: '#8a8a8a', lvl: 22, dark: 1 },
+  { id: 'px', n: 'Phönix-Los', p: 100, top: 100000, ic: 'crown', ty: '3', a: '#c2410c', b: '#fdba74', lvl: 1, reb: 1 },
+  { id: 'us', n: 'Unsterblich-Los', p: 5000, top: 5e6, ic: 'diamond', ty: 'num', a: '#3b1d05', b: '#f5cf5a', lvl: 1, dark: 1, reb: 2 },
   { id: 'sl', n: 'Schwarzes Los', p: 250000, top: 2.5e8, ic: 'eye', ty: '3', a: '#2a2a2a', b: '#6a6a6a', lvl: 30, dark: 1 },
 ];
 const TIER_M = [1, 2, 5, 10, 20, 50, 100, 250]; // höchste Stufe ×250 (vorher ×500)
@@ -2022,6 +2029,7 @@ const TK = {}; // aktive Lose: id -> {res, cells, revealed}
 // Los nur, wenn es höchstens das Doppelte des Höchsteinsatzes kostet (sonst später freigeschaltet)
 const msAt = l => l <= 10 ? 10 * Math.pow(STAKE_G, l - 1) : 10 * Math.pow(STAKE_G, 9) * Math.pow(1.15, l - 10);
 function loseLvl(L) { let l = 1; while (l < 99 && msAt(l) * 2 < L.p) l++; return Math.max(L.lvl, l); }
+const loseLk = L => S.level < loseLvl(L) || !!(L.reb && (S.reb || 0) < L.reb);
 function loseMults(L) { return [...TIER_M, L.top / L.p]; }
 function drawPrize(L) {
   const ms = loseMults(L), ps = [...TIER_P, .02 / (L.top / L.p)];
@@ -2059,12 +2067,12 @@ function genTicket(L) {
 }
 function renderLose(el) {
   el.innerHTML = `<h1 class="t">Rubbellose</h1><p class="sub">Such dir ein Los aus – vor dem Rubbeln zeigen wir dir genau, wie es geht.</p>
-    ${LOSE.map(L => `<div class="ticket ${S.level < loseLvl(L) ? 'tklocked' : ''}" id="tk_${L.id}"></div>`).join('')}`;
+    ${LOSE.map(L => `<div class="ticket ${loseLk(L) ? 'tklocked' : ''}" id="tk_${L.id}"></div>`).join('')}`;
   LOSE.forEach(L => drawTicket(L));
 }
 function drawTicket(L) {
   const box = $('#tk_' + L.id); if (!box) return;
-  const t = TK[L.id], lk = S.level < loseLvl(L);
+  const t = TK[L.id], lk = loseLk(L);
   const ms = loseMults(L), vals = ms.map(m => m * L.p);
   const grid = L.ty === 'num'
     ? `<div class="lab">GEWINNZAHLEN</div><div class="grid g2" data-g="w">${[0, 1].map(k => `<div class="sc" data-w="${k}">${t ? t.res.wn[k] : ''}</div>`).join('')}</div>
@@ -2080,7 +2088,7 @@ function drawTicket(L) {
       <div class="foot"><div class="barcode"></div><div class="nr">Nr. ${t ? t.nr : '————'}<small>Nur Spielgeld</small></div></div>
     </div>
     <div class="tkres" id="tr_${L.id}"></div>
-    <div class="tkbar">${lk ? `<span class="chip">${icon('lock')} Level ${loseLvl(L)}</span><span class="chip">${shortMoney(L.p)}</span>`
+    <div class="tkbar">${lk ? `<span class="chip">${icon('lock')} ${L.reb && (S.reb || 0) < L.reb ? `${L.reb}. Wiedergeburt 🔥` : 'Level ' + loseLvl(L)}</span><span class="chip">${shortMoney(L.p)}</span>`
       : t && !t.done ? `<button class="btn dark w" data-all>Alles aufdecken</button>`
         : `<button class="btn white w" data-buy>${t ? 'Nochmal' : 'Kaufen'} · ${shortMoney(L.p)}</button>`}</div>`;
   // Rubbelschicht
@@ -3892,7 +3900,7 @@ function giveRw([t, v], cap) {
 }
 
 /* ================= Battle Pass ================= */
-const BP_RESET = 'r2026-11-18'; // Battle Pass für alle zurück auf Anfang (Belohnungen bleiben)
+const BP_RESET = 'r2026-11-25'; // Battle Pass für alle zurück auf Anfang (Belohnungen bleiben)
 const BP_PER = 100, BP_N = 50; // 50 Stufen, 100 Punkte pro Stufe
 const BP_R = [
   ['m', 0.45], ['m', 0.65], ['m', 0.8], ['e', 3], ['p', 2], ['m', 1.35], ['m', 1.5], ['e', 3], ['m', 1.9], ['p', 4],
@@ -6316,6 +6324,8 @@ function openShopX(id, done) {
 const UPD_V = '1.0.0', UPD_UNTIL = new Date(2026, 11, 9).getTime();
 const UPD = [ // nur, was im LETZTEN Update neu ist
   ['🔥', 'Wiedergeburt', 'Ab Level 50 im Profil: neu starten, Phönix-Punkte für dauerhafte Vorteile, Stern neben dem Namen & neue Bestenliste 🔥.', 'profil'],
+  ['🎰', 'Phönix-Automaten & -Lose', 'Nur für Wiedergeborene: Phönix-Feuer, Asche & Glut, Phönix-Los – ab 2 Wiedergeburten: Unsterbliche Krone & Unsterblich-Los.', 'halle'],
+  ['🎟️', 'Battle Pass: Winter-Saison', 'Der Battle Pass startet neu – mit Gratis-Drehs, Eis- & Galaxie-Rahmen, Titel „Winterkönig ❄️“ und einem Phönix-Punkt auf Stufe 50.', 'pass'],
   ['🧱', 'Max-Level', 'Ohne Wiedergeburt ist bei Level 50 Schluss – nach der 1. geht\'s bis 75, nach der 2. bis 100 usw.', 'profil'],
   ['🔎', 'Namensvorschläge', 'Beim Freunde-Hinzufügen und Clan-Einladen werden passende Spieler schon beim Tippen vorgeschlagen.', 'freunde'],
   ['⛔', 'Gebannte Spieler', 'Gebannte sieht man in der Bestenliste: rot gestreift, Name durchgestrichen – mit Grund im Profil.', 'rang'],
@@ -7028,6 +7038,27 @@ setInterval(() => { if (!S || !phxN('pot')) return; const d = dayKey(); if (S.ph
 { const Pr = PAGES.profil; PAGES.profil = el => { Pr(el); const l = $('#xSty', el); if (!l) return; const need = rebNeed();
   l.parentElement.insertAdjacentHTML('afterbegin', `<div class="it" id="xReb" style="background:linear-gradient(90deg,#3a1405,transparent)"><div class="ibox">🔥</div><span class="lbl">Wiedergeburt${S.reb ? ` · ${S.reb}×` : ''}</span><span class="val">${S.level >= need ? '<b style="color:#ffb36b">Bereit!</b>' : `ab Lv. ${need} (Max-Level)`}</span>${icon('right', 'chev')}</div>`);
   $('#xReb', el).onclick = () => { SND.click(); openPhoenix(); }; }; }
+
+/* ================= 🎟️ Battle Pass – neue Saison mit neuen Belohnungen ================= */
+BP_R.splice(0, BP_R.length,
+  ['m', .5], ['sp', 10], ['e', 3], ['m', .8], ['p', 2], ['sp', 15], ['m', 1.2], ['e', 3], ['p', 4], ['f', 'eis'],
+  ['m', 1.6], ['sp', 20], ['e', 4], ['m', 2], ['p', 4], ['m', 2.3], ['sp', 25], ['e', 5], ['m', 2.7], ['t', 'winter'],
+  ['m', 3], ['p', 6], ['sp', 30], ['e', 5], ['m', 3.4], ['m', 3.7], ['p', 6], ['sp', 40], ['e', 6], ['f', 'galaxie'],
+  ['m', 4.2], ['sp', 50], ['p', 6], ['e', 6], ['m', 4.8], ['m', 5.1], ['sp', 60], ['p', 6], ['e', 8], ['t', 'passprofi'],
+  ['m', 5.8], ['m', 6.2], ['sp', 80], ['p', 6], ['e', 10], ['m', 7], ['sp', 100], ['p', 6], ['m', 8.5], ['phx', 1]);
+FRAMES.push(['eis', 'Eis', s => (s.frames || []).includes('eis'), 'Battle Pass Stufe 10 (Winter-Saison)'], ['galaxie', 'Galaxie', s => (s.frames || []).includes('galaxie'), 'Battle Pass Stufe 30 (Winter-Saison)']);
+TITLES.push(['winter', 'Winterkönig ❄️', s => (s.titles || []).includes('winter'), 'Battle Pass Stufe 20 (Winter-Saison)'], ['passprofi', 'Pass-Profi', s => (s.titles || []).includes('passprofi'), 'Battle Pass Stufe 40 (Winter-Saison)']);
+(() => { const st = document.createElement('style'); st.dataset.dyn = '1'; st.textContent = `
+.avatar.fr-eis{box-shadow:0 0 0 3px #bfefff,0 0 18px #6fd3ff,0 0 30px #ffffff88;animation:eisG 2.5s ease-in-out infinite}@keyframes eisG{50%{box-shadow:0 0 0 3px #fff,0 0 26px #9fe4ff,0 0 40px #ffffffaa}}
+.avatar.fr-galaxie{box-shadow:0 0 0 3px #7a3cff,0 0 0 6px #1b0f3a,0 0 26px #b06aff,0 0 40px #3d7bff;animation:galG 4s linear infinite}@keyframes galG{50%{box-shadow:0 0 0 3px #3d7bff,0 0 0 6px #1b0f3a,0 0 30px #3d7bff,0 0 44px #ff4fd8}}`; document.head.appendChild(st); })();
+const bpSpinSt = () => Math.max(.1, Math.floor(base() * 100) / 100); // Einsatz pro Gratis-Dreh = normaler Grund-Einsatz
+{ const G0 = giveRw; giveRw = ([t, v], cap) => {
+  if (t === 'sp') { const st = bpSpinSt(); S.gspin = S.gspin && S.gspin.st === st ? { n: S.gspin.n + v, st } : { n: (S.gspin ? S.gspin.n : 0) + v, st }; hdr(true); save(); return rwTxt([t, v], cap); }
+  if (t === 'phx') { S.phx = S.phx || { pts: 0, up: {} }; S.phx.pts += v; hdr(true); save(); return rwTxt([t, v], cap); }
+  return G0([t, v], cap);
+}; }
+{ const T0 = rwTxt; rwTxt = ([t, v], cap) => t === 'sp' ? `${v} Gratis-Drehs` : t === 'phx' ? `${v} Phönix-Punkt 🔥` : T0([t, v], cap); }
+{ const I0 = rwIcon; rwIcon = t => t === 'sp' ? '🎰' : t === 'phx' ? '🔥' : I0(t); }
 </script>
 </body>
 </html>
