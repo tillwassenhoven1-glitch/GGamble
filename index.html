@@ -1708,15 +1708,31 @@ function openMachine(i) {
 }
 const cellH = s => `<div class="cell ${LOW.includes(s) ? 'L' : ''}" style="height:${MS.h}px">${symHTML(s)}</div>`;
 const xfN = v => (Math.round(v * 100) / 100).toLocaleString('de-DE', { maximumFractionDigits: 2 }); // 2,39 statt 2.3899999999999997
+/* Wahrscheinlichkeit pro Dreh (ohne Trank) → „1 : N“ */
+function oddsTxt(p) { if (!(p > 0)) return '–'; const n = 1 / p; return n < 1.05 ? 'fast immer' : '≈ 1 : ' + (n < 10 ? n.toLocaleString('de-DE', { maximumFractionDigits: 1 }) : Math.round(n).toLocaleString('de-DE')); }
+function machOdds(m) {
+  const tot = m.W.reduce((a, b) => a + b), q = s => { const i = m.cells.indexOf(s); return i < 0 ? 0 : m.W[i] / tot; };
+  const spin = (p, L) => 1 - Math.pow(1 - p, L);
+  if (m.t !== 'v') return m.cells.map(s => spin(Math.pow(q(s), 3), 5));
+  const w = q(m.wild), sc = q(m.scat);
+  const line = (s, n) => { const a = s === m.wild ? w : q(s) + w, pure = s === m.wild ? 0 : Math.pow(w, n) * (n < 5 ? 1 - w : 1); return Math.max(0, Math.pow(a, n) * (n < 5 ? 1 - a : 1) - pure); };
+  const r = {}; m.cells.forEach(s => r[s] = [3, 4, 5].map(n => spin(line(s, n), 10)));
+  // Freispiel-Symbol: irgendwo auf 15 Feldern (Binomial)
+  const C = (n, k) => { let c = 1; for (let i = 0; i < k; i++) c = c * (n - i) / (i + 1); return c; }, B = k => C(15, k) * Math.pow(sc, k) * Math.pow(1 - sc, 15 - k);
+  r.scat = [B(3), B(4), [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].reduce((a, k) => a + B(k), 0)];
+  r.fs = 1 - [0, 1, 2].reduce((a, k) => a + B(k), 0);
+  return r;
+}
 function machInfo(m) {
+  const od = machOdds(m), oc = t => `<div style="font-size:11px;color:var(--mut,#9a9a9a);margin-top:2px">${t}</div>`;
   const rows = m.t === 'v'
-    ? m.cells.filter(s => s !== m.scat || m.scat === m.wild).map(s => { const i = m.cells.indexOf(s); return `<div class="row sb" style="padding:8px 0;border-bottom:1px solid var(--line)"><span style="font-size:28px">${symHTML(s)}</span><span class="num">3× ${xfN(m.pay[i][0] / 10)} · 4× ${xfN(m.pay[i][1] / 10)} · 5× ${xfN(m.pay[i][2] / 10)}</span></div>`; }).join('')
-    : m.cells.map((s, i) => `<div class="row sb" style="padding:8px 0;border-bottom:1px solid var(--line)"><span style="font-size:28px">${symHTML(s)}${symHTML(s)}${symHTML(s)}</span><span class="num">${xfN(m.pay[i] / 5)}× Einsatz</span></div>`).reverse().join('');
+    ? m.cells.filter(s => s !== m.scat || m.scat === m.wild).map(s => { const i = m.cells.indexOf(s), o = od[s]; return `<div class="row sb" style="padding:8px 0;border-bottom:1px solid var(--line)"><span style="font-size:28px">${symHTML(s)}</span><span class="num" style="text-align:right">3× ${xfN(m.pay[i][0] / 10)} · 4× ${xfN(m.pay[i][1] / 10)} · 5× ${xfN(m.pay[i][2] / 10)}${oc(`🎲 ${oddsTxt(o[0])} · ${oddsTxt(o[1])} · ${oddsTxt(o[2])}`)}</span></div>`; }).join('')
+    : m.cells.map((s, i) => `<div class="row sb" style="padding:8px 0;border-bottom:1px solid var(--line)"><span style="font-size:28px">${symHTML(s)}${symHTML(s)}${symHTML(s)}</span><span class="num" style="text-align:right">${xfN(m.pay[i] / 5)}× Einsatz${oc(`🎲 ${oddsTxt(od[i])} pro Dreh`)}</span></div>`).reverse().join('');
   sheet(`<div class="row sb"><h2>${esc(m.n)}</h2><button class="x" data-close>${icon('x')}</button></div>
     <p class="hint">${m.t === 'v' ? `5 Walzen, 10 Gewinnlinien von links nach rechts. ${symHTML(m.wild)} ist Wild und ersetzt alle Symbole${m.scat === m.wild ? ' und ist gleichzeitig Scatter' : ''}. 3+ ${symHTML(m.scat)} irgendwo = 10 Freispiele, in den Freispielen zählt jeder Gewinn doppelt. Werte = Vielfaches des Einsatzes.` : `3 Walzen, 5 Gewinnlinien (3 Reihen + 2 Diagonalen). Werte = Gewinn pro Linie als Vielfaches des Gesamteinsatzes.`}
     ${m.rb ? `<br><br>🌈 <b>Glückstrank ×100:</b> Er hat nichts mit den Symbolen zu tun – bei <b>jedem</b> Dreh hier taucht er zufällig mit 1 : 100.000 auf (dann kommt ein großes Regenbogen-Rausch-Fenster). 🌈🌈🌈 ist der normale Hauptgewinn (×${m.top}).` : ''}${m.t === 'j' ? `<br><br>🎰 Bei jedem Dreh kannst du den <b>${JP[m.jp].n}-Jackpot</b> knacken (aktuell ${fmt(S.jp[m.jp])}). Volle Auszahlung ab ${fmt(JP[m.jp].ref)} Einsatz.` : ''}
-    <br><br>Mit einem Glückstrank wird jeder Dreh mehrmals gewürfelt – du bekommst das beste Ergebnis. Bei ×2 / ×4 / ×6 werden dafür alle Gewinne etwas gekürzt (auch die Freispiel-Symbole), sonst wäre der Trank zu stark. Pro Dreh gibt es höchstens das ${WIN_CAP}-fache.</p>
-    ${m.t === 'v' ? `<div class="row sb" style="padding:8px 0;border-bottom:1px solid var(--line)"><span style="font-size:28px">${symHTML(m.scat)}</span><span class="num">3× 2 · 4× 10 · 5× 50 + Freispiele</span></div>` : ''}${rows}`);
+    <br><br>Mit einem Glückstrank wird jeder Dreh mehrmals gewürfelt – du bekommst das beste Ergebnis. Bei ×2 / ×4 / ×6 werden dafür alle Gewinne etwas gekürzt (auch die Freispiel-Symbole), sonst wäre der Trank zu stark. Pro Dreh gibt es höchstens das ${WIN_CAP}-fache.<br><br>🎲 = Chance pro Dreh ohne Trank (z. B. 1 : 50 = etwa jeder 50. Dreh)${m.t === 'v' ? ', für 3× · 4× · 5× auf irgendeiner Linie' : ', auf irgendeiner der 5 Linien'}.</p>
+    ${m.t === 'v' ? `<div class="row sb" style="padding:8px 0;border-bottom:1px solid var(--line)"><span style="font-size:28px">${symHTML(m.scat)}</span><span class="num" style="text-align:right">3× 2 · 4× 10 · 5× 50 + Freispiele${oc(`🎲 ${oddsTxt(od.scat[0])} · ${oddsTxt(od.scat[1])} · ${oddsTxt(od.scat[2])}<br>Freispiele insgesamt: ${oddsTxt(od.fs)}`)}</span></div>` : ''}${rows}`);
 }
 async function doSpin() {
   if (!MS || MS.busy) return;
