@@ -6084,7 +6084,7 @@ function bjEnd() {
   if (back) refund(back);
   if (win) payout(win, 'Blackjack', stake);
   const net = r2(win + back - stake);
-  b.msg = net > 0 ? `<span class="pos">+${fmt(net)} 🎉</span>` : net < 0 ? `<span class="neg">${fmt(net)}</span>` : 'Einsatz zurück';
+  b.msg = net > 0 ? `<span class="pos">${fmt(r2(win + back))} ausgezahlt 🎉</span><br><small style="font-size:15px;color:var(--mut)">${fmt(stake)} Einsatz zurück + <b class="pos">${fmt(net)} Gewinn</b></small>` : net < 0 ? `<span class="neg">${fmt(net)}</span>` : `Einsatz zurück (${fmt(stake)})`;
   persist(); hdr(true); checkAch();
   if (win) { SND.win(); FX.burst(win >= stake * 2.5 ? 90 : 40, { coins: true }); } else if (net < 0) SND.lose();
   bjBusy = true; setTimeout(() => { bjBusy = false; }, 300);
