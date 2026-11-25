@@ -2332,6 +2332,7 @@ function renderWetten(el) {
     if (curMd() !== lastMd) { SLIP = {}; renderWetten(el); return; }
     const cd = $('#wCd', el); if (cd) { const s = Math.max(0, Math.ceil((kickoff(md) - Date.now()) / 1000)); cd.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
     if (wTab === 1) wLive($('#wBody', el), md, true);
+    if (wTab === 2 && S.bets.some(x => x.st === 'open')) wMine($('#wBody', el));
     settleBets();
   }, 1000);
 }
@@ -2395,13 +2396,31 @@ function wLive(b, md, tick) {
     ${matchday(prev).map(m => liveCard(prev, m, now)).join('')}
     <div class="sec">Spieltag ${prev2} <small>Endstand</small></div>${matchday(prev2).map(m => liveCard(prev2, m, now)).join('')}`;
 }
+/* Spielstand zu einem Zeitpunkt (wie im Live-Ticker) */
+function scoreAt(md, m, now) {
+  const el = now - kickoff(md), fin = el >= LIVE, min = Math.min(90, Math.floor(el / LIVE * 90));
+  const g = m.goals.filter(x => fin || x.m <= min), gh = g.filter(x => x.s === 0).length;
+  return { pre: el < 0, fin, min, gh, ga: g.length - gh, el };
+}
 function wMine(b) {
-  const L = [...S.bets].reverse();
-  b.innerHTML = L.length ? L.map(x => { const ms = matchday(x.md); return `<div class="card"><div class="row sb"><b>Spieltag ${x.md}${x.sels.length > 1 ? ' · Kombi' : ''}</b>
-      <span class="chip ${x.st === 'won' ? 'gold' : x.st === 'lost' ? 'red' : ''}">${x.st === 'won' ? 'Gewonnen ' + fmt(x.win) : x.st === 'lost' ? 'Verloren' : 'Offen'}</span></div>
-      ${x.sels.map(s => { const m = ms[s.mi], done = Date.now() >= kickoff(x.md) + LIVE; return `<div class="row sb" style="padding:8px 0;border-bottom:1px solid var(--line);font-size:15px"><span>${esc(TEAMS[m.h][0])} – ${esc(TEAMS[m.a][0])}${done ? ` <b>${m.gh}:${m.ga}</b>` : ''}<br><span style="color:var(--mut)">${MK[s.mk]}</span></span><span class="num">${done ? (selWon(m, s.mk) ? '✅' : '❌') : ''} ${NF2.format(s.odd)}</span></div>`; }).join('')}
-      <div class="row sb" style="margin-top:10px;color:var(--mut)"><span>Einsatz ${fmt(x.stake)}</span><span>Quote ${NF2.format(x.odd)}</span></div></div>`; }).join('')
-    : '<div class="empty">Noch keine Wetten.</div>';
+  const L = [...S.bets].reverse(), now = Date.now();
+  b.innerHTML = L.length ? L.map(x => {
+    const ms = matchday(x.md), st0 = scoreAt(x.md, ms[0], now), live = !st0.pre && !st0.fin;
+    let allOk = true;
+    const rows = x.sels.map(s => {
+      const m = ms[s.mi], sc = scoreAt(x.md, m, now), ok = selWon({ gh: sc.gh, ga: sc.ga }, s.mk); if (!ok) allOk = false;
+      const left = Math.max(0, Math.ceil(-sc.el / 1000));
+      const stat = sc.pre ? `<span style="color:var(--mut);font-size:13px">Anpfiff in ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</span>`
+        : `<span style="font-size:18px;font-weight:800" class="num">${sc.gh} : ${sc.ga}</span><br><span style="font-size:12px;${sc.fin ? 'color:var(--mut)' : 'color:#ff5a5a;font-weight:700'}">${sc.fin ? 'Endstand' : '🔴 LIVE ' + sc.min + "'"}</span>`;
+      const mark = sc.pre ? '' : sc.fin ? (ok ? '✅' : '❌') : (ok ? '🟢' : '🟠');
+      return `<div class="row sb" style="padding:8px 0;border-bottom:1px solid var(--line);font-size:15px;gap:10px"><span style="flex:1;min-width:0">${esc(TEAMS[m.h][0])} – ${esc(TEAMS[m.a][0])}<br><span style="color:var(--mut)">${MK[s.mk]} · ${NF2.format(s.odd)}</span></span><span style="text-align:right;white-space:nowrap">${stat}</span><span style="width:24px;text-align:center">${mark}</span></div>`;
+    }).join('');
+    const chip = x.st === 'won' ? `<span class="chip gold">Gewonnen ${fmt(x.win)}</span>` : x.st === 'lost' ? '<span class="chip red">Verloren</span>'
+      : live ? `<span class="chip" style="background:#ff5a5a22;color:#ff7a7a;white-space:nowrap">🔴 LIVE · ${allOk ? 'vorn' : 'hinten'}</span>` : '<span class="chip">Offen</span>';
+    return `<div class="card"><div class="row sb"><b>Spieltag ${x.md}${x.sels.length > 1 ? ' · Kombi' : ''}</b>${chip}</div>${rows}
+      <div class="row sb" style="margin-top:10px;color:var(--mut)"><span>Einsatz ${fmt(x.stake)}</span><span>Quote ${NF2.format(x.odd)}${x.st === 'open' ? ` · möglich ${fmt(r2(x.stake * x.odd))}` : ''}</span></div>
+      ${live ? `<div style="font-size:12px;color:var(--mut);margin-top:6px">🟢 = würde gerade gewinnen · 🟠 = würde gerade verlieren</div>` : ''}</div>`;
+  }).join('') : '<div class="empty">Noch keine Wetten.</div>';
 }
 
 </script>
