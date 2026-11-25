@@ -921,7 +921,7 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 
 /* ===== core.js ===== */
 'use strict';
-const VERSION = '0.4.5 Open Beta';
+const VERSION = '1.0.0';
 const FORCE_V = 12; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
 const WARTUNG = false; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
 /* ================= Helfer ================= */
@@ -1359,7 +1359,9 @@ function earn(a, why) {
 function afterMoney() { S.st.maxBal = Math.max(S.st.maxBal, S.bal); hdr(true); checkAch(); save(); }
 function addXP(x) {
   S.xp += x; let up = false; const lv0 = S.level;
-  while (S.xp >= xpNeed(S.level)) { S.xp -= xpNeed(S.level); S.level++; up = true; }
+  const cap = typeof rebNeed === 'function' ? Math.max(rebNeed(), S.level) : Infinity; // 🔥 Höchst-Level bis zur nächsten Wiedergeburt
+  while (S.level < cap && S.xp >= xpNeed(S.level)) { S.xp -= xpNeed(S.level); S.level++; up = true; }
+  if (S.level >= cap) { S.xp = Math.min(S.xp, xpNeed(S.level) - 1); if (!S.capNote || S.capNote !== S.level) { S.capNote = S.level; whenFree(() => setTimeout(() => toast(`🔥 Max-Level ${S.level} erreicht! Im Profil kannst du dich wiedergebären – danach geht's bis Level ${S.level + 25}.`, 'good', 6000), 900)); } }
   if (up) { const lv = S.level, n = lv - lv0; if (typeof bpAdd === 'function') bpAdd(n * BP_PER / 2); whenFree(() => setTimeout(() => { toast(`Level ${lv} erreicht! +${n * 50} Battle-Pass-Punkte 🎟️ 🎉`, 'good'); FX.burst(80); SND.win(); }, 300)); checkAch(); }
 }
 function applyInterest() {
@@ -6311,12 +6313,13 @@ function openShopX(id, done) {
 }
 
 /* ================= 🆕 Update-Hinweis (einmal pro Version, jederzeit wieder aufrufbar) ================= */
-const UPD_V = '0.4.5', UPD_UNTIL = new Date(2026, 11, 8).getTime();
+const UPD_V = '1.0.0', UPD_UNTIL = new Date(2026, 11, 9).getTime();
 const UPD = [ // nur, was im LETZTEN Update neu ist
   ['🔥', 'Wiedergeburt', 'Ab Level 50 im Profil: neu starten, Phönix-Punkte für dauerhafte Vorteile, Stern neben dem Namen & neue Bestenliste 🔥.', 'profil'],
+  ['🧱', 'Max-Level', 'Ohne Wiedergeburt ist bei Level 50 Schluss – nach der 1. geht\'s bis 75, nach der 2. bis 100 usw.', 'profil'],
   ['🔎', 'Namensvorschläge', 'Beim Freunde-Hinzufügen und Clan-Einladen werden passende Spieler schon beim Tippen vorgeschlagen.', 'freunde'],
-  ['⛔', 'Gebannte Spieler', 'Gebannte sieht man jetzt in der Bestenliste: rot gestreift, Name durchgestrichen – mit Grund im Profil.', 'rang'],
-  ['🎰', 'Freispiele', 'In Freispielen erscheinen keine 3 Freispiel-Symbole mehr (sah nach Freispielen aus, gab aber keine).', 'halle'],
+  ['⛔', 'Gebannte Spieler', 'Gebannte sieht man in der Bestenliste: rot gestreift, Name durchgestrichen – mit Grund im Profil.', 'rang'],
+  ['🎰', 'Freispiele', 'In Freispielen erscheinen keine 3 Freispiel-Symbole mehr.', 'halle'],
   ['📱', 'Handy ↔ iPad', 'Dein Spielstand kommt jetzt zuverlässig auf dem anderen Gerät an.', 'halle'],
 ];
 function openUpd() {
@@ -6334,7 +6337,7 @@ function updAuto() {
   setTimeout(w, 3500);
 }
 { const H = PAGES.halle; PAGES.halle = el => { H(el); if (Date.now() > UPD_UNTIL) return; const t = $('.halle-top', el); if (!t) return;
-  t.insertAdjacentHTML('afterend', `<button class="lhb" id="updB" style="width:100%;text-align:left;color:#fff;cursor:pointer;font:inherit"><span class="e">🆕</span><div style="flex:1"><b>Update ${UPD_V}:</b> 🔥 Wiedergeburt ab Level 50, Namensvorschläge & Bugfixes<br><small style="color:var(--gold2)">Antippen: Was ist neu?</small></div></button>`);
+  t.insertAdjacentHTML('afterend', `<button class="lhb" id="updB" style="width:100%;text-align:left;color:#fff;cursor:pointer;font:inherit"><span class="e">🆕</span><div style="flex:1"><b>Version ${UPD_V}:</b> 🔥 Wiedergeburt ab Level 50, Max-Level, Namensvorschläge & Bugfixes<br><small style="color:var(--gold2)">Antippen: Was ist neu?</small></div></button>`);
   $('#updB', el).onclick = () => { SND.click(); openUpd(); }; }; }
 { const Pr = PAGES.profil; PAGES.profil = el => { Pr(el); const l = $('#xSty', el); if (l) { l.parentElement.insertAdjacentHTML('beforeend', `<div class="it" id="xUpd"><div class="ibox">🆕</div><span class="lbl">Was ist neu?</span><span class="val">${UPD_V}</span>${icon('right', 'chev')}</div>`); $('#xUpd', el).onclick = openUpd; } }; }
 (function updWait() { if (S && $('#main')) updAuto(); else setTimeout(updWait, 2000); })();
@@ -6951,7 +6954,7 @@ addEventListener('scroll', e => { if (!NS_BOX || NS_BOX.contains(e.target)) retu
 
 /* ================= 🔥 Wiedergeburt (Phönix) ================= */
 const REB_PTS = 3; // feste Phönix-Punkte pro Wiedergeburt (nicht abhängig vom Geld → kein Farmen)
-const rebNeed = () => 50 + (S.reb || 0) * 5;
+const rebNeed = () => 50 + (S.reb || 0) * 25; // 1. Wiedergeburt ab 50, 2. ab 75, 3. ab 100 … (= gleichzeitig Höchst-Level)
 const rebIcon = n => n >= 5 ? '👑' : n >= 3 ? '🔥' : '⭐'.repeat(Math.max(1, n));
 function rebTag(r) { const n = +(r && (r.me ? S.reb : r.reb)) || 0; if (!n) return ''; return ` <span class="owner" style="background:#ff6a0022;color:#ffb36b;border-color:#ff8a3d66">${rebIcon(n)}${n >= 3 ? ' ' + n + '×' : ''}</span>`; }
 const PHX = [ // [id, Icon, Name, Beschreibung je Stufe, Kosten je Stufe]
@@ -6980,7 +6983,7 @@ function openPhoenix() {
   const o = sheet(`<div class="row sb"><h2 style="margin:0">🔥 Wiedergeburt</h2><button class="x" data-close>${icon('x')}</button></div>
     <div class="phxC" style="margin-top:12px"><div class="phxBig">🔥</div>
       <p style="text-align:center;font-size:18px;margin:6px 0">Du bist <b>${S.reb || 0}×</b> wiedergeboren · <b style="color:#ffb36b">${S.phx.pts} Phönix-Punkte</b></p>
-      <p class="hint" style="text-align:center;margin:0 0 12px">Jede Wiedergeburt: <b>+${REB_PTS} Phönix-Punkte</b>, ein Stern neben deinem Namen, ab 1× Titel „Phönix 🔥“, ab 3× Feuer-Rahmen, ab 5× Titel „Unsterblich 👑“.</p>
+      <p class="hint" style="text-align:center;margin:0 0 12px">Ohne Wiedergeburt ist bei <b>Level ${need}</b> Schluss – danach geht's bis Level ${need + 25}. Jede Wiedergeburt: <b>+${REB_PTS} Phönix-Punkte</b>, ein Stern neben deinem Namen, ab 1× Titel „Phönix 🔥“, ab 3× Feuer-Rahmen, ab 5× Titel „Unsterblich 👑“.</p>
       <div class="hint" style="background:#0006;border-radius:14px;padding:10px 12px;margin-bottom:12px">🔄 <b>Zurückgesetzt:</b> Geld (auf ${fmt(START_BY[phxN('start')])}), Level, Geschäfte${phxN('shops') ? ` (außer den besten ${phxN('shops')})` : ''}, Händler-Upgrades, Tränke<br>✅ <b>Bleibt:</b> Erfolge, Titel, Rahmen, Luxus-Sachen, Clan, Freunde, Phönix-Shop</div>
       <button class="btn gold w" id="phxGo" ${can ? '' : 'disabled'} style="font-size:20px">${can ? '🔥 Jetzt wiedergeboren werden' : `🔒 Ab Level ${need} (du: ${S.level})`}</button></div>
     <h3 style="margin:18px 0 8px">🛒 Phönix-Shop</h3><p class="hint" style="margin-top:0">Dauerhaft – bleibt bei jeder Wiedergeburt.</p>
@@ -7023,7 +7026,7 @@ function doRebirth() {
 setInterval(() => { if (!S || !phxN('pot')) return; const d = dayKey(); if (S.phxPotD === d) return; S.phxPotD = d; const m = phxN('pot') >= 2 ? 4 : 2; S.pot[m] = (S.pot[m] || 0) + 1; save(); whenFree(() => toast(`🔥 Phönix-Geschenk: 1× Glückstrank ×${m}!`, 'good', 4000)); }, 15000);
 // Profil: Knopf „Wiedergeburt“
 { const Pr = PAGES.profil; PAGES.profil = el => { Pr(el); const l = $('#xSty', el); if (!l) return; const need = rebNeed();
-  l.parentElement.insertAdjacentHTML('afterbegin', `<div class="it" id="xReb" style="background:linear-gradient(90deg,#3a1405,transparent)"><div class="ibox">🔥</div><span class="lbl">Wiedergeburt${S.reb ? ` · ${S.reb}×` : ''}</span><span class="val">${S.level >= need ? '<b style="color:#ffb36b">Bereit!</b>' : `ab Lv. ${need}`}</span>${icon('right', 'chev')}</div>`);
+  l.parentElement.insertAdjacentHTML('afterbegin', `<div class="it" id="xReb" style="background:linear-gradient(90deg,#3a1405,transparent)"><div class="ibox">🔥</div><span class="lbl">Wiedergeburt${S.reb ? ` · ${S.reb}×` : ''}</span><span class="val">${S.level >= need ? '<b style="color:#ffb36b">Bereit!</b>' : `ab Lv. ${need} (Max-Level)`}</span>${icon('right', 'chev')}</div>`);
   $('#xReb', el).onclick = () => { SND.click(); openPhoenix(); }; }; }
 </script>
 </body>
