@@ -154,6 +154,12 @@ service cloud.firestore {
       allow create, update: if request.resource.data.keys().hasOnly(['p','ts']) && request.resource.data.p is string && request.resource.data.p.size() <= 20000;
       allow delete: if false;
     }
+    match /top/{id} {
+      allow read: if true;
+      allow create, update: if id == 'rang' && request.resource.data.keys().hasOnly(['d','ts','f'])
+                            && request.resource.data.d is string && request.resource.data.d.size() <= 900000 && request.resource.data.ts is int;
+      allow delete: if false;
+    }
     match /treff/{id} {
       allow read: if true;
       allow create, update: if request.resource.data.keys().hasOnly(['r','pid','name','rt','ts','txt'])

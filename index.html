@@ -4375,7 +4375,7 @@ async function rgFetch0() {
   // nur Spieler, die in den letzten 21 Tagen gespielt haben (spart viele Lesevorgänge); „seit Reset“ wird hier gefiltert
   const docs = (await fsQuery({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(Math.floor(Date.now() / 36e5) * 36e5 - 21 * 864e5) } }, limit: 500 })).filter(r => (r.since || 0) >= RESET_TS).filter(r => r.id === S.lbId || isOwner(r.id) || (typeof lbhHas === 'function' ? !lbhHas(r.name) : true));
   return docs.map(d => ({ k: d.id, name: d.name || '?', disp: d.disp || d.name || '?', bal: d.bal || 0, lvl: d.level || 1, color: d.color || 0, ts: d.ts || 0, me: d.id === S.lbId,
-    big: d.big ?? null, net: d.net ?? null, bxp: d.bxp ?? null, wag: d.wag ?? null, since: d.since ?? null, best: d.best || '', ach: d.ach ?? null, own: !!d.own, tit: d.tit || '', frm: d.frm || '', clan: d.clan || '', hist: d.hist || '',
+    big: d.big ?? null, net: d.net ?? null, bxp: d.bxp ?? null, wag: d.wag ?? null, since: d.since ?? null, best: d.best || '', ach: d.ach ?? null, own: !!d.own, tit: d.tit || '', frm: d.frm || '', clan: d.clan || '', hist: d.hist, crl: d.crl || 0,
     dy: perVal(d, 'dy', d.dk === dayKey() ? d.dv : undefined), wk: perVal(d, 'wk', d.wkk === weekKey() ? d.wk : undefined), mo: perVal(d, 'mo', d.mk === monKey() ? d.mv : undefined), pt: d.pt ?? null, pw: d.pw ?? null, pwk: d.pwk || '', wkk: d.wkk || '', wkRaw: d.wk ?? null }));
 }
 function rgMe() {
@@ -6609,6 +6609,77 @@ const CHEAT_V = 2;
   if (S.cheat && S.cheatV !== CHEAT_V) { S.cheat = false; save(); }
   setTimeout(cheatReset, 30000);
 })();
+
+/* ================= 📦 Bestenlisten-Paket: 1 Dokument statt hunderte =================
+   Statt dass jeder Spieler alle Ranglisten-Einträge einzeln lädt (jeder Eintrag = 1 Firebase-Lesevorgang),
+   baut ab und zu EIN Spieler ein Paket („top/rang“) mit allen aktiven Spielern. Alle anderen laden nur dieses
+   eine Dokument (= 1 Lesevorgang). Beim Bauen werden nur Spieler nachgeladen, die sich seit dem letzten Paket geändert haben. */
+const SNAP_F = ['name', 'disp', 'bal', 'level', 'color', 'ts', 'big', 'net', 'bxp', 'wag', 'since', 'best', 'ach', 'own', 'tit', 'frm', 'clan', 'wk', 'wkk', 'dv', 'dk', 'mv', 'mk', 'rbw', 'pt', 'pw', 'pwk', 'crl'];
+let SNAP = null, SNAP_OFF = 0, SNAP_P = null;
+const SNAP_WIN = () => Math.floor(Date.now() / 36e5) * 36e5 - 21 * 864e5;
+function snapPack(docs) { return JSON.stringify({ f: SNAP_F, r: docs.map(d => [d.id, ...SNAP_F.map(k => { const v = d[k]; return v === undefined ? null : typeof v === 'number' ? Math.round(v * 100) / 100 : v; })]) }); }
+function snapUnpack(str) { const o = JSON.parse(str); return o.r.map(a => { const d = { id: a[0] }; o.f.forEach((k, i) => { if (a[i + 1] !== null) d[k] = a[i + 1]; }); return d; }); }
+async function snapRead() {
+  if (Date.now() - FS_QUOTA < 600000) throw new Error('HTTP 429');
+  const r = await fetch(`${FS()}/top/rang?key=${ONLINE.apiKey}`);
+  if (r.status === 404) return null; if (r.status === 429) FS_QUOTA = Date.now();
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const f = (await r.json()).fields || {};
+  return { ts: fval(f.ts) || 0, full: fval(f.f) || 0, docs: snapUnpack(fval(f.d) || '{"f":[],"r":[]}') };
+}
+async function snapBuild(old) {
+  const now = Date.now(), win = SNAP_WIN(), full = !old || now - old.full > 6 * 36e5;
+  const from = full ? win : Math.max(win, old.ts - 180000); // 3 Min. Überlappung gegen Uhr-Abweichungen
+  const fresh = await fsQuery0({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(from) } }, limit: 1000 });
+  const m = new Map(full ? [] : old.docs.map(d => [d.id, d]));
+  fresh.forEach(d => { const x = { id: d.id }; SNAP_F.forEach(k => { if (d[k] !== undefined) x[k] = d[k]; }); m.set(d.id, x); });
+  const docs = [...m.values()].filter(d => (d.ts || 0) > win);
+  const body = { fields: { d: fstr(snapPack(docs)), ts: fint(now), f: fint(full ? now : old.full) } };
+  try { const w = await fetch(`${FS()}/top/rang?key=${ONLINE.apiKey}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); if (!w.ok) { if (w.status === 403) SNAP_OFF = Date.now(); } }
+  catch (e) { }
+  return docs;
+}
+function snapDocs() {
+  if (SNAP && Date.now() - SNAP.t < 240000) return Promise.resolve(SNAP.docs);
+  if (Date.now() - SNAP_OFF < 600000) return Promise.reject(new Error('snap off'));
+  if (SNAP_P) return SNAP_P;
+  SNAP_P = (async () => {
+    try {
+      const old = await snapRead();
+      const jit = 240000 + (hstr(String(S && S.lbId || Math.random())) % 120000); // nicht alle bauen gleichzeitig
+      let docs;
+      if (!old || Date.now() - old.ts > jit || Date.now() - old.full > 6 * 36e5) docs = await snapBuild(old);
+      else docs = old.docs;
+      SNAP = { t: Date.now(), docs }; return docs;
+    } catch (e) { if (!String(e.message).includes('429')) SNAP_OFF = Date.now(); throw e; }
+    finally { SNAP_P = null; }
+  })();
+  return SNAP_P;
+}
+// Ranglisten-Abfragen (Bestenliste, Clans, Woche, Regenbogen-Könige) direkt aus dem Paket beantworten
+function snapQ(docs, q) {
+  let w = q.where; if (w && !w.fieldFilter) return null;
+  let out = docs;
+  if (w) { const ff = w.fieldFilter, k = ff.field.fieldPath, v = fval(ff.value), op = ff.op;
+    if (!['EQUAL', 'GREATER_THAN'].includes(op)) return null;
+    out = out.filter(d => d[k] !== undefined && d[k] !== null && (op === 'EQUAL' ? d[k] === v : d[k] > v)); }
+  if (q.orderBy && q.orderBy.length) { const o = q.orderBy[0], k = o.field.fieldPath, dir = o.direction === 'DESCENDING' ? -1 : 1; out = [...out].sort((a, b) => ((a[k] ?? -Infinity) > (b[k] ?? -Infinity) ? 1 : (a[k] ?? -Infinity) < (b[k] ?? -Infinity) ? -1 : 0) * dir); }
+  if (q.limit) out = out.slice(0, q.limit);
+  return out.map(d => ({ ...d }));
+}
+{ const Q0 = fsQuery; fsQuery = async q => {
+  const col = q.from && q.from[0] && q.from[0].collectionId;
+  if (col === 'rang' && onlineOn()) { try { const r = snapQ(await snapDocs(), q); if (r) return r; } catch (e) { } }
+  return Q0(q);
+}; }
+// Verlauf (Diagramm im Spielerprofil) ist nicht im Paket → beim Öffnen einzeln nachladen (1 Lesevorgang)
+{ const PP = playerProfile; playerProfile = (r, rank) => {
+  if (r && !r.me && r.k && r.hist === undefined && onlineOn()) {
+    fetch(`${FS()}/rang/${encodeURIComponent(r.k)}?key=${ONLINE.apiKey}`).then(x => x.ok ? x.json() : null).then(j => { r.hist = (j && j.fields && fval(j.fields.hist)) || ''; PP(r, rank); }).catch(() => { r.hist = ''; PP(r, rank); });
+    return;
+  }
+  PP(r, rank);
+}; }
 </script>
 </body>
 </html>
