@@ -6996,7 +6996,7 @@ function openPhoenix() {
     <div class="phxC" style="margin-top:12px"><div class="phxBig">🔥</div>
       <p style="text-align:center;font-size:18px;margin:6px 0">Du bist <b>${S.reb || 0}×</b> wiedergeboren · <b style="color:#ffb36b">${S.phx.pts} Phönix-Punkte</b></p>
       <p class="hint" style="text-align:center;margin:0 0 12px">Ohne Wiedergeburt ist bei <b>Level ${need}</b> Schluss – danach geht's bis Level ${need + 25}. Jede Wiedergeburt: <b>+${REB_PTS} Phönix-Punkte</b>, ein Stern neben deinem Namen, ab 1× Titel „Phönix 🔥“, ab 3× Feuer-Rahmen, ab 5× Titel „Unsterblich 👑“.</p>
-      <div class="hint" style="background:#0006;border-radius:14px;padding:10px 12px;margin-bottom:12px">🔄 <b>Zurückgesetzt:</b> Geld (auf ${fmt(START_BY[phxN('start')])}), Level, Geschäfte${phxN('shops') ? ` (außer den besten ${phxN('shops')})` : ''}, Tränke<br>✅ <b>Bleibt:</b> Händler-Upgrades, Erfolge, Titel, Rahmen, Luxus-Sachen, Clan, Freunde, Phönix-Shop</div>
+      <div class="hint" style="background:#0006;border-radius:14px;padding:10px 12px;margin-bottom:12px">🔄 <b>Zurückgesetzt:</b> Geld (auf ${fmt(START_BY[phxN('start')])}), Level, Geschäfte${phxN('shops') ? ` (außer den besten ${phxN('shops')})` : ''}, Tränke, Börsen-Konto (Guthaben, offene Trades, Gewinn)<br>✅ <b>Bleibt:</b> Händler-Upgrades, Erfolge, Titel, Rahmen, Luxus-Sachen, Clan, Freunde, Phönix-Shop</div>
       <div class="hint" style="background:#0006;border-radius:14px;padding:10px 12px;margin-bottom:12px">📋 <b>Für die ${(S.reb || 0) + 1}. Wiedergeburt brauchst du:</b><br>${S.level >= need ? '✅' : '❌'} Level <b>${need}</b> (du: ${S.level})<br>${S.bal >= money ? '✅' : '❌'} <b>${fmt(money)}</b> auf dem Konto (du: ${fmt(S.bal)})</div>
       <button class="btn gold w" id="phxGo" ${can ? '' : 'disabled'} style="font-size:20px">${can ? '🔥 Jetzt wiedergeboren werden' : '🔒 Noch nicht bereit'}</button></div>
     <h3 style="margin:18px 0 8px">🛒 Phönix-Shop</h3><p class="hint" style="margin-top:0">Dauerhaft – bleibt bei jeder Wiedergeburt.</p>
@@ -7024,6 +7024,7 @@ function doRebirth() {
   const start = START_BY[phxN('start')], reb = (S.reb || 0) + 1, oldBal = S.bal, oldLvl = S.level;
   keep.phx = keep.phx || { pts: 0, up: {} }; keep.phx.pts = (keep.phx.pts || 0) + REB_PTS;
   S = Object.assign(newState(keep.name), keep, { reb, bal: start, level: 1, xp: 0, shops, shopX, rebTs: Date.now() });
+  S.bx = newState('').bx; S.st.tradeProfit = 0; // 📈 Börsen-Konto komplett neu
   S.st.maxBal = Math.max(S.st.maxBal || 0, start); S.st.rebLost = r2((S.st.rebLost || 0) + Math.max(0, oldBal));
   if (reb >= 1 && !S.tit) S.tit = 'phoenix';
   persist(); cloudLast = ''; cloudPush(true); lbLast = ''; pushScore(true);
