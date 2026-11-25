@@ -6816,7 +6816,7 @@ let LBS = (() => { try { return JSON.parse(localStorage.getItem('gg_lbs') || 'nu
 
 /* ================= ⚫ Schwarzes Los: 1.000 € pro Los · 1 : 50.000 Schwarzer Trank ×50 ================= */
 // 🌈 Regenbogen-Trank gibt's nicht mehr → alte ×100-Tränke verschwinden
-(function rbGone() { if (!S) return setTimeout(rbGone, 1500); if (S.rbGone || true) return; S.rbGone = 1; let ch = true; // 🌈 Regenbogen ist zurück → nichts mehr löschen if (S.pot && S.pot[100]) { delete S.pot[100]; ch = true; } if (S.potAct && S.potAct.m === 100) { S.potAct = null; ch = true; } if (ch) save(); })();
+(function rbGone() { if (!S) return setTimeout(rbGone, 1500); if (S.rbGone || true) return; /* 🌈 Regenbogen ist zurück → nichts mehr löschen */ S.rbGone = 1; let ch = true; if (S.pot && S.pot[100]) { delete S.pot[100]; ch = true; } if (S.potAct && S.potAct.m === 100) { S.potAct = null; ch = true; } if (ch) save(); })();
 const SB_ST = 1000, SB_CH = 1 / 50000, SB_LV = 3;
 // Gewinne (ohne Trank ~35 % zurück – das Los ist für den Traum vom Schwarzen Trank)
 const SB_P = [[5000, .01, '💰 5.000 €'], [2000, .05, '💵 2.000 €'], [1000, .10, '🎟️ 1.000 € zurück'], [500, .20, '🪙 500 €']];
