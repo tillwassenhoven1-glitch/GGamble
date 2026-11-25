@@ -926,7 +926,7 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 
 /* ===== core.js ===== */
 'use strict';
-const VERSION = '1.0.3';
+const VERSION = '1.0.4';
 const FORCE_V = 12; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
 const WARTUNG = false; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
 /* ================= Helfer ================= */
@@ -6356,13 +6356,13 @@ function openShopX(id, done) {
 }
 
 /* ================= 🆕 Update-Hinweis (einmal pro Version, jederzeit wieder aufrufbar) ================= */
-const UPD_V = '1.0.2', UPD_UNTIL = new Date(2026, 11, 9).getTime();
+const UPD_V = '1.0.4', UPD_UNTIL = new Date(2026, 11, 9).getTime();
 const UPD = [ // nur, was im LETZTEN Update neu ist
-  ['🌈', 'Regenbogen-Rausch ist zurück', 'Der Original-Automat: 1.000 € pro Dreh, 1 : 100.000 auf den Glückstrank ×100 – mit den Regenbogen-Königen.', 'halle'],
-  ['🏅', 'Abzeichen-Animation', 'Bekommst du ein Abzeichen (z. B. 💎 VIP), gibt es jetzt eine große Animation – genauso, wenn es dir weggenommen wird.', 'profil'],
-  ['⏳', 'Bestenliste immer da', 'Wenn Firebase gerade voll ist, siehst du den letzten gespeicherten Stand der Bestenliste statt einer Fehlermeldung.', 'rang'],
-  ['📈', 'Wiedergeburt & Börse', 'Bei der Wiedergeburt wird jetzt auch das Börsen-Konto zurückgesetzt.', 'profil'],
-  ['🎁', 'Flyer-Bonus', 'Neue Spieler, die über den QR-Code vom Flyer kommen, bekommen 500 € extra.', 'halle'],
+  ['🎲', 'Gewinnchancen in der Info', 'In der ℹ️-Info jedes Automaten steht jetzt, wie oft ein Gewinn kommt – z. B. 🍒🍒🍒 ≈ 1 : 8 pro Dreh.', 'halle'],
+  ['🃏', 'Blackjack-Auszahlung', 'Bei einem Sieg siehst du jetzt klar: Einsatz zurück + Gewinn.', 'halle'],
+  ['🌈', 'Regenbogen-Rausch fairer', 'Der Glückstrank ×100 kann nicht mehr gleich in den ersten Drehs kommen.', 'halle'],
+  ['🎯', 'Minispiele ohne Verrutschen', 'Der Hintergrund bewegt sich nicht mehr mit, STOPP reagiert sofort.', 'halle'],
+  ['🔢', 'Saubere Zahlen', 'Keine langen Kommazahlen mehr in der Automaten-Info.', 'halle'],
 ];
 function openUpd() {
   S.updSeen = UPD_V; save();
