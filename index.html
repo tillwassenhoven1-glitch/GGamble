@@ -923,7 +923,7 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 
 /* ===== core.js ===== */
 'use strict';
-const VERSION = '1.0.2';
+const VERSION = '1.0.3';
 const FORCE_V = 12; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
 const WARTUNG = false; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
 /* ================= Helfer ================= */
@@ -1731,8 +1731,8 @@ async function doSpin() {
   // Jackpot-Pool wächst
   if (m.t === 'j' && !free) S.jp[m.jp] = r2(S.jp[m.jp] + stake * .02);
   // Ergebnis (mit Glückstrank: bestes aus N)
-  let rolls = 1; const usePot = S.potAct && (S.potAct.m === 50 || (!m.rb && stake <= potCap() + 1e-9)); // ×100 wirkt überall & bei jedem Einsatz
-  const rb100 = usePot && S.potAct.m === 50;
+  let rolls = 1; const usePot = S.potAct && (S.potAct.m === 50 || S.potAct.m === 100 || (!m.rb && stake <= potCap() + 1e-9)); // ×100 wirkt überall & bei jedem Einsatz
+  const rb100 = usePot && (S.potAct.m === 50 || S.potAct.m === 100);
   if (S.potAct && !usePot && !m.rb) toast(`⚠️ Trank wirkt nicht: Einsatz über ${fmt(potCap())}. Nimm einen kleineren Einsatz oder „Max“.`, 'bad', 2600);
   if (usePot) { rolls = S.potAct.m; S.potAct.left--; S.st.potUse = (S.st.potUse || 0) + 1; }
   let best = null;
@@ -1777,7 +1777,7 @@ async function doSpin() {
     countUp($('#ledW', MS.f), 0, win, 700, v => NF2.format(v));
     await multPop(win / stake, win, teased);
     if (jackpot) { S.st.jackpots++; await celebrate(jackpot, 999, JP[m.jp].n.toUpperCase() + ' JACKPOT'); }
-    else if (!free) await celebrate(win, win / stake, rb100 && win >= stake * 20 ? '⚫ SCHWARZES GLÜCK' : rolls === 50 && win >= stake * 20 ? '⚫ SCHWARZES GLÜCK' : undefined);
+    else if (!free) await celebrate(win, win / stake, rb100 && win >= stake * 20 ? (rolls === 100 ? '🌈 REGENBOGEN-GLÜCK' : '⚫ SCHWARZES GLÜCK') : rolls === 50 && win >= stake * 20 ? '⚫ SCHWARZES GLÜCK' : undefined);
     else { SND.win(); FX.burst(30, { coins: true }); }
   } else if (!free) { if (allIn) SND.lose(); }
   if (best.ev.fs && !free) { // 🚫 in Freispielen gibt's keine weiteren Freispiele
@@ -2630,7 +2630,7 @@ function untilMidnight() { const n = new Date(Date.now()), m = new Date(n); m.se
 const POT_R = { 2: 10, 4: 6, 6: 4, 50: 10, 100: 10 }; // ×50 = ⚫ Schwarzer Trank (nur aus dem Schwarzen Los, 1 : 50.000)
 const potCap = () => r2(base() * 1.5);
 function potionsHTML() {
-  return `<div class="pots">${[2, 4, 6, ...((S.pot[50] || 0) > 0 ? [50] : [])].map(m => `<div><div class="pot p${m}"><i>×${m}</i></div><b class="num">${S.pot[m]}×</b><button class="btn dark sm w" data-drink="${m}" ${S.pot[m] < 1 || S.potAct ? 'disabled' : ''}>Trinken</button></div>`).join('')}</div>`;
+  return `<div class="pots">${[2, 4, 6, ...((S.pot[50] || 0) > 0 ? [50] : []), ...((S.pot[100] || 0) > 0 ? [100] : [])].map(m => `<div><div class="pot p${m}"><i>×${m}</i></div><b class="num">${S.pot[m]}×</b><button class="btn dark sm w" data-drink="${m}" ${S.pot[m] < 1 || S.potAct ? 'disabled' : ''}>Trinken</button></div>`).join('')}</div>`;
 }
 function bindPotions(root, cb) {
   root.addEventListener('click', e => {
@@ -3521,7 +3521,7 @@ function openSettings() {
 
 /* ================= Cheat-Menü ================= */
 const CHEATS = [['m1', '💰 +1.000 €'], ['m2', '💰 +1 Mio. €'], ['m3', '💰 +1 Mrd. €'], ['lv1', '⭐ +1 Level'], ['bp1', '🎟️ +1 Battle-Pass-Stufe'], ['lv', '⭐ +5 Level'], ['lv10', '⭐ +10 Level'], ['lv50', '⭐ +50 Level'], ['lvset', '🎯 Level eingeben …'], ['lvmax', '🔓 Alles freischalten (Level 50)'], ['bp10', '🎟️ +10 Battle-Pass-Stufen'], ['bpreset', '🎟️ Battle Pass zurücksetzen'], ['en', '⚡ Energie voll'], ['pot', '🧪 +3 von jedem Trank'], ['debt', '🧾 Schulden weg'], ['bonus', '🎁 Tagesbonus nochmal'], ['off', '🔒 Cheats ausblenden']];
-function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben</button><button class="btn white xs" data-ch="lbh">🙈 Bestenliste-Sperre</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="bdg">🏅 Abzeichen vergeben</button><button class="btn white xs" data-ch="lh">🌟 Glücksstunde starten</button><button class="btn white xs" data-ch="stat">📊 Statistik</button>${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
+function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben</button><button class="btn white xs" data-ch="lbh">🙈 Bestenliste-Sperre</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="bdg">🏅 Abzeichen vergeben</button><button class="btn white xs" data-ch="p100">🌈 ×100-Trank für mich</button><button class="btn white xs" data-ch="lh">🌟 Glücksstunde starten</button><button class="btn white xs" data-ch="stat">📊 Statistik</button>${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
 function doCheat(k) {
   const add = v => { S.bal = r2(S.bal + v); S.st.maxBal = Math.max(S.st.maxBal, S.bal); };
   if (k === 'm1') add(1000); else if (k === 'm2') add(1e6); else if (k === 'm3') add(1e9);
@@ -3544,12 +3544,12 @@ function doCheat(k) {
   else if (k === 'lh') { if (typeof openLhAdm === 'function') openLhAdm(); return; }
   else if (k === 'stat') { if (typeof openStats === 'function') openStats(); return; }
   else if (k === 'bdg') { if (typeof openBadges === 'function') openBadges(); return; }
-  else if (k === 'p100-entfernt') { (async () => { // (Regenbogen-Trank gibt's nicht mehr)
+  else if (k === 'p100') { (async () => { // 3× bestätigen
       if (!await confirmBox('🌈 Glückstrank ×100 geben?', 'Der stärkste Trank im Spiel – 100-fach Glück für 10 Drehs.', 'Ja (1/3)')) return;
       if (!await confirmBox('Wirklich sicher?', 'Damit kannst du sehr viel Geld gewinnen.', 'Ja (2/3)', true)) return;
       if (!await confirmBox('Letzte Bestätigung!', 'Jetzt 1× Glückstrank ×100 in dein Inventar legen?', 'Ja, geben (3/3)', true)) return;
       S.pot[100] = (S.pot[100] || 0) + 1; save(); SND.big(); FX.burst(160, { cols: ['#ff5a5a', '#ffb84a', '#ffe14a', '#5ad86a', '#4ab0ff', '#b06aff'] });
-      toast(`🌈 Glückstrank ×100 erhalten (du hast jetzt ${S.pot[100]}) – trinken im Glückslabor oder am Regenbogen-Automaten`, 'good', 5000); if (curPage === 'spiele') go('spiele', true); })(); return; }
+      toast(`🌈 Glückstrank ×100 erhalten (du hast jetzt ${S.pot[100]}) – trinken im Glückslabor (Minispiele)`, 'good', 5000); if (curPage === 'spiele') go('spiele', true); })(); return; }
   else if (k === 'own') { if (!isOwner(S.lbId) && !ADM_KEY) return toast('Dein Konto ist nicht als Besitzer erkannt – nutz „🏅 Abzeichen vergeben“ und gib dir 👑 Besitzer.', 'bad', 5000); S.owner = !S.owner; save(); pushScore(true); SND.win(); toast(S.owner ? '👑 Besitzer-Abzeichen aktiviert' : 'Besitzer-Abzeichen deaktiviert', 'good', 1600); return; }
   else if (k === 'off') { S.cheat = false; toast('Cheats ausgeblendet'); save(); return; }
   SND.coin(); FX.burst(30, { coins: true }); hdr(true); checkAch(); save(); toast('😎 ' + CHEATS.find(c => c[0] === k)[1], 'good', 1600);
@@ -6811,7 +6811,7 @@ let LBS = (() => { try { return JSON.parse(localStorage.getItem('gg_lbs') || 'nu
 
 /* ================= ⚫ Schwarzes Los: 1.000 € pro Los · 1 : 50.000 Schwarzer Trank ×50 ================= */
 // 🌈 Regenbogen-Trank gibt's nicht mehr → alte ×100-Tränke verschwinden
-(function rbGone() { if (!S) return setTimeout(rbGone, 1500); let ch = false; if (S.pot && S.pot[100]) { delete S.pot[100]; ch = true; } if (S.potAct && S.potAct.m === 100) { S.potAct = null; ch = true; } if (ch) save(); })();
+(function rbGone() { if (!S) return setTimeout(rbGone, 1500); if (S.rbGone) return; S.rbGone = 1; let ch = true; if (S.pot && S.pot[100]) { delete S.pot[100]; ch = true; } if (S.potAct && S.potAct.m === 100) { S.potAct = null; ch = true; } if (ch) save(); })();
 const SB_ST = 1000, SB_CH = 1 / 50000, SB_LV = 3;
 // Gewinne (ohne Trank ~35 % zurück – das Los ist für den Traum vom Schwarzen Trank)
 const SB_P = [[5000, .01, '💰 5.000 €'], [2000, .05, '💵 2.000 €'], [1000, .10, '🎟️ 1.000 € zurück'], [500, .20, '🪙 500 €']];
@@ -7035,7 +7035,7 @@ function doRebirth() {
   if (!rebReady()) return;
   const keepShops = phxN('shops'), best = Object.entries(S.shops || {}).filter(([k, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, keepShops);
   const shops = {}, shopX = {}; best.forEach(([k, v]) => { shops[k] = v; if (S.shopX && S.shopX[k]) shopX[k] = S.shopX[k]; });
-  const keepKeys = ['name', 'disp', 'photo', 'color', 'lbId', 'owner', 'cheat', 'cheatV', 'set', 'titles', 'frames', 'tit', 'frm', 'clan', 'friends', 'dmRead', 'created', 'ep', 'ach', 'st', 'tutV', 'tutGift', 'updSeen', 'gifts', 'payGot', 'clGot', 'clInv', 'frSent', 'dmNoteTs', 'wk', 'dy', 'mo', 'pw', 'wpClaim', 'bp', 'cal', 'favs', 'phx', 'up', 'lhSeen', 'lhB', 'lhAdm', 'tasks', 'bonus'];
+  const keepKeys = ['name', 'disp', 'photo', 'color', 'lbId', 'owner', 'cheat', 'cheatV', 'set', 'titles', 'frames', 'tit', 'frm', 'clan', 'friends', 'dmRead', 'created', 'ep', 'ach', 'st', 'tutV', 'tutGift', 'updSeen', 'gifts', 'payGot', 'clGot', 'clInv', 'frSent', 'dmNoteTs', 'wk', 'dy', 'mo', 'pw', 'wpClaim', 'bp', 'cal', 'favs', 'phx', 'up', 'lhSeen', 'lhB', 'lhAdm', 'tasks', 'bonus', 'rbGone', 'bdgSeen', 'refBonus'];
   const keep = {}; keepKeys.forEach(k => { if (S[k] !== undefined) keep[k] = S[k]; });
   const start = START_BY[phxN('start')], reb = (S.reb || 0) + 1, oldBal = S.bal, oldLvl = S.level;
   keep.phx = keep.phx || { pts: 0, up: {} }; keep.phx.pts = (keep.phx.pts || 0) + REB_PTS;
