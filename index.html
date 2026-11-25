@@ -6880,6 +6880,42 @@ PAGES.schwarz = renderSchwarz;
     <div class="go">${S.level < SB_LV ? `🔒 Ab Level ${SB_LV}` : '⚫ Los kaufen · 1.000 €'}</div><div class="ic">⚫🧪</div></div>`);
   $('#sbAd', el).onclick = () => { SND.click(); go('schwarz'); }; }; }
 ACH.push(['sb50', 'Schwarze Magie', 'Finde den Schwarzen Trank ×50', 50000, s => (s.st.sb50 || 0) >= 1]);
+
+/* ================= 🔎 Namensvorschläge beim Tippen (Freunde, Clan-Einladung, Admin-Felder) ================= */
+(() => { const st = document.createElement('style'); st.dataset.dyn = '1'; st.textContent = `
+.nsug{position:absolute;z-index:99990;background:#1a1a1e;border:1px solid #333;border-radius:16px;box-shadow:0 12px 30px #000a;overflow:hidden;max-height:300px;overflow-y:auto}
+.nsug button{display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;background:none;border:0;border-bottom:1px solid #26262a;color:#fff;text-align:left;cursor:pointer;font:inherit}
+.nsug button:last-child{border-bottom:0}.nsug button:hover,.nsug button.on{background:#2a2a30}
+.nsug .avatar{width:34px;height:34px;font-size:13px;flex:none}.nsug b{font-size:16px}.nsug small{display:block;color:var(--mut);font-size:13px}
+.nsug mark{background:none;color:var(--gold2,#f5cf5a);font-weight:900}`; document.head.appendChild(st); })();
+const NSUG_IDS = ['frIn', 'clInvN', 'gfN', 'bgN', 'lhN'];
+let NS_BOX = null;
+function nsClose() { if (NS_BOX) { NS_BOX.remove(); NS_BOX = null; } }
+async function nsShow(inp) {
+  const q = inp.value.trim().toLowerCase(); if (!q || !onlineOn()) return nsClose();
+  let docs = []; try { docs = await snapDocs(); } catch (e) { try { docs = await rgFetch(); docs = docs.map(r => ({ name: r.name, disp: r.disp, level: r.lvl, color: r.color, frm: r.frm })); } catch (x) { return nsClose(); } }
+  if (inp.value.trim().toLowerCase() !== q || !inp.isConnected) return;
+  const seen = new Set(), me = meKey();
+  const list = docs.filter(d => d.name && !seen.has(String(d.name).toLowerCase()) && seen.add(String(d.name).toLowerCase()) && String(d.name).toLowerCase() !== me && !(typeof lbhHas === 'function' && lbhHas(d.name)))
+    .map(d => { const n = String(d.name).toLowerCase(), dp = String(d.disp || '').toLowerCase(); const sc = n === q ? 0 : n.startsWith(q) ? 1 : dp.startsWith(q) ? 2 : n.includes(q) ? 3 : dp.includes(q) ? 4 : 9; return { d, sc }; })
+    .filter(x => x.sc < 9).sort((a, b) => a.sc - b.sc || String(a.d.name).length - String(b.d.name).length).slice(0, 6);
+  if (!list.length) return nsClose();
+  const hl = t => { const s = String(t), i = s.toLowerCase().indexOf(q); return i < 0 ? esc(s) : esc(s.slice(0, i)) + '<mark>' + esc(s.slice(i, i + q.length)) + '</mark>' + esc(s.slice(i + q.length)); };
+  nsClose(); const r = inp.getBoundingClientRect(); NS_BOX = document.createElement('div'); NS_BOX.className = 'nsug';
+  NS_BOX.dataset.f = 1; NS_BOX.style.left = r.left + 'px'; NS_BOX.style.top = (r.bottom + 6) + 'px'; NS_BOX.style.width = Math.max(240, r.width) + 'px'; NS_BOX.style.position = 'fixed';
+  NS_BOX.innerHTML = list.map(({ d }) => `<button type="button" data-n="${esc(d.name)}">${avaHTML({ name: d.name, disp: d.disp, color: d.color, frm: d.frm })}<div><b>${hl(d.disp || d.name)}</b><small>@${hl(d.name)} · Lv. ${d.level || 1}</small></div></button>`).join('');
+  document.body.appendChild(NS_BOX);
+  NS_BOX.addEventListener('pointerdown', e => { const b = e.target.closest('[data-n]'); if (!b) return; e.preventDefault(); inp.value = b.dataset.n; nsClose(); SND.click(); inp.dispatchEvent(new Event('input', { bubbles: true })); inp.focus(); });
+}
+function nsAttach(inp) {
+  if (inp.dataset.ns) return; inp.dataset.ns = 1; inp.setAttribute('autocomplete', 'off');
+  let t = 0; inp.addEventListener('input', e => { if (!e.isTrusted) return; clearTimeout(t); t = setTimeout(() => nsShow(inp), 150); });
+  inp.addEventListener('focus', () => { if (inp.value.trim()) nsShow(inp); });
+  inp.addEventListener('blur', () => setTimeout(nsClose, 150));
+  inp.addEventListener('keydown', e => { if (e.key === 'Escape') nsClose(); });
+}
+new MutationObserver(() => { NSUG_IDS.forEach(id => { const i = document.getElementById(id); if (i) nsAttach(i); }); if (NS_BOX && !document.activeElement?.dataset?.ns) nsClose(); }).observe(document.body, { childList: true, subtree: true });
+addEventListener('scroll', e => { if (!NS_BOX || NS_BOX.contains(e.target)) return; const inp = document.activeElement; if (!inp || !inp.dataset || !inp.dataset.ns) return nsClose(); const r = inp.getBoundingClientRect(); NS_BOX.style.left = r.left + 'px'; NS_BOX.style.top = (r.bottom + 6) + 'px'; }, true);
 </script>
 </body>
 </html>
