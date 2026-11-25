@@ -4387,7 +4387,7 @@ async function rgFetch() { if (RG_C && Date.now() - RG_C.t < 300000) return RG_C
 async function rgFetch0() {
   if (typeof lbhLoad === 'function') await lbhLoad();
   // nur Spieler, die in den letzten 21 Tagen gespielt haben (spart viele Lesevorgänge); „seit Reset“ wird hier gefiltert
-  const docs = (await fsQuery({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(Math.floor(Date.now() / 36e5) * 36e5 - 21 * 864e5) } }, limit: 500 })).filter(r => (r.since || 0) >= RESET_TS).filter(r => r.id === S.lbId || isOwner(r.id) || (typeof lbhHas === 'function' ? !lbhHas(r.name) || (typeof isAdm === 'function' && isAdm()) : true));
+  const docs = (await fsQuery({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(Math.floor(Date.now() / 36e5) * 36e5 - 21 * 864e5) } }, limit: 500 })).filter(r => (r.since || 0) >= RESET_TS).filter(r => r.id === S.lbId || isOwner(r.id) || (typeof lbhHas === 'function' ? !lbhHas(r.name) : true));
   return docs.map(d => ({ k: d.id, name: d.name || '?', disp: d.disp || d.name || '?', bal: d.bal || 0, lvl: d.level || 1, color: d.color || 0, ts: d.ts || 0, me: d.id === S.lbId,
     big: d.big ?? null, net: d.net ?? null, bxp: d.bxp ?? null, wag: d.wag ?? null, since: d.since ?? null, best: d.best || '', ach: d.ach ?? null, own: !!d.own, tit: d.tit || '', frm: d.frm || '', clan: d.clan || '', hist: d.hist, crl: d.crl || 0,
     dy: perVal(d, 'dy', d.dk === dayKey() ? d.dv : undefined), wk: perVal(d, 'wk', d.wkk === weekKey() ? d.wk : undefined), mo: perVal(d, 'mo', d.mk === monKey() ? d.mv : undefined), pt: d.pt ?? null, pw: d.pw ?? null, pwk: d.pwk || '', wkk: d.wkk || '', wkRaw: d.wk ?? null }));
@@ -5309,7 +5309,10 @@ async function lbhSet(name, h) {
   const r = await fsCreate('lbsperre', g.id, { n: fstr(g.n), h: fint(g.h), ts: fint(g.ts), sig: fstr(sig) });
   if (!r.ok) throw new Error('HTTP ' + r.status);
   if (isB) { LBH.bdg = LBH.bdg || {}; if (g.h) LBH.bdg[nm.slice(2)] = g.h; else delete LBH.bdg[nm.slice(2)]; FQ_C.clear(); return; }
-  if (h) LBH.set.add(g.n); else LBH.set.delete(g.n); lbLast = ''; FQ_C.clear();
+  if (h) LBH.set.add(g.n); else LBH.set.delete(g.n); lbLast = ''; FQ_C.clear(); LBH.t = 0;
+  try { LBS.docs.push({ id: g.id, n: g.n, h: g.h, ts: g.ts, sig }); LBS_T = 0; } catch (e) { }
+  if (nm.startsWith('x:')) { LBH.ban = LBH.ban || {}; if (g.h) LBH.ban[nm.slice(2)] = g.h; else delete LBH.ban[nm.slice(2)]; if (typeof RG_C !== 'undefined') RG_C = null; }
+  if (nm.startsWith('r:')) { LBH.why = LBH.why || {}; const p = nm.slice(2).split('|'); LBH.why[p[0]] = { t: whyDec(p.slice(1).join('|')), ts: g.ts }; }
 }
 function openBadges() {
   let pick = 2;
@@ -6705,10 +6708,11 @@ function banTag(r) {
   return (u ? ` <span class="owner" style="background:#ff3b3b22;color:#ff6b6b;border-color:#ff6b6b66">⛔ GEBANNT${u === Infinity ? ' (dauerhaft)' : ''}</span>` : '') + (hid ? ' <span class="owner" style="background:#88888822;color:#aaa;border-color:#88888866">🙈 Ausgeblendet</span>' : '');
 }
 // lbhLoad legt nur „h != 0“ in LBH.set – den Zeitpunkt holen wir aus den Rohdaten (gleiche Abfrage, kommt aus dem Zwischenspeicher)
-{ const L1 = lbhLoad; lbhLoad = async force => { const r = await L1(force); try { const docs = await fsQuery({ from: [{ collectionId: 'lbsperre' }], limit: 500 }); const best = {}; docs.forEach(d => { const n = String(d.n || '').toLowerCase(); if (n.startsWith('x:') && (!best[n] || (+d.ts || 0) > best[n].ts)) best[n] = { ts: +d.ts || 0, h: +d.h || 0 }; }); LBH.ban = {}; Object.entries(best).forEach(([n, g]) => { if (g.h && LBH.set.has(n)) LBH.ban[n.slice(2)] = g.h; }); } catch (e) { } return r; }; }
-async function admBan(name, mins) { // mins: >0 Minuten, -1 = dauerhaft, 0 = entsperren
-  const nm = String(name).toLowerCase();
-  await giftSend(nm, mins === -1 ? 1 : Math.max(0, mins), '', 'ban', mins === -1 ? 'p' : ''); // (zeitliche Sperre/Entsperren vermerkt der giftSend-Zusatz unten)
+{ const L1 = lbhLoad; lbhLoad = async force => { const r = await L1(force); try { const docs = await fsQuery({ from: [{ collectionId: 'lbsperre' }], limit: 500 }); const best = {}; docs.forEach(d => { const n = String(d.n || '').toLowerCase(); if (n.startsWith('x:') && (!best[n] || (+d.ts || 0) > best[n].ts)) best[n] = { ts: +d.ts || 0, h: +d.h || 0 }; }); LBH.ban = {}; Object.entries(best).forEach(([n, g]) => { if (g.h && LBH.set.has(n)) LBH.ban[n.slice(2)] = g.h; }); LBH.why = {}; LBH.set.forEach(n => { if (!n.startsWith('r:')) return; const d = docs.filter(x => String(x.n || '').toLowerCase() === n).sort((a, b) => (+b.ts || 0) - (+a.ts || 0))[0]; const p = n.slice(2).split('|'), k = p[0]; if (d && (!LBH.why[k] || +d.ts > LBH.why[k].ts)) LBH.why[k] = { t: whyDec(String(d.n).slice(2).split('|').slice(1).join('|')), ts: +d.ts }; }); } catch (e) { } return r; }; }
+async function admBan(name, mins, why = '') { // mins: >0 Minuten, -1 = dauerhaft, 0 = entsperren
+  const nm = String(name).toLowerCase(); why = String(why || '').replace(/\|/g, '/').trim().slice(0, 100);
+  await giftSend(nm, mins === -1 ? 1 : Math.max(0, mins), why, 'ban', mins === -1 ? 'p' : '');
+  if (mins !== 0) { try { await lbhSet('r:' + nm + '|' + whyEnc(why), why ? 1 : 0); } catch (e) { } } // Grund (für alle sichtbar) // (zeitliche Sperre/Entsperren vermerkt der giftSend-Zusatz unten)
   const h = mins === -1 ? 1 : mins > 0 ? Math.ceil((Date.now() + Math.min(30 * 864e5, mins * 60000)) / 60000) : 0;
   if (mins === -1) await lbhSet('x:' + nm, 1); LBH.ban = LBH.ban || {}; if (h) LBH.ban[nm] = h; else delete LBH.ban[nm];
   try { FQ_C.clear(); } catch (e) { }
@@ -6719,8 +6723,9 @@ function admProfileBox(r, shpIn) {
   const nm = String(r.name).toLowerCase(), u = banOf(nm), hid = lbhHas(nm);
   shp.insertAdjacentHTML('beforeend', `<div class="card" id="admPB" style="margin-top:14px;border:1px solid #ff6b6b55;background:#1a0f10">
     <h3 style="font-size:19px;margin:0 0 6px">🛡️ Admin · @${esc(r.name)}</h3>
-    <p class="hint" style="margin:0 0 10px">${u ? `⛔ Gesperrt ${u === Infinity ? '<b>dauerhaft</b>' : 'bis <b>' + new Date(u).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + '</b>'}` : '✅ Nicht gesperrt'}${hid ? ' · 🙈 aus der Bestenliste ausgeblendet' : ''}</p>
+    <p class="hint" style="margin:0 0 10px">${u && LBH.why && LBH.why[nm] && LBH.why[nm].t ? `Grund: <b>${esc(LBH.why[nm].t)}</b><br>` : ''}${u ? `⛔ Gesperrt ${u === Infinity ? '<b>dauerhaft</b>' : 'bis <b>' + new Date(u).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + '</b>'}` : '✅ Nicht gesperrt'}${hid ? ' · 🙈 aus der Bestenliste ausgeblendet' : ''}</p>
     ${u ? `<button class="btn gold w" data-ab="0">🔓 Sperre aufheben</button>` : `<div class="lbl2" style="margin-top:0">Sperren für …</div><div class="fdgg" style="grid-template-columns:repeat(3,1fr)">
+      <input class="inp" id="admWhy" maxlength="100" placeholder="Grund (optional), z. B. Beleidigung im Chat" style="grid-column:1/4;margin-bottom:4px">
       <button class="btn dark xs" data-ab="10">10 Min.</button><button class="btn dark xs" data-ab="60">1 Std.</button><button class="btn dark xs" data-ab="1440">1 Tag</button>
       <button class="btn dark xs" data-ab="10080">7 Tage</button><button class="btn dark xs" data-ab="43200">30 Tage</button><button class="btn red xs" data-ab="-1">⛔ Dauerhaft</button></div>`}
     <button class="btn dark w" data-ah="${hid ? 0 : 1}" style="margin-top:10px">${hid ? '👀 Wieder in der Bestenliste zeigen' : '🙈 Aus der Bestenliste ausblenden'}</button></div>`);
@@ -6731,7 +6736,7 @@ function admProfileBox(r, shpIn) {
       if (b.dataset.ab !== undefined) {
         const m = +b.dataset.ab;
         if (m === -1 && !await confirmBox('Dauerhaft sperren?', `<b>@${esc(r.name)}</b> kann GGamble dann nicht mehr spielen, bis du die Sperre aufhebst.`, 'Sperren', true)) return;
-        b.disabled = true; await admBan(nm, m); SND.win();
+        const why = ($('#admWhy', B) || {}).value || ''; b.disabled = true; await admBan(nm, m, why); SND.win();
         toast(m ? `⛔ @${esc(r.name)} ${m === -1 ? 'dauerhaft gesperrt' : 'gesperrt'}` : `🔓 Sperre von @${esc(r.name)} aufgehoben`, 'good');
       } else { b.disabled = true; const h = +b.dataset.ah; await lbhSet(nm, h); try { FQ_C.clear(); } catch (x) { } SND.win(); toast(h ? `🙈 @${esc(r.name)} ausgeblendet` : `👀 @${esc(r.name)} wird wieder angezeigt`, 'good'); }
       B.remove(); admProfileBox(r, shp); if (typeof RG_C !== 'undefined') RG_C = null;
@@ -6750,7 +6755,33 @@ function admProfileBox(r, shpIn) {
 .bannm{text-decoration:line-through!important;text-decoration-color:#ff3b3b!important;text-decoration-thickness:3px!important;opacity:.75;-webkit-text-fill-color:currentColor;background:none!important;animation:none!important}
 .banbar{display:flex;align-items:center;gap:10px;margin:12px 0;padding:12px 14px;border-radius:14px;background:repeating-linear-gradient(-45deg,#5a0d0d 0 12px,#3d0909 12px 24px);border:1px solid #ff3b3b;color:#fff;font-weight:800;font-size:17px}
 .banbar span{font-size:26px}`; document.head.appendChild(st); })();
-{ const PP = playerProfile; playerProfile = (r, rank) => { PP(r, rank); if (!r || r.me) return; let n = 0; const t = () => { const shp = [...document.querySelectorAll('.ov .sheet')].pop(); if (shp && shp.textContent.includes('@' + r.name)) { const u = banOf(r.name); if (u && !shp.querySelector('.banbar')) { const a = shp.querySelector('.prof') || shp.firstElementChild; a.insertAdjacentHTML('afterend', `<div class="banbar"><span>⛔</span><div>Dieser Spieler ist gebannt${u === Infinity ? ' – dauerhaft' : ` bis ${new Date(u).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`}</div></div>`); } } else if (n++ < 20) setTimeout(t, 200); }; setTimeout(t, 80); }; }
+{ const PP = playerProfile; playerProfile = (r, rank) => { PP(r, rank); if (!r || r.me) return; let n = 0; const t = () => { const shp = [...document.querySelectorAll('.ov .sheet')].pop(); if (shp && shp.textContent.includes('@' + r.name)) { const u = banOf(r.name); if (u && !shp.querySelector('.banbar')) { const a = shp.querySelector('.prof') || shp.firstElementChild; a.insertAdjacentHTML('afterend', `<div class="banbar"><span>⛔</span><div>Dieser Spieler ist gebannt${u === Infinity ? ' – dauerhaft' : ` bis ${new Date(u).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`}${(() => { const w = LBH.why && LBH.why[String(r.name).toLowerCase()]; return w && w.t ? `<br><small style="font-weight:600;opacity:.9">Grund: ${esc(w.t)}</small>` : ''; })()}</div></div>`); } } else if (n++ < 20) setTimeout(t, 200); }; setTimeout(t, 80); }; }
+
+{ const G0 = giftReceive; giftReceive = (g, all) => { if (g && g.k === 'ban' && S) { S.banWhy = +g.amt > 0 ? String(g.msg || '').slice(0, 100) : ''; } return G0(g, all); }; }
+setInterval(() => { const ov = document.getElementById('banOv'); if (!ov || !S || !S.banWhy || ov.querySelector('.bwhy')) return; const t = document.getElementById('banT'); if (t) t.insertAdjacentHTML('afterend', `<p class="bwhy" style="font-size:18px;margin:0;color:#fff;max-width:420px">Grund: <b>${esc(S.banWhy)}</b></p>`); }, 1000);
+
+// Groß-/Kleinschreibung im Bann-Grund erhalten (Sperr-Einträge werden klein gespeichert): „A“ → „^a“
+const whyEnc = t => String(t).replace(/\^/g, '^^').replace(/[A-ZÄÖÜ]/g, c => '^' + c.toLowerCase());
+const whyDec = t => String(t).replace(/\^(\^|.)/g, (m, c) => c === '^' ? '^' : c.toUpperCase());
+/* 🔄 Sperrliste nur noch neue Einträge nachladen (statt jedes Mal alle) → kann jede Minute aktualisiert werden */
+let LBS = (() => { try { return JSON.parse(localStorage.getItem('gg_lbs') || 'null') || { docs: [], last: 0 }; } catch (e) { return { docs: [], last: 0 }; } })(), LBS_T = 0, LBS_P = null;
+{ const Q1 = fsQuery; fsQuery = async q => {
+  const col = q.from && q.from[0] && q.from[0].collectionId;
+  if (col !== 'lbsperre' || q.where) return Q1(q);
+  if (Date.now() - LBS_T < 30000) return LBS.docs.map(x => ({ ...x }));
+  if (LBS_P) return LBS_P;
+  LBS_P = (async () => {
+    try {
+      const from = LBS.last ? LBS.last - 15 * 60000 : 0;
+      const fresh = await fsQuery0({ from: [{ collectionId: 'lbsperre' }], ...(from ? { where: { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(from) } } } : {}), limit: 1000 });
+      const m = new Map(LBS.docs.map(d => [d.id, d])); fresh.forEach(d => m.set(d.id, d));
+      LBS = { docs: [...m.values()], last: Math.max(LBS.last, ...fresh.map(d => +d.ts || 0)) }; LBS_T = Date.now();
+      try { localStorage.setItem('gg_lbs', JSON.stringify(LBS)); } catch (e) { }
+      return LBS.docs.map(x => ({ ...x }));
+    } finally { LBS_P = null; }
+  })();
+  return LBS_P;
+}; }
 </script>
 </body>
 </html>
