@@ -1434,9 +1434,9 @@ const MACH = [
   { n: 'Royal Crown', s: 'Mit Grand-Jackpot', c: '#ffd65a', c2: '#2a1450', ic: '👑', lvl: 24, t: 'j', jp: 'grand', top: 200, syms: ['🍒', '🔔', '💍', '💰', '👑', '7'] },
   { n: 'Black Diamond', s: '5 Walzen · High Roller', c: '#d0d0d0', c2: '#101010', ic: '🖤', lvl: 28, t: 'v', mx: 1000, hi: ['🎩', '🥂', '🏎️', '🖤'], wild: '💎', scat: '🎰' },
   // 🔥 Nur für Wiedergeborene
-  { n: 'Phönix-Feuer', s: '5 Walzen · nur für Wiedergeborene', c: '#ff6a00', c2: '#2a0800', ic: '🔥', t: 'v', mx: 800, hi: ['🦅', '🌋', '☀️', '👑'], wild: '🔥', scat: '🪶', reb: 1, lvlx: 1 },
-  { n: 'Asche & Glut', s: 'Klassisch · nur für Wiedergeborene', c: '#ffb300', c2: '#1a0a00', ic: '🌋', t: 'c', top: 300, syms: ['🪵', '🕯️', '🧨', '🌋', '☄️', '🔥'], reb: 1, lvlx: 1 },
-  { n: 'Unsterbliche Krone', s: 'Grand-Jackpot · ab 2 Wiedergeburten', c: '#f5cf5a', c2: '#2a1000', ic: '👑', t: 'j', jp: 'grand', top: 250, syms: ['🍷', '🗝️', '💍', '🏺', '👑', '🐉'], reb: 2, lvlx: 1 },
+  { n: 'Phönix-Feuer', s: '5 Walzen · 1 Wiedergeburt + Level 15', c: '#ff6a00', c2: '#2a0800', ic: '🔥', t: 'v', mx: 800, hi: ['🦅', '🌋', '☀️', '👑'], wild: '🔥', scat: '🪶', reb: 1, lvlx: 15 },
+  { n: 'Asche & Glut', s: 'Klassisch · 1 Wiedergeburt + Level 8', c: '#ffb300', c2: '#1a0a00', ic: '🌋', t: 'c', top: 300, syms: ['🪵', '🕯️', '🧨', '🌋', '☄️', '🔥'], reb: 1, lvlx: 8 },
+  { n: 'Unsterbliche Krone', s: 'Grand-Jackpot · 2 Wiedergeburten + Level 25', c: '#f5cf5a', c2: '#2a1000', ic: '👑', t: 'j', jp: 'grand', top: 250, syms: ['🍷', '🗝️', '💍', '🏺', '👑', '🐉'], reb: 2, lvlx: 25 },
 ];
 const RB_ST = 1000, RB_CH = 1 / 100000; // Einsatz Regenbogen-Automat, Chance auf Trank ×100 (1 : 100.000)
 const MLVL = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 50];
@@ -1558,7 +1558,7 @@ function cabHTML(m, sm) {
     </div><div class="tray"></div><div class="base"></div></div>`;
 }
 const isLockedM = m => S.level < m.lvl || !!(m.reb && (S.reb || 0) < m.reb);
-const lockTxt = m => m.reb && (S.reb || 0) < m.reb ? `Ab ${m.reb}. Wiedergeburt 🔥` : `Ab Level ${m.lvl}`;
+const lockTxt = m => m.reb && (S.reb || 0) < m.reb ? `Ab ${m.reb}. Wiedergeburt 🔥${m.lvl > 1 ? ' + Level ' + m.lvl : ''}` : `Ab Level ${m.lvl}`;
 function payChips(m) {
   prep(m);
   const xf = v => (v >= 10 ? Math.round(v) : Math.round(v * 10) / 10).toLocaleString('de-DE') + '×';
@@ -2018,8 +2018,8 @@ const LOSE = [
   { id: 'dm', n: 'Diamantmine', p: 250, top: 250000, ic: 'diamond', ty: 'num', a: '#4b5056', b: '#8c9298', lvl: 12, dark: 1 },
   { id: 'kj', n: 'Kronjuwel', p: 2000, top: 2e6, ic: 'crown', ty: '3', a: '#5a5450', b: '#9d958c', lvl: 16, dark: 1 },
   { id: 'ml', n: 'Millionenlos', p: 20000, top: 20e6, ic: 'cash', ty: 'num', a: '#474747', b: '#8a8a8a', lvl: 22, dark: 1 },
-  { id: 'px', n: 'Phönix-Los', p: 100, top: 100000, ic: 'crown', ty: '3', a: '#c2410c', b: '#fdba74', lvl: 1, reb: 1 },
-  { id: 'us', n: 'Unsterblich-Los', p: 5000, top: 5e6, ic: 'diamond', ty: 'num', a: '#3b1d05', b: '#f5cf5a', lvl: 1, dark: 1, reb: 2 },
+  { id: 'px', n: 'Phönix-Los', p: 100, top: 100000, ic: 'crown', ty: '3', a: '#c2410c', b: '#fdba74', lvl: 10, reb: 1 },
+  { id: 'us', n: 'Unsterblich-Los', p: 5000, top: 5e6, ic: 'diamond', ty: 'num', a: '#3b1d05', b: '#f5cf5a', lvl: 25, dark: 1, reb: 2 },
   { id: 'sl', n: 'Schwarzes Los', p: 250000, top: 2.5e8, ic: 'eye', ty: '3', a: '#2a2a2a', b: '#6a6a6a', lvl: 30, dark: 1 },
 ];
 const TIER_M = [1, 2, 5, 10, 20, 50, 100, 250]; // höchste Stufe ×250 (vorher ×500)
@@ -2088,7 +2088,7 @@ function drawTicket(L) {
       <div class="foot"><div class="barcode"></div><div class="nr">Nr. ${t ? t.nr : '————'}<small>Nur Spielgeld</small></div></div>
     </div>
     <div class="tkres" id="tr_${L.id}"></div>
-    <div class="tkbar">${lk ? `<span class="chip">${icon('lock')} ${L.reb && (S.reb || 0) < L.reb ? `${L.reb}. Wiedergeburt 🔥` : 'Level ' + loseLvl(L)}</span><span class="chip">${shortMoney(L.p)}</span>`
+    <div class="tkbar">${lk ? `<span class="chip">${icon('lock')} ${L.reb && (S.reb || 0) < L.reb ? `${L.reb}. Wiedergeburt + Lv. ${loseLvl(L)}` : 'Level ' + loseLvl(L)}</span><span class="chip">${shortMoney(L.p)}</span>`
       : t && !t.done ? `<button class="btn dark w" data-all>Alles aufdecken</button>`
         : `<button class="btn white w" data-buy>${t ? 'Nochmal' : 'Kaufen'} · ${shortMoney(L.p)}</button>`}</div>`;
   // Rubbelschicht
