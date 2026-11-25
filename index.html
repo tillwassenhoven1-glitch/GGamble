@@ -4424,7 +4424,7 @@ async function renderRang2(el) {
   let all, info = '';
   if (onlineOn()) {
     pushScore(true);
-    try { await new Promise(r => setTimeout(r, 400)); all = await rgFetch(); }
+    try { await new Promise(r => setTimeout(r, 400)); all = await rgFetch(); if (typeof SNAP_STALE !== 'undefined' && SNAP_STALE) info = `⏳ Firebase ist gerade voll – du siehst den Stand von ${new Date(SNAP_STALE).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr. Sobald es wieder geht, aktualisiert sich die Liste von selbst.`; }
     catch (e) { info = String(e && e.message).includes('429') ? '⚠️ Online-Bestenliste gerade überlastet (Firebase-Tageslimit erreicht) – ab ca. 9 Uhr morgens geht sie wieder. Das hier sind nur die Konten auf diesem Gerät.' : `⚠️ Online-Bestenliste gerade nicht erreichbar (${esc(String(e && e.message || e).slice(0, 60))}) – das hier sind nur die Konten auf diesem Gerät.`; }
   } else info = 'ℹ️ Die Online-Bestenliste ist nicht eingerichtet – du siehst nur die Konten auf diesem Gerät.';
   if (!all) { persist(); all = localAll().filter(r => !r.me && (r.since || 0) >= RESET_TS); }
@@ -6655,7 +6655,7 @@ async function snapRead() {
   const f = (await r.json()).fields || {};
   return { ts: fval(f.ts) || 0, full: fval(f.f) || 0, docs: snapUnpack(fval(f.d) || '{"f":[],"r":[]}') };
 }
-async function snapBuild(old) {
+async function snapBuild(old, shared = true) {
   const now = Date.now(), win = SNAP_WIN(), full = !old || now - old.full > 6 * 36e5;
   const from = full ? win : Math.max(win, old.ts - 180000); // 3 Min. Überlappung gegen Uhr-Abweichungen
   const fresh = await fsQuery0({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(from) } }, limit: 1000 });
@@ -6664,23 +6664,32 @@ async function snapBuild(old) {
   if (full && old) old.docs.forEach(d => { if (!m.has(d.id) && typeof banOf === 'function' && banOf(d.name)) m.set(d.id, d); }); // Gesperrte bleiben sichtbar
   const docs = [...m.values()].filter(d => (d.ts || 0) > win || (typeof banOf === 'function' && banOf(d.name)));
   const body = { fields: { d: fstr(snapPack(docs)), ts: fint(now), f: fint(full ? now : old.full) } };
-  try { const w = await fetch(`${FS()}/top/rang?key=${ONLINE.apiKey}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); if (!w.ok) { if (w.status === 403) SNAP_OFF = Date.now(); } }
+  if (shared) try { const w = await fetch(`${FS()}/top/rang?key=${ONLINE.apiKey}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); if (!w.ok) { } }
   catch (e) { }
   return docs;
 }
+// 💾 Paket zusätzlich auf dem Gerät merken → Bestenliste klappt auch, wenn Firebase voll ist oder das geteilte Paket fehlt
+let SNAP_LS = (() => { try { return JSON.parse(localStorage.getItem('gg_snap') || 'null'); } catch (e) { return null; } })();
+function snapSave(o) { SNAP_LS = o; try { localStorage.setItem('gg_snap', JSON.stringify(o)); } catch (e) { } }
+let SNAP_STALE = 0; // Zeitpunkt des angezeigten (alten) Stands, wenn Firebase gerade nicht geht
 function snapDocs() {
   if (SNAP && Date.now() - SNAP.t < 240000) return Promise.resolve(SNAP.docs);
-  if (Date.now() - SNAP_OFF < 600000) return Promise.reject(new Error('snap off'));
   if (SNAP_P) return SNAP_P;
   SNAP_P = (async () => {
     try {
-      const old = await snapRead();
+      let base = null, shared = true;
+      if (Date.now() - FS_QUOTA < 600000) throw new Error('HTTP 429');
+      try { base = await snapRead(); } catch (e) { if (String(e.message).includes('429')) throw e; shared = false; } // geteiltes Paket nicht lesbar → eigenes Paket
+      if (SNAP_LS && (!base || SNAP_LS.ts > base.ts)) base = SNAP_LS;
       const jit = 240000 + (hstr(String(S && S.lbId || Math.random())) % 120000); // nicht alle bauen gleichzeitig
-      let docs;
-      if (!old || Date.now() - old.ts > jit || Date.now() - old.full > 6 * 36e5) docs = await snapBuild(old);
-      else docs = old.docs;
-      SNAP = { t: Date.now(), docs }; return docs;
-    } catch (e) { if (!String(e.message).includes('429')) SNAP_OFF = Date.now(); throw e; }
+      let docs, o;
+      if (!base || Date.now() - base.ts > jit || Date.now() - base.full > 6 * 36e5) { docs = await snapBuild(base, shared); o = { ts: Date.now(), full: base && Date.now() - base.full <= 6 * 36e5 ? base.full : Date.now(), docs }; }
+      else { docs = base.docs; o = base; }
+      snapSave(o); SNAP = { t: Date.now(), docs }; SNAP_STALE = 0; return docs;
+    } catch (e) {
+      if (SNAP_LS && SNAP_LS.docs && Date.now() - SNAP_LS.ts < 3 * 864e5) { SNAP = { t: Date.now() - 120000, docs: SNAP_LS.docs }; SNAP_STALE = SNAP_LS.ts; return SNAP_LS.docs; } // alter Stand statt gar nichts
+      throw e;
+    }
     finally { SNAP_P = null; }
   })();
   return SNAP_P;
@@ -7127,6 +7136,9 @@ function rebAnim(oldBal, oldLvl, reb, start) {
     at(8200, end);
   });
 }
+
+// ⏳ Gut sichtbarer Hinweis oben, wenn ein älterer Stand der Bestenliste angezeigt wird
+{ const R1 = PAGES.rang; PAGES.rang = async el => { await R1(el); try { if (SNAP_STALE) { const b = $('#rgBody', el); if (b && !b.querySelector('.stale')) b.insertAdjacentHTML('afterbegin', `<div class="lhb stale" style="margin:0 0 14px;border-color:#ffb300;background:#2a1f05"><span class="e">⏳</span><div><b>Letzter gespeicherter Stand von ${new Date(SNAP_STALE).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} Uhr</b><br><small>Firebase ist gerade voll – die Liste aktualisiert sich von selbst, sobald es wieder geht.</small></div></div>`); } } catch (e) { } }; PAGES.woche = el => { rgTab = 2; PAGES.rang(el); }; }
 </script>
 </body>
 </html>
