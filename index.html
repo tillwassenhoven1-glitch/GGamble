@@ -2972,7 +2972,7 @@ const ME_O = () => ({ k: S.lbId, me: true });
 const BADGES = { 9: ['👑', 'Besitzer', '#ffd84d'], 2: ['🛡️', 'Admin', '#ff5a5a'], 3: ['🔨', 'Moderator', '#ffb84a'], 4: ['💎', 'VIP', '#b06aff'], 5: ['🎥', 'Creator', '#ff7ad9'], 6: ['🐞', 'Beta-Tester', '#5ad86a'], 1: ['🧪', 'Test-Account', '#4ab0ff'] };
 const badgeOf = r => { if (!r || typeof LBH === 'undefined' || !LBH.bdg) return 0; const n = String(r.me ? S && S.name : r.name || '').toLowerCase(); return LBH.bdg[n] || 0; };
 const badgeTag = r => { const b = BADGES[badgeOf(r)]; if (!b || (badgeOf(r) === 9 && ownOn(r))) return ''; return ` <span class="owner" style="background:${b[2]}22;color:${b[2]};border-color:${b[2]}66">${b[0]} ${b[1]}</span>`; };
-const ownerTag = r => (ownOn(r) ? '<span class="owner">👑 Besitzer</span>' : '') + badgeTag(r);
+const ownerTag = r => (ownOn(r) ? '<span class="owner">👑 Besitzer</span>' : '') + badgeTag(r) + (typeof banTag === 'function' ? banTag(r) : '');
 const nameCls = r => ownOn(r) ? 'ownername' : (typeof LUX_T !== 'undefined' && LUX_T.includes(r && r.tit) ? 'luxname' : '');
 const RANG_WIP = false; // Bestenliste ist in Arbeit
 async function renderRang(el) {
@@ -4387,7 +4387,7 @@ async function rgFetch() { if (RG_C && Date.now() - RG_C.t < 300000) return RG_C
 async function rgFetch0() {
   if (typeof lbhLoad === 'function') await lbhLoad();
   // nur Spieler, die in den letzten 21 Tagen gespielt haben (spart viele Lesevorgänge); „seit Reset“ wird hier gefiltert
-  const docs = (await fsQuery({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(Math.floor(Date.now() / 36e5) * 36e5 - 21 * 864e5) } }, limit: 500 })).filter(r => (r.since || 0) >= RESET_TS).filter(r => r.id === S.lbId || isOwner(r.id) || (typeof lbhHas === 'function' ? !lbhHas(r.name) : true));
+  const docs = (await fsQuery({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(Math.floor(Date.now() / 36e5) * 36e5 - 21 * 864e5) } }, limit: 500 })).filter(r => (r.since || 0) >= RESET_TS).filter(r => r.id === S.lbId || isOwner(r.id) || (typeof lbhHas === 'function' ? !lbhHas(r.name) || (typeof isAdm === 'function' && isAdm()) : true));
   return docs.map(d => ({ k: d.id, name: d.name || '?', disp: d.disp || d.name || '?', bal: d.bal || 0, lvl: d.level || 1, color: d.color || 0, ts: d.ts || 0, me: d.id === S.lbId,
     big: d.big ?? null, net: d.net ?? null, bxp: d.bxp ?? null, wag: d.wag ?? null, since: d.since ?? null, best: d.best || '', ach: d.ach ?? null, own: !!d.own, tit: d.tit || '', frm: d.frm || '', clan: d.clan || '', hist: d.hist, crl: d.crl || 0,
     dy: perVal(d, 'dy', d.dk === dayKey() ? d.dv : undefined), wk: perVal(d, 'wk', d.wkk === weekKey() ? d.wk : undefined), mo: perVal(d, 'mo', d.mk === monKey() ? d.mv : undefined), pt: d.pt ?? null, pw: d.pw ?? null, pwk: d.pwk || '', wkk: d.wkk || '', wkRaw: d.wk ?? null }));
@@ -5155,14 +5155,14 @@ function giftTxt(k, amt, x) {
   if (k === 'en') return `${amt} Energie ⚡`;
   if (k === 'p2' || k === 'p4' || k === 'p6') return `${amt}× ${GIFT_K[k][1]}`;
   if (k === 'lv') return `${amt > 0 ? '+' : ''}${amt} Level`;
-  if (k === 'ban') return amt > 0 ? `Sperre für ${amt} ${x === 's' ? 'Sek.' : 'Min.'}` : 'Entsperrung';
+  if (k === 'ban') return amt > 0 ? (x === 'p' ? 'Dauerhafte Sperre' : `Sperre für ${amt} ${x === 's' ? 'Sek.' : 'Min.'}`) : 'Entsperrung';
   if (k === 'bp') return `${amt > 0 ? '+' : ''}${amt} Battle-Pass-Stufe${Math.abs(amt) === 1 ? '' : 'n'}`;
   return fmt(amt, { sign: true });
 }
 function giftApply(k, a, x) {
   if (k === 'fk') return; // Spaß – es wird nichts gutgeschrieben
   if (k === 'fw') { S.fakeWin = { m: Math.max(2, Math.min(10000, Math.round(a))) }; return; } // 🎭 nächster Dreh zeigt einen Fake-Riesengewinn
-  if (k === 'ban') { S.banUntil = a > 0 ? Date.now() + Math.min(30 * 864e5, a * (x === 's' ? 1000 : 60000)) : 0; S.banBy = ''; banCheck(); return; }
+  if (k === 'ban') { S.banUntil = a > 0 ? (x === 'p' ? 8.64e15 : Date.now() + Math.min(30 * 864e5, a * (x === 's' ? 1000 : 60000))) : 0; S.banBy = ''; banCheck(); return; }
   if (k === 'sp') { const n = Math.max(1, Math.min(500, Math.round(a))), st = Math.max(.1, Math.min(1e6, +x || 1)); S.gspin = S.gspin && S.gspin.st === st ? { n: S.gspin.n + n, st } : { n: (S.gspin ? S.gspin.n : 0) + n, st }; }
   else if (k === 'en') S.energy = (S.energy || 0) + Math.max(1, Math.min(500, Math.round(a)));
   else if (k === 'p2' || k === 'p4' || k === 'p6') { const m = +k[1]; S.pot[m] = (S.pot[m] || 0) + Math.max(1, Math.min(100, Math.round(a))); }
@@ -5229,8 +5229,9 @@ function banCheck() {
       <div id="banT" class="num" style="font-size:54px;font-weight:900;color:#ff6b6b"></div></div>`);
     ov = document.getElementById('banOv');
   }
-  const m = Math.floor(left / 60000), sec = Math.floor(left / 1000) % 60;
-  const t = document.getElementById('banT'); if (t) t.textContent = `${m}:${String(sec).padStart(2, '0')}`;
+  const m = Math.floor(left / 60000), sec = Math.floor(left / 1000) % 60, perm = left > 3e11;
+  const t = document.getElementById('banT'); if (t) t.textContent = perm ? 'Dauerhaft' : m >= 1440 ? `${Math.floor(m / 1440)} T. ${Math.floor(m % 1440 / 60)} Std.` : `${m}:${String(sec).padStart(2, '0')}`;
+  if (perm) { const pp = ov.querySelector('p'); if (pp && !pp.dataset.p) { pp.dataset.p = 1; pp.textContent = 'Der Besitzer hat dich dauerhaft gesperrt.'; } }
 }
 setInterval(() => { if (S) banCheck(); }, 1000);
 function giftStart() { if (!onlineOn()) return; setTimeout(giftPoll, 2500); setInterval(giftPoll, 90000); document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(giftPoll, 1500); }); setTimeout(() => typeof bcPoll === 'function' && bcPoll(), 3500); setInterval(() => typeof bcPoll === 'function' && bcPoll(), 120000); document.addEventListener('visibilitychange', () => { if (!document.hidden && typeof bcPoll === 'function') setTimeout(bcPoll, 800); }); }
@@ -5303,7 +5304,7 @@ async function lbhLoad(force) {
 async function lbhSet(name, h) {
   if (!ADM_KEY) { const c = localStorage.getItem('gg_adm'); if (!c || !await admUnlock(c)) throw new Error('key'); }
   const nm = name.toLowerCase(), isB = nm.startsWith('b:');
-  const g = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), n: nm, h: isB ? (+h || 0) : (h ? 1 : 0), ts: Date.now() };
+  const g = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), n: nm, h: isB || nm.startsWith('x:') ? (+h || 0) : (h ? 1 : 0), ts: Date.now() };
   const sig = b64u.to(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, ADM_KEY, new TextEncoder().encode(lbhMsg(g))));
   const r = await fsCreate('lbsperre', g.id, { n: fstr(g.n), h: fint(g.h), ts: fint(g.ts), sig: fstr(sig) });
   if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -6647,7 +6648,8 @@ async function snapBuild(old) {
   const fresh = await fsQuery0({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(from) } }, limit: 1000 });
   const m = new Map(full ? [] : old.docs.map(d => [d.id, d]));
   fresh.forEach(d => { const x = { id: d.id }; SNAP_F.forEach(k => { if (d[k] !== undefined) x[k] = d[k]; }); m.set(d.id, x); });
-  const docs = [...m.values()].filter(d => (d.ts || 0) > win);
+  if (full && old) old.docs.forEach(d => { if (!m.has(d.id) && typeof banOf === 'function' && banOf(d.name)) m.set(d.id, d); }); // Gesperrte bleiben sichtbar
+  const docs = [...m.values()].filter(d => (d.ts || 0) > win || (typeof banOf === 'function' && banOf(d.name)));
   const body = { fields: { d: fstr(snapPack(docs)), ts: fint(now), f: fint(full ? now : old.full) } };
   try { const w = await fetch(`${FS()}/top/rang?key=${ONLINE.apiKey}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); if (!w.ok) { if (w.status === 403) SNAP_OFF = Date.now(); } }
   catch (e) { }
@@ -6676,7 +6678,7 @@ function snapQ(docs, q) {
   let out = docs;
   if (w) { const ff = w.fieldFilter, k = ff.field.fieldPath, v = fval(ff.value), op = ff.op;
     if (!['EQUAL', 'GREATER_THAN'].includes(op)) return null;
-    out = out.filter(d => d[k] !== undefined && d[k] !== null && (op === 'EQUAL' ? d[k] === v : d[k] > v)); }
+    out = out.filter(d => (d[k] !== undefined && d[k] !== null && (op === 'EQUAL' ? d[k] === v : d[k] > v)) || (k === 'ts' && op === 'GREATER_THAN' && typeof banOf === 'function' && banOf(d.name))); }
   if (q.orderBy && q.orderBy.length) { const o = q.orderBy[0], k = o.field.fieldPath, dir = o.direction === 'DESCENDING' ? -1 : 1; out = [...out].sort((a, b) => ((a[k] ?? -Infinity) > (b[k] ?? -Infinity) ? 1 : (a[k] ?? -Infinity) < (b[k] ?? -Infinity) ? -1 : 0) * dir); }
   if (q.limit) out = out.slice(0, q.limit);
   return out.map(d => ({ ...d }));
@@ -6694,6 +6696,51 @@ function snapQ(docs, q) {
   }
   PP(r, rank);
 }; }
+
+/* ================= ⛔ Sperren: in der Bestenliste sichtbar + direkt im Profil sperren/entsperren ================= */
+// Sperren werden zusätzlich signiert in „lbsperre“ vermerkt (x:name, h = gesperrt bis in Minuten seit 1970; 1 = dauerhaft)
+const banOf = name => { const h = LBH.ban && LBH.ban[String(name || '').toLowerCase()]; if (!h) return 0; if (h === 1) return Infinity; const u = h * 60000; return u > Date.now() ? u : 0; };
+function banTag(r) {
+  const u = banOf(r && r.name), hid = typeof lbhHas === 'function' && r && lbhHas(r.name) && isAdm();
+  return (u ? ` <span class="owner" style="background:#ff3b3b22;color:#ff6b6b;border-color:#ff6b6b66">⛔ Gesperrt${u === Infinity ? ' (dauerhaft)' : ''}</span>` : '') + (hid ? ' <span class="owner" style="background:#88888822;color:#aaa;border-color:#88888866">🙈 Ausgeblendet</span>' : '');
+}
+// lbhLoad legt nur „h != 0“ in LBH.set – den Zeitpunkt holen wir aus den Rohdaten (gleiche Abfrage, kommt aus dem Zwischenspeicher)
+{ const L1 = lbhLoad; lbhLoad = async force => { const r = await L1(force); try { const docs = await fsQuery({ from: [{ collectionId: 'lbsperre' }], limit: 500 }); const best = {}; docs.forEach(d => { const n = String(d.n || '').toLowerCase(); if (n.startsWith('x:') && (!best[n] || (+d.ts || 0) > best[n].ts)) best[n] = { ts: +d.ts || 0, h: +d.h || 0 }; }); LBH.ban = {}; Object.entries(best).forEach(([n, g]) => { if (g.h && LBH.set.has(n)) LBH.ban[n.slice(2)] = g.h; }); } catch (e) { } return r; }; }
+async function admBan(name, mins) { // mins: >0 Minuten, -1 = dauerhaft, 0 = entsperren
+  const nm = String(name).toLowerCase();
+  await giftSend(nm, mins === -1 ? 1 : Math.max(0, mins), '', 'ban', mins === -1 ? 'p' : ''); // (zeitliche Sperre/Entsperren vermerkt der giftSend-Zusatz unten)
+  const h = mins === -1 ? 1 : mins > 0 ? Math.ceil((Date.now() + Math.min(30 * 864e5, mins * 60000)) / 60000) : 0;
+  if (mins === -1) await lbhSet('x:' + nm, 1); LBH.ban = LBH.ban || {}; if (h) LBH.ban[nm] = h; else delete LBH.ban[nm];
+  try { FQ_C.clear(); } catch (e) { }
+}
+function admProfileBox(r, shpIn) {
+  if (!isAdm() || !r || r.me || !r.name) return;
+  const shp = shpIn || [...document.querySelectorAll('.ov .sheet')].pop(); if (!shp || shp.querySelector('#admPB') || !shp.textContent.includes('@' + r.name)) return;
+  const nm = String(r.name).toLowerCase(), u = banOf(nm), hid = lbhHas(nm);
+  shp.insertAdjacentHTML('beforeend', `<div class="card" id="admPB" style="margin-top:14px;border:1px solid #ff6b6b55;background:#1a0f10">
+    <h3 style="font-size:19px;margin:0 0 6px">🛡️ Admin · @${esc(r.name)}</h3>
+    <p class="hint" style="margin:0 0 10px">${u ? `⛔ Gesperrt ${u === Infinity ? '<b>dauerhaft</b>' : 'bis <b>' + new Date(u).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + '</b>'}` : '✅ Nicht gesperrt'}${hid ? ' · 🙈 aus der Bestenliste ausgeblendet' : ''}</p>
+    ${u ? `<button class="btn gold w" data-ab="0">🔓 Sperre aufheben</button>` : `<div class="lbl2" style="margin-top:0">Sperren für …</div><div class="fdgg" style="grid-template-columns:repeat(3,1fr)">
+      <button class="btn dark xs" data-ab="10">10 Min.</button><button class="btn dark xs" data-ab="60">1 Std.</button><button class="btn dark xs" data-ab="1440">1 Tag</button>
+      <button class="btn dark xs" data-ab="10080">7 Tage</button><button class="btn dark xs" data-ab="43200">30 Tage</button><button class="btn red xs" data-ab="-1">⛔ Dauerhaft</button></div>`}
+    <button class="btn dark w" data-ah="${hid ? 0 : 1}" style="margin-top:10px">${hid ? '👀 Wieder in der Bestenliste zeigen' : '🙈 Aus der Bestenliste ausblenden'}</button></div>`);
+  const B = shp.querySelector('#admPB');
+  B.onclick = async e => {
+    const b = e.target.closest('[data-ab],[data-ah]'); if (!b) return;
+    try {
+      if (b.dataset.ab !== undefined) {
+        const m = +b.dataset.ab;
+        if (m === -1 && !await confirmBox('Dauerhaft sperren?', `<b>@${esc(r.name)}</b> kann GGamble dann nicht mehr spielen, bis du die Sperre aufhebst.`, 'Sperren', true)) return;
+        b.disabled = true; await admBan(nm, m); SND.win();
+        toast(m ? `⛔ @${esc(r.name)} ${m === -1 ? 'dauerhaft gesperrt' : 'gesperrt'}` : `🔓 Sperre von @${esc(r.name)} aufgehoben`, 'good');
+      } else { b.disabled = true; const h = +b.dataset.ah; await lbhSet(nm, h); try { FQ_C.clear(); } catch (x) { } SND.win(); toast(h ? `🙈 @${esc(r.name)} ausgeblendet` : `👀 @${esc(r.name)} wird wieder angezeigt`, 'good'); }
+      B.remove(); admProfileBox(r, shp); if (typeof RG_C !== 'undefined') RG_C = null;
+    } catch (er) { b.disabled = false; toast(er.message === 'key' ? 'Bitte Cheat-Code neu eingeben (Admin-Schlüssel fehlt).' : 'Hat nicht geklappt', 'bad'); }
+  };
+}
+{ const PP = playerProfile; playerProfile = (r, rank) => { PP(r, rank); if (!isAdm() || !r || r.me) return; let n = 0; const t = () => { const shp = [...document.querySelectorAll('.ov .sheet')].pop(); if (shp && shp.textContent.includes('@' + r.name)) { try { admProfileBox(r); } catch (e) { } } else if (n++ < 20) setTimeout(t, 200); }; setTimeout(t, 60); }; }
+// Geschenk-Menü: „Sperren“ auch dort vermerken + Option „Dauerhaft“
+{ const GS = giftSend; giftSend = async (to, amt, msg, k, x, von) => { const r = await GS(to, amt, msg, k, x, von); if (k === 'ban' && to && to !== '*' && x !== 'p') { try { const h = amt > 0 ? Math.ceil((Date.now() + Math.min(30 * 864e5, amt * (x === 's' ? 1000 : 60000))) / 60000) : 0; await lbhSet('x:' + String(to).toLowerCase(), h); } catch (e) { } } return r; }; }
 </script>
 </body>
 </html>
