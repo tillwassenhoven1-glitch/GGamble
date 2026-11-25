@@ -2922,7 +2922,7 @@ function pushScore(force) { if (TAB_DEAD) return;
   const withHist = Object.assign({}, withOwn, { hist: { stringValue: histPack() } });
   const noDM = Object.assign({}, withOwn); ['dv', 'dk', 'mv', 'mk'].forEach(x => delete noDM[x]);
   const noWk = Object.assign({}, noDM); ['wk', 'wkk'].forEach(x => delete noWk[x]);
-  const withRb = Object.assign({}, withHist, { rbw: { doubleValue: S.st.rbWag || 0 }, pt: fint(S.st.play || 0) }); // 🌈 Regenbogen-Einsatz, ⏱️ Spielzeit
+  const withRb = Object.assign({}, withHist, { rbw: { doubleValue: S.st.sbWag || 0 }, pt: fint(S.st.play || 0) }); // 🌈 Regenbogen-Einsatz, ⏱️ Spielzeit
   const withPw = Object.assign({}, withRb, { pw: { doubleValue: (S.pw && S.pw.v) || 0 }, pwk: { stringValue: (S.pw && S.pw.k) || '' } }); // 🥇 Wochen-Preise: Wert der letzten Woche
   const withCrl = Object.assign({}, withPw, { crl: fint(S.clan && S.clan.role ? 1 : 0) }); // 🏢 Clan-Rolle (Admin)
   const tiers = [withCrl, withPw, withRb, withHist, withOwn, noDM, noWk, full, f];
@@ -6821,45 +6821,83 @@ const SB_P = [[5000, .01, '💰 5.000 €'], [2000, .05, '💵 2.000 €'], [100
 .sbTbl b{text-align:right}
 .sbTr{font-size:clamp(90px,26vw,170px);filter:drop-shadow(0 0 30px #b06aff) drop-shadow(0 0 60px #f5cf5a);animation:sbFl 2.4s ease-in-out infinite}`; document.head.appendChild(st); })();
 let SB_BUSY = false;
+const SB_REL = 1795560000000; // Start der „Größte Zocker“-Liste (25.11.2026)
+const SB_SYM = { j: '🧪', 5000: '💰', 2000: '💵', 1000: '🎟️', 500: '🪙' }, SB_JUNK = ['💀', '🖤', '🎲', '🕷️', '🦇'];
+(() => { const st = document.createElement('style'); st.dataset.dyn = '1'; st.textContent = `
+.sbM{position:relative;margin:18px auto 0;max-width:460px;border-radius:30px;padding:22px 18px 18px;background:linear-gradient(180deg,#1a1a1f,#050506);border:2px solid #c9a227;box-shadow:0 0 40px #7a3cff44,0 20px 50px #000,inset 0 0 40px #000}
+.sbM .top{text-align:center;font-weight:900;letter-spacing:5px;font-size:22px;color:#f5cf5a;text-shadow:0 0 14px #f5cf5a88;margin-bottom:12px}
+.sbR{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:12px;border-radius:20px;background:#000;box-shadow:inset 0 0 30px #7a3cff55,inset 0 0 0 2px #2a2a30}
+.sbR div{height:110px;border-radius:14px;background:radial-gradient(circle,#1e1e24,#0a0a0c);display:grid;place-items:center;font-size:62px;overflow:hidden;box-shadow:inset 0 10px 18px #000,inset 0 -10px 18px #000}
+.sbR div.spin{filter:blur(2px);animation:sbJig .09s linear infinite}
+.sbR div.stop{animation:sbStop .35s cubic-bezier(.3,1.6,.5,1)}
+.sbR div.hit{background:radial-gradient(circle,#4a3a10,#120d02);box-shadow:0 0 0 3px #f5cf5a,0 0 26px #f5cf5a}
+.sbR div.jhit{background:radial-gradient(circle,#3a1a6a,#000);box-shadow:0 0 0 3px #b06aff,0 0 40px #b06aff,0 0 70px #f5cf5a;animation:sbJ 1s ease-in-out infinite}
+@keyframes sbJig{50%{transform:translateY(6px)}}
+@keyframes sbStop{0%{transform:translateY(-30px)}100%{transform:none}}
+.sbMsg{text-align:center;font-size:22px;font-weight:900;margin-top:14px;min-height:30px}
+.sbAd{padding-right:200px!important}.sbAd .ic{font-size:64px!important;right:22px!important}
+@media(max-width:520px){.sbAd{padding-right:22px!important;padding-top:84px!important}.sbAd .ic{top:44px!important;right:18px!important;font-size:52px!important}}`; document.head.appendChild(st); })();
 function renderSchwarz(el) {
   const lk = S.level < SB_LV;
   el.innerHTML = `<button class="btn dark sm" id="back">${icon('left')} Zurück</button>
-    <h1 class="t" style="margin-top:16px">Schwarzes Los ⚫</h1><p class="sub">Das gefährlichste Los im Casino. Nur hier gibt's den <b style="color:#f5cf5a">Schwarzen Trank ×50</b>.</p>
-    <div class="sbCard" id="sbC"><div class="sbIn"><div class="sbF"><b>⚫ LOS</b><small>1 : 10.000 · SCHWARZER TRANK</small></div><div class="sbB" id="sbBk"></div></div></div>
-    <button class="btn gold w" id="sbGo" style="margin-top:18px;font-size:22px" ${lk ? 'disabled' : ''}>${lk ? `🔒 Ab Level ${SB_LV}` : `Los kaufen & aufdecken · ${fmt(SB_ST)}`}</button>
-    <div class="card" style="margin-top:16px"><h3 style="font-size:20px;margin:0 0 10px">Was ist drin?</h3><div class="sbTbl">
-      <span>⚫🧪 <b style="text-align:left;color:#f5cf5a">Schwarzer Trank ×50</b></span><b>1 : 10.000</b>
-      ${SB_P.map(([a, p, n]) => `<span>${n}</span><b>${NF0.format(p * 100)} %</b>`).join('')}
-      <span>💨 Nichts</span><b>${NF0.format((1 - SB_P.reduce((a, x) => a + x[1], 0)) * 100)} %</b></div>
-      <p class="hint" style="margin:12px 0 0">⚠️ Ehrlich: Ohne Trank bekommst du im Schnitt nur ca. 35 % zurück. Man spielt hier für den Traum vom Trank.<br>⚫ <b>Schwarzer Trank ×50:</b> 50-fach Glück für ${POT_R[50]} Drehs an jedem Automaten (bei Einsätzen bis ${fmt(potCap())}). Trinken im Glückslabor.</p></div>
-    <p class="hint">Gekauft: ${NF0.format(S.st.sbN || 0)} Lose · Gefunden: ${S.st.sb50 || 0}× Schwarzer Trank</p>`;
-  $('#back', el).onclick = () => history.length > 1 && curPage === 'schwarz' ? go('spiele') : go('halle');
+    <h1 class="t" style="margin-top:16px">Schwarzes Los ⚫</h1><p class="sub">Das gefährlichste Spiel im Casino. Nur hier gibt's den <b style="color:#f5cf5a">Schwarzen Trank ×50</b>.</p>
+    <div class="sbM"><div class="top">⚫ SCHWARZ ⚫</div><div class="sbR" id="sbR"><div>⚫</div><div>⚫</div><div>⚫</div></div><div class="sbMsg" id="sbMsg">3× 🧪 = Schwarzer Trank ×50</div>
+      <button class="btn gold w" id="sbGo" style="margin-top:12px;font-size:22px" ${lk ? 'disabled' : ''}>${lk ? `🔒 Ab Level ${SB_LV}` : `Drehen · ${fmt(SB_ST)}`}</button></div>
+    <div class="card" style="margin-top:16px"><h3 style="font-size:20px;margin:0 0 10px">Gewinne</h3><div class="sbTbl">
+      <span>🧪🧪🧪 <b style="text-align:left;color:#f5cf5a">Schwarzer Trank ×50</b></span><b>1 : 10.000</b>
+      ${SB_P.map(([a, p, n]) => `<span>${SB_SYM[a]}${SB_SYM[a]}${SB_SYM[a]} ${fmt(a)}</span><b>${NF0.format(p * 100)} %</b>`).join('')}</div>
+      <p class="hint" style="margin:12px 0 0">⚠️ Ehrlich: Ohne Trank bekommst du im Schnitt nur ca. 35 % zurück – man spielt hier für den Traum vom Trank.<br>⚫ <b>Schwarzer Trank ×50:</b> 50-fach Glück für ${POT_R[50]} Drehs an jedem Automaten (Einsatz bis ${fmt(potCap())}). Trinken im Glückslabor.</p></div>
+    <div class="card tight" style="margin-top:14px" id="sbTop"><h3 style="font-size:20px;margin:0 0 6px">🏆 Größte Zocker</h3><div class="hint">Lade …</div></div>
+    <p class="hint">Deine Drehs: ${NF0.format(S.st.sbN || 0)} · reingesteckt: ${fmt(S.st.sbWag || 0)} · Schwarzer Trank gefunden: ${S.st.sb50 || 0}×</p>`;
+  $('#back', el).onclick = () => go('halle');
   $('#sbGo', el).onclick = () => sbBuy(el);
+  sbTopLoad($('#sbTop', el));
 }
+async function sbTopLoad(box) {
+  let rows = [];
+  try { rows = (await fsQuery({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'rbw' }, op: 'GREATER_THAN', value: { doubleValue: 0 } } }, orderBy: [{ field: { fieldPath: 'rbw' }, direction: 'DESCENDING' }], limit: 60 })).filter(r => (r.ts || 0) > SB_REL && !(typeof lbhHas === 'function' && lbhHas(r.name))); }
+  catch (e) { }
+  const me = S.st.sbWag || 0; rows = rows.filter(r => r.id !== S.lbId); if (me > 0) rows.push({ id: S.lbId, name: S.name, disp: S.disp, rbw: me, me: true });
+  rows = rows.sort((a, b) => b.rbw - a.rbw).slice(0, 10);
+  if (!box.isConnected) return;
+  box.innerHTML = `<h3 style="font-size:20px;margin:0 0 6px">🏆 Größte Zocker</h3><p class="hint" style="margin:0 0 8px">Wer hat am meisten ins Schwarze Los gesteckt?</p>` + (rows.length ? `<div class="list">${rows.map((r, i) => `<div class="it ${r.me ? 'me' : ''}"><b style="width:34px;font-size:20px">${['🥇', '🥈', '🥉'][i] || i + 1}</b><div class="who" style="flex:1"><b style="display:block">${esc(r.disp || r.name)}</b><small style="display:block;color:var(--mut)">@${esc(r.name)}</small></div><span class="w num">${fmt(r.rbw)}</span></div>`).join('')}</div>` : '<div class="empty">Noch keiner – sei der Erste! ⚫</div>');
+}
+function sbResolve() { // Gewinn gutschreiben (auch nach Neuladen, falls die Animation unterbrochen wurde)
+  const p = S && S.sbPend; if (!p) return null; S.sbPend = null;
+  if (p.j) { S.pot[50] = (S.pot[50] || 0) + 1; S.st.sb50 = (S.st.sb50 || 0) + 1; }
+  if (p.a) payout(p.a, 'Schwarzes Los', SB_ST);
+  persist(); hdr(true); checkAch(); return p;
+}
+(function sbResume() { if (!S) return setTimeout(sbResume, 1500); if (S.sbPend) { const p = sbResolve(); if (p && p.j) setTimeout(sbFound, 1500); else if (p && p.a) toast(`⚫ Schwarzes Los: +${fmt(p.a)}`, 'good'); } })();
 async function sbBuy(el) {
-  if (SB_BUSY || S.level < SB_LV) return;
+  if (SB_BUSY || S.level < SB_LV || S.sbPend) return;
   if (S.bal < SB_ST) { toast(`Du brauchst ${fmt(SB_ST)} Guthaben (Dispo zählt nicht).`, 'bad'); SND.err(); return; }
   if (!bet(SB_ST, 'Schwarzes Los')) return;
-  SB_BUSY = true; S.st.sbN = (S.st.sbN || 0) + 1; S.st.rbWag = r2((S.st.rbWag || 0) + SB_ST);
-  let r = Math.random(), res = null;
-  if (r < SB_CH) res = { jack: true };
-  else { r = Math.random(); for (const [a, p, n] of SB_P) { if (r < p) { res = { a, n }; break; } r -= p; } }
-  if (res && res.jack) { S.pot[50] = (S.pot[50] || 0) + 1; S.st.sb50 = (S.st.sb50 || 0) + 1; }
-  if (res && res.a) payout(res.a, 'Schwarzes Los', SB_ST);
-  persist(); hdr(true);
-  const C = $('#sbC', el), B = $('#sbBk', el), go_ = $('#sbGo', el);
-  if (go_) go_.disabled = true;
-  if (C && B) {
-    B.className = 'sbB' + (res && res.jack ? ' jack' : res ? ' win' : '');
-    B.innerHTML = res && res.jack ? '<div class="e">⚫🧪</div><div class="x" style="color:#f5cf5a">SCHWARZER TRANK!</div>' : res ? `<div class="e">${res.n.split(' ')[0]}</div><div class="x" style="color:#f5cf5a">+${fmt(res.a)}</div>` : '<div class="e">💨</div><div class="x" style="color:#888">Leider nichts</div>';
-    C.classList.remove('flip'); void C.offsetWidth; SND.click(); setTimeout(() => C.classList.add('flip'), 30);
+  SB_BUSY = true; S.st.sbN = (S.st.sbN || 0) + 1; S.st.sbWag = r2((S.st.sbWag || 0) + SB_ST); S.st.rbWag = S.st.sbWag;
+  let r = Math.random(), res = { a: 0, j: false };
+  if (r < SB_CH) res.j = true;
+  else { r = Math.random(); for (const [a, p] of SB_P) { if (r < p) { res.a = a; break; } r -= p; } }
+  S.sbPend = res; persist(); hdr(true); // Einsatz + Ergebnis sofort gespeichert → Neuladen ändert nichts
+  // Walzen-Ergebnis
+  const all = [...Object.values(SB_SYM), ...SB_JUNK];
+  let fin;
+  if (res.j) fin = ['🧪', '🧪', '🧪'];
+  else if (res.a) fin = [SB_SYM[res.a], SB_SYM[res.a], SB_SYM[res.a]];
+  else { do { fin = [0, 1, 2].map(() => all[Math.floor(Math.random() * all.length)]); } while (fin[0] === fin[1] && fin[1] === fin[2]); if (Math.random() < .15) { fin[0] = fin[1] = '🧪'; if (fin[2] === '🧪') fin[2] = '💀'; } } // ab und zu knapp daneben
+  const R = $$('#sbR div', el), M = $('#sbMsg', el), G = $('#sbGo', el);
+  if (G) G.disabled = true; if (M) M.textContent = '';
+  R.forEach(d => { d.className = 'spin'; });
+  const iv = setInterval(() => { R.forEach(d => { if (d.classList.contains('spin')) d.textContent = all[Math.floor(Math.random() * all.length)]; }); }, 70);
+  for (let k = 0; k < 3; k++) {
+    await new Promise(r => setTimeout(r, k === 2 && fin[0] === fin[1] ? 1500 : 650)); // letzte Walze spannend, wenn 2 gleich
+    const d = R[k]; if (d) { d.className = 'stop'; d.textContent = fin[k]; } SND.click(); vib(8);
   }
-  await new Promise(r => setTimeout(r, 1000));
-  if (res && res.jack) { sbFound(); }
-  else if (res) { SND.win(); FX.burst(res.a >= 2000 ? 90 : 35, { coins: true }); }
-  else SND.lose();
-  checkAch();
-  setTimeout(() => { SB_BUSY = false; if (el.isConnected) { const g = $('#sbGo', el); if (g) g.disabled = false; const C2 = $('#sbC', el); if (C2) setTimeout(() => C2.classList.remove('flip'), 900); } }, 600);
+  clearInterval(iv);
+  sbResolve();
+  if (res.j) { R.forEach(d => d.className = 'jhit'); if (M) M.innerHTML = '<span style="color:#f5cf5a">⚫ SCHWARZER TRANK ×50! ⚫</span>'; sbFound(); }
+  else if (res.a) { R.forEach(d => d.className = 'hit'); if (M) M.innerHTML = `<span style="color:#f5cf5a">+${fmt(res.a)}</span>`; SND.win(); FX.burst(res.a >= 2000 ? 90 : 35, { coins: true }); }
+  else { if (M) M.innerHTML = '<span style="color:#888">Leider nichts</span>'; SND.lose(); }
+  setTimeout(() => { SB_BUSY = false; if (G && G.isConnected) G.disabled = false; }, 500);
 }
 function sbFound() {
   flash(); SND.big(); vib([100, 50, 100, 50, 300]); FX.burst(260, { cols: ['#000', '#f5cf5a', '#b06aff', '#fff'] });
@@ -6876,8 +6914,8 @@ function sbAnnounce(who) {
 }
 PAGES.schwarz = renderSchwarz;
 { const H = PAGES.halle; PAGES.halle = el => { H(el); el.insertAdjacentHTML('afterbegin', `<div class="sbAd" id="sbAd"><span class="t1">⚫ NEU</span><div class="t2">Schwarzes Los</div>
-    <div class="t3">Der seltenste Schatz im Casino: der <b style="color:#f5cf5a">Schwarze Trank ×50</b>.<br>1.000 € pro Los · Chance <b>1 : 10.000</b> 🤯</div>
-    <div class="go">${S.level < SB_LV ? `🔒 Ab Level ${SB_LV}` : '⚫ Los kaufen · 1.000 €'}</div><div class="ic">⚫🧪</div></div>`);
+    <div class="t3">Der seltenste Schatz im Casino: der <b style="color:#f5cf5a">Schwarze Trank ×50</b>.<br>1.000 € pro Dreh · Chance <b>1 : 10.000</b> 🤯</div>
+    <div class="go">${S.level < SB_LV ? `🔒 Ab Level ${SB_LV}` : '⚫ Jetzt drehen · 1.000 €'}</div><div class="ic">⚫🧪</div></div>`);
   $('#sbAd', el).onclick = () => { SND.click(); go('schwarz'); }; }; }
 ACH.push(['sb50', 'Schwarze Magie', 'Finde den Schwarzen Trank ×50', 50000, s => (s.st.sb50 || 0) >= 1]);
 
