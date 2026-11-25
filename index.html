@@ -1732,7 +1732,11 @@ async function doSpin() {
   for (let k = 0; k < rolls; k++) {
     let g = genGrid(m);
     // In Freispielen höchstens 1 Freispiel-Symbol (es gibt dort keine neuen Freispiele – also auch keine Spannung darauf)
-    if (free && m.t === 'v' && m.scat && m.scat !== m.wild) { let t = 0; while (g.flat().filter(c => c === m.scat).length >= 2 && t++ < 50) g = genGrid(m); }
+    // (auch bei Automaten, wo das Buch Wild UND Freispiel-Symbol ist: höchstens 2 – drei würden wie Freispiele aussehen)
+    if (free && m.t === 'v' && m.scat) {
+      const lim = m.scat === m.wild ? 2 : 1, pool = g.flat().filter(c => c !== m.scat && c !== m.wild), alt = pool.length ? pool : [m.hi[0]];
+      let n = 0; g = g.map(col => col.map(c => c === m.scat && ++n > lim ? alt[Math.floor(Math.random() * alt.length)] : c));
+    }
     const ev = m.t === 'v' ? evalV(m, g, stake) : (() => { const e = evalC(m, g); return { tot: e.tot * stake, wins: e.wins.map(w => ({ ...w, w: w.w * stake })) }; })();
     if (!best || ev.tot > best.ev.tot) best = { g, ev };
   }
