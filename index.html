@@ -900,6 +900,8 @@ body.inmach #app *{animation-play-state:paused!important}
 <canvas id="fx"></canvas>
 
 <script>
+/* 📄 Flyer-Bonus: Link mit ?bonus=… merken (bevor die Seite evtl. neu lädt) */
+try { const q = new URLSearchParams(location.search).get('bonus'); if (q && /^[a-z0-9_-]{1,20}$/i.test(q)) localStorage.setItem('gg_ref', JSON.stringify({ k: q.toLowerCase(), t: Date.now() })); } catch (e) { }
 /* ⏰ Echte Uhrzeit vom Server – Handy-Uhr verstellen bringt nichts mehr (Wetten, Börse, Bonus, Geschäfte) */
 const TIME = (() => {
   const dn = Date.now.bind(Date), pn = () => performance.now();
@@ -7139,6 +7141,23 @@ function rebAnim(oldBal, oldLvl, reb, start) {
 
 // ⏳ Gut sichtbarer Hinweis oben, wenn ein älterer Stand der Bestenliste angezeigt wird
 { const R1 = PAGES.rang; PAGES.rang = async el => { await R1(el); try { if (SNAP_STALE) { const b = $('#rgBody', el); if (b && !b.querySelector('.stale')) b.insertAdjacentHTML('afterbegin', `<div class="lhb stale" style="margin:0 0 14px;border-color:#ffb300;background:#2a1f05"><span class="e">⏳</span><div><b>Letzter gespeicherter Stand von ${new Date(SNAP_STALE).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} Uhr</b><br><small>Firebase ist gerade voll – die Liste aktualisiert sich von selbst, sobald es wieder geht.</small></div></div>`); } } catch (e) { } }; PAGES.woche = el => { rgTab = 2; PAGES.rang(el); }; }
+
+/* ================= 📄 Flyer-Bonus: +500 € für neue Konten über den QR-Code ================= */
+const REF_BONUS = 500;
+(function refCheck() {
+  if (!S) return setTimeout(refCheck, 2000);
+  let r = null; try { r = JSON.parse(localStorage.getItem('gg_ref') || 'null'); } catch (e) { }
+  if (!r) return;
+  if (S.refBonus || Date.now() - (S.created || 0) > 30 * 60000 || Date.now() - r.t > 7 * 864e5) { // nur ganz neue Konten, 1× pro Konto
+    if (S.refBonus || Date.now() - (S.created || 0) > 30 * 60000) try { localStorage.removeItem('gg_ref'); } catch (e) { }
+    return;
+  }
+  S.refBonus = r.k; S.bal = r2(S.bal + REF_BONUS); S.st.maxBal = Math.max(S.st.maxBal || 0, S.bal); persist(); hdr(true);
+  try { localStorage.removeItem('gg_ref'); } catch (e) { }
+  const show = () => { if (document.querySelector('.ov,#tutOv')) return setTimeout(show, 1500); SND.big(); FX.burst(160, { coins: true });
+    sheet(`<div style="text-align:center"><div style="font-size:80px">🎁</div><h2 style="font-size:32px;margin:6px 0">Flyer-Bonus!</h2><p style="font-size:19px">Danke, dass du über den QR-Code gekommen bist!<br>Du bekommst <b style="color:var(--gold2,#f5cf5a)">+${fmt(REF_BONUS)}</b> obendrauf – also <b>${fmt(S.bal)}</b> zum Start 🎉</p><p class="hint">Nur Spielgeld – kein echtes Geld.</p><button class="btn gold w" data-close>Los geht's! 🎰</button></div>`); };
+  setTimeout(show, 2500);
+})();
 </script>
 </body>
 </html>
