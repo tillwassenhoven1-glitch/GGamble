@@ -1436,7 +1436,7 @@ const MACH = [
   // 🔥 Nur für Wiedergeborene
   { n: 'Phönix-Feuer', s: '5 Walzen · 1 Wiedergeburt + Level 15', c: '#ff6a00', c2: '#2a0800', ic: '🔥', t: 'v', mx: 800, hi: ['🦅', '🌋', '☀️', '👑'], wild: '🔥', scat: '🪶', reb: 1, lvlx: 15 },
   { n: 'Asche & Glut', s: 'Klassisch · 1 Wiedergeburt + Level 8', c: '#ffb300', c2: '#1a0a00', ic: '🌋', t: 'c', top: 300, syms: ['🪵', '🕯️', '🧨', '🌋', '☄️', '🔥'], reb: 1, lvlx: 8 },
-  { n: 'Unsterbliche Krone', s: 'Grand-Jackpot · 2 Wiedergeburten + Level 25', c: '#f5cf5a', c2: '#2a1000', ic: '👑', t: 'j', jp: 'grand', top: 250, syms: ['🍷', '🗝️', '💍', '🏺', '👑', '🐉'], reb: 2, lvlx: 25 },
+  { n: 'Unsterbliche Krone', s: 'Grand-Jackpot · 2 Wiedergeburten + Level 26', c: '#f5cf5a', c2: '#2a1000', ic: '👑', t: 'j', jp: 'grand', top: 250, syms: ['🍷', '🗝️', '💍', '🏺', '👑', '🐉'], reb: 2, lvlx: 26 },
 ];
 const RB_ST = 1000, RB_CH = 1 / 100000; // Einsatz Regenbogen-Automat, Chance auf Trank ×100 (1 : 100.000)
 const MLVL = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 50];
@@ -2019,7 +2019,10 @@ const LOSE = [
   { id: 'kj', n: 'Kronjuwel', p: 2000, top: 2e6, ic: 'crown', ty: '3', a: '#5a5450', b: '#9d958c', lvl: 16, dark: 1 },
   { id: 'ml', n: 'Millionenlos', p: 20000, top: 20e6, ic: 'cash', ty: 'num', a: '#474747', b: '#8a8a8a', lvl: 22, dark: 1 },
   { id: 'px', n: 'Phönix-Los', p: 100, top: 100000, ic: 'crown', ty: '3', a: '#c2410c', b: '#fdba74', lvl: 10, reb: 1 },
-  { id: 'us', n: 'Unsterblich-Los', p: 5000, top: 5e6, ic: 'diamond', ty: 'num', a: '#3b1d05', b: '#f5cf5a', lvl: 25, dark: 1, reb: 2 },
+  { id: 'gl', n: 'Glut-Los', p: 500, top: 500000, ic: 'coins', ty: 'sym', a: '#9a1b1b', b: '#ff8a5b', lvl: 16, reb: 1 },
+  { id: 'us', n: 'Unsterblich-Los', p: 2000, top: 2e6, ic: 'diamond', ty: 'num', a: '#3b1d05', b: '#f5cf5a', lvl: 26, dark: 1, reb: 2 },
+  { id: 'dr', n: 'Drachen-Los', p: 20000, top: 2e7, ic: 'crown', ty: '3', a: '#14301f', b: '#4ade80', lvl: 43, dark: 1, reb: 2 },
+  { id: 'ew', n: 'Ewigkeits-Los', p: 100000, top: 1e8, ic: 'eye', ty: 'num', a: '#1e1036', b: '#c084fc', lvl: 54, dark: 1, reb: 3 },
   { id: 'sl', n: 'Schwarzes Los', p: 250000, top: 2.5e8, ic: 'eye', ty: '3', a: '#2a2a2a', b: '#6a6a6a', lvl: 30, dark: 1 },
 ];
 const TIER_M = [1, 2, 5, 10, 20, 50, 100, 250]; // höchste Stufe ×250 (vorher ×500)
@@ -6324,7 +6327,7 @@ function openShopX(id, done) {
 const UPD_V = '1.0.0', UPD_UNTIL = new Date(2026, 11, 9).getTime();
 const UPD = [ // nur, was im LETZTEN Update neu ist
   ['🔥', 'Wiedergeburt', 'Ab Level 50 im Profil: neu starten, Phönix-Punkte für dauerhafte Vorteile, Stern neben dem Namen & neue Bestenliste 🔥.', 'profil'],
-  ['🎰', 'Phönix-Automaten & -Lose', 'Nur für Wiedergeborene: Phönix-Feuer, Asche & Glut, Phönix-Los – ab 2 Wiedergeburten: Unsterbliche Krone & Unsterblich-Los.', 'halle'],
+  ['🎰', 'Phönix-Automaten & -Lose', 'Nur für Wiedergeborene: neue Automaten (Phönix-Feuer, Asche & Glut, Unsterbliche Krone) und neue Lose (Phönix, Glut, Unsterblich, Drachen, Ewigkeit).', 'halle'],
   ['🎟️', 'Battle Pass: Winter-Saison', 'Der Battle Pass startet neu – mit Gratis-Drehs, Eis- & Galaxie-Rahmen, Titel „Winterkönig ❄️“ und einem Phönix-Punkt auf Stufe 50.', 'pass'],
   ['🧱', 'Max-Level', 'Ohne Wiedergeburt ist bei Level 50 Schluss – nach der 1. geht\'s bis 75, nach der 2. bis 100 usw.', 'profil'],
   ['🔎', 'Namensvorschläge', 'Beim Freunde-Hinzufügen und Clan-Einladen werden passende Spieler schon beim Tippen vorgeschlagen.', 'freunde'],
