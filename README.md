@@ -91,7 +91,7 @@ service cloud.firestore {
     }
     match /rang/{id} {
       function ok() {
-        return request.resource.data.keys().hasOnly(['name','disp','bal','level','color','ts','big','net','bxp','wag','since','best','ach','own','tit','frm','clan','wk','wkk','dv','dk','mv','mk','hist','rbw','pt','pw','pwk','crl'])
+        return request.resource.data.keys().hasOnly(['name','disp','bal','level','color','ts','big','net','bxp','wag','since','best','ach','own','tit','frm','clan','wk','wkk','dv','dk','mv','mk','hist','rbw','pt','pw','pwk','crl','reb'])
           && request.resource.data.bal is number
           && request.resource.data.bal < 1000000000000000;
       }

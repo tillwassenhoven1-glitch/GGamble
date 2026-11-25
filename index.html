@@ -1274,7 +1274,7 @@ const DEV_ID = (() => { try { let d = localStorage.getItem('gg_dev'); if (!d) { 
 const syncBusy = () => (typeof T !== 'undefined' && T.room) || (typeof FDX !== 'undefined' && FDX.cur) || (typeof MS !== 'undefined' && MS && (MS.busy || MS.fs > 0)) || (typeof CR !== 'undefined' && CR.run && !CR.run.done) || !!document.querySelector('.game-ov[data-run]');
 let syncing = false;
 /* Fortschritt eines Spielstands (zählt nur hoch) – ein alter Stand von einem 2. Gerät darf nie einen weiteren überschreiben */
-const svProg = sv => { const st = (sv && sv.st) || {}; return (st.rounds || 0) + (st.shifts || 0) + (st.bets || 0) + (st.trades || 0) + (st.brews || 0) + (sv && sv.level || 0) * 50; };
+const svProg = sv => { const st = (sv && sv.st) || {}; return ((sv && sv.reb) || 0) * 1e6 + (st.rounds || 0) + (st.shifts || 0) + (st.bets || 0) + (st.trades || 0) + (st.brews || 0) + (sv && sv.level || 0) * 50; };
 async function cloudSync(allowAdopt = true) { // true = anderes Gerät ist neuer (nicht hochladen!)
   const a = Accounts.all()[ACC]; if (!a || !a.cid || !onlineOn()) return false;
   let cl; try { cl = await cloudGet(a.cid); } catch (e) { return true; } // offline/Fehler → lieber nicht überschreiben
@@ -2913,7 +2913,7 @@ let lbFull = true;
 let lbOwn = true, lbTier = 0;
 function pushScore(force) { if (TAB_DEAD) return;
   if (!onlineOn() || !S) return;
-  const sig = [S.bal, S.level, S.disp, S.color, S.st.biggest, S.st.rbWag || 0, Object.keys(S.ach).length, S.owner ? 1 : 0, S.wk && S.wk.v, S.dy && S.dy.v, S.tit, S.frm, S.clan ? S.clan.tag + (S.clan.role ? '*' : '') : ''].join('|'); if (!force && sig === lbLast) return; lbLast = sig;
+  const sig = [S.bal, S.level, S.disp, S.color, S.st.biggest, S.st.rbWag || 0, Object.keys(S.ach).length, S.owner ? 1 : 0, S.wk && S.wk.v, S.dy && S.dy.v, S.tit, S.frm, S.clan ? S.clan.tag + (S.clan.role ? '*' : '') : '', S.reb || 0].join('|'); if (!force && sig === lbLast) return; lbLast = sig;
   const f = { name: { stringValue: S.name }, disp: { stringValue: S.disp }, bal: { doubleValue: S.bal }, level: { integerValue: String(S.level) }, color: { integerValue: String(S.color || 0) }, ts: { integerValue: String(Date.now()) } };
   const full = Object.assign({}, f, { big: { doubleValue: S.st.biggest || 0 }, net: { doubleValue: S.st.net || 0 }, bxp: { doubleValue: S.bx.pnl || 0 }, wag: { doubleValue: S.st.wagered || 0 }, since: { integerValue: String(S.created || Date.now()) }, best: { stringValue: S.st.bestGame || '' }, ach: { integerValue: String(Object.keys(S.ach).length) } });
   const send = fields => fetch(`${FS()}/rang/${lbId()}?key=${ONLINE.apiKey}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) });
@@ -2925,7 +2925,8 @@ function pushScore(force) { if (TAB_DEAD) return;
   const withRb = Object.assign({}, withHist, { rbw: { doubleValue: S.st.sbWag || 0 }, pt: fint(S.st.play || 0) }); // 🌈 Regenbogen-Einsatz, ⏱️ Spielzeit
   const withPw = Object.assign({}, withRb, { pw: { doubleValue: (S.pw && S.pw.v) || 0 }, pwk: { stringValue: (S.pw && S.pw.k) || '' } }); // 🥇 Wochen-Preise: Wert der letzten Woche
   const withCrl = Object.assign({}, withPw, { crl: fint(S.clan && S.clan.role ? 1 : 0) }); // 🏢 Clan-Rolle (Admin)
-  const tiers = [withCrl, withPw, withRb, withHist, withOwn, noDM, noWk, full, f];
+  const withReb = Object.assign({}, withCrl, { reb: fint(S.reb || 0) }); // 🔥 Wiedergeburten
+  const tiers = [withReb, withCrl, withPw, withRb, withHist, withOwn, noDM, noWk, full, f];
   const attempt = i => i >= tiers.length ? Promise.resolve(lbLast = '') : send(tiers[i]).then(r => {
     DIAG.rang = r.status + ' (Stufe ' + i + ') · ' + new Date().toLocaleTimeString();
     if (r.ok) { lbTier = i; return; }
@@ -2974,7 +2975,7 @@ const ME_O = () => ({ k: S.lbId, me: true });
 const BADGES = { 9: ['👑', 'Besitzer', '#ffd84d'], 2: ['🛡️', 'Admin', '#ff5a5a'], 3: ['🔨', 'Moderator', '#ffb84a'], 4: ['💎', 'VIP', '#b06aff'], 5: ['🎥', 'Creator', '#ff7ad9'], 6: ['🐞', 'Beta-Tester', '#5ad86a'], 1: ['🧪', 'Test-Account', '#4ab0ff'] };
 const badgeOf = r => { if (!r || typeof LBH === 'undefined' || !LBH.bdg) return 0; const n = String(r.me ? S && S.name : r.name || '').toLowerCase(); return LBH.bdg[n] || 0; };
 const badgeTag = r => { const b = BADGES[badgeOf(r)]; if (!b || (badgeOf(r) === 9 && ownOn(r))) return ''; return ` <span class="owner" style="background:${b[2]}22;color:${b[2]};border-color:${b[2]}66">${b[0]} ${b[1]}</span>`; };
-const ownerTag = r => (ownOn(r) ? '<span class="owner">👑 Besitzer</span>' : '') + badgeTag(r) + (typeof banTag === 'function' ? banTag(r) : '');
+const ownerTag = r => (ownOn(r) ? '<span class="owner">👑 Besitzer</span>' : '') + badgeTag(r) + (typeof rebTag === 'function' ? rebTag(r) : '') + (typeof banTag === 'function' ? banTag(r) : '');
 const nameCls = r => (typeof banOf === 'function' && r && !r.me && banOf(r.name) ? 'bannm ' : '') + (ownOn(r) ? 'ownername' : (typeof LUX_T !== 'undefined' && LUX_T.includes(r && r.tit) ? 'luxname' : ''));
 const RANG_WIP = false; // Bestenliste ist in Arbeit
 async function renderRang(el) {
@@ -4327,7 +4328,7 @@ async function renderWoche(el) {
 
 /* ================= Bestenliste (neu): Vermögen + Gewinn heute/Woche/Monat ================= */
 let rgTab = 0, rgMore = false;
-const RG_TABS = [['Vermögen', 'bal'], ['Heute', 'dy'], ['Woche', 'wk'], ['Monat', 'mo'], ['⏱️ Zeit', 'pt']];
+const RG_TABS = [['Vermögen', 'bal'], ['Heute', 'dy'], ['Woche', 'wk'], ['Monat', 'mo'], ['⏱️ Zeit', 'pt'], ['🔥', 'reb']];
 /* ⏱️ Spielzeit: zählt nur, wenn die Seite offen ist und in den letzten 3 Min. getippt wurde (kein AFK-Farmen) */
 let PT_IN = Date.now();
 ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(ev => addEventListener(ev, () => { PT_IN = Date.now(); }, { passive: true, capture: true }));
@@ -4392,13 +4393,13 @@ async function rgFetch0() {
   const docs = (await fsQuery({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: fint(Math.floor(Date.now() / 36e5) * 36e5 - 21 * 864e5) } }, limit: 500 })).filter(r => (r.since || 0) >= RESET_TS).filter(r => r.id === S.lbId || isOwner(r.id) || (typeof lbhHas === 'function' ? !lbhHas(r.name) : true));
   return docs.map(d => ({ k: d.id, name: d.name || '?', disp: d.disp || d.name || '?', bal: d.bal || 0, lvl: d.level || 1, color: d.color || 0, ts: d.ts || 0, me: d.id === S.lbId,
     big: d.big ?? null, net: d.net ?? null, bxp: d.bxp ?? null, wag: d.wag ?? null, since: d.since ?? null, best: d.best || '', ach: d.ach ?? null, own: !!d.own, tit: d.tit || '', frm: d.frm || '', clan: d.clan || '', hist: d.hist, crl: d.crl || 0,
-    dy: perVal(d, 'dy', d.dk === dayKey() ? d.dv : undefined), wk: perVal(d, 'wk', d.wkk === weekKey() ? d.wk : undefined), mo: perVal(d, 'mo', d.mk === monKey() ? d.mv : undefined), pt: d.pt ?? null, pw: d.pw ?? null, pwk: d.pwk || '', wkk: d.wkk || '', wkRaw: d.wk ?? null }));
+    dy: perVal(d, 'dy', d.dk === dayKey() ? d.dv : undefined), wk: perVal(d, 'wk', d.wkk === weekKey() ? d.wk : undefined), mo: perVal(d, 'mo', d.mk === monKey() ? d.mv : undefined), pt: d.pt ?? null, pw: d.pw ?? null, pwk: d.pwk || '', wkk: d.wkk || '', wkRaw: d.wk ?? null, reb: d.reb || 0 }));
 }
 function rgMe() {
   wkAdd(0);
   return { k: S.lbId, me: true, name: S.name, disp: S.disp, photo: S.photo, color: S.color, frm: S.frm, tit: S.tit, clan: S.clan ? S.clan.tag : '', bal: S.bal, lvl: S.level, ts: Date.now(),
     big: S.st.biggest, net: S.st.net, bxp: S.bx.pnl, wag: S.st.wagered, since: S.created, best: S.st.bestGame, ach: Object.keys(S.ach).length,
-    dy: perVal({ since: S.created, bal: S.bal }, 'dy', S.dy.v), wk: perVal({ since: S.created, bal: S.bal }, 'wk', S.wk.v), mo: perVal({ since: S.created, bal: S.bal }, 'mo', S.mo.v), pt: S.st.play || 0 };
+    dy: perVal({ since: S.created, bal: S.bal }, 'dy', S.dy.v), wk: perVal({ since: S.created, bal: S.bal }, 'wk', S.wk.v), mo: perVal({ since: S.created, bal: S.bal }, 'mo', S.mo.v), pt: S.st.play || 0, reb: S.reb || 0 };
 }
 async function renderRang2(el) {
   el.innerHTML = `<h1 class="t">Bestenliste</h1><p class="sub">${onlineOn() ? 'Alle echten Spieler online' : 'Konten auf diesem Gerät'} <button class="onl hidden" id="onlR" style="margin-left:6px"></button></p>
@@ -4421,14 +4422,14 @@ async function renderRang2(el) {
   const body = $('#rgBody', el); if (!body) return;
   const key = RG_TABS[rgTab][1], isBal = key === 'bal';
   const val = r => isBal ? r.bal : r[key];
-  const rows = all.filter(r => val(r) !== null && val(r) !== undefined).sort((a, b) => val(b) - val(a));
+  const rows = all.filter(r => val(r) !== null && val(r) !== undefined && (key !== 'reb' || val(r) > 0)).sort((a, b) => val(b) - val(a) || (key === 'reb' ? (b.lvl || 0) - (a.lvl || 0) : 0));
   const meI = rows.findIndex(r => r.me), N = rows.length, me = rgMe();
-  const isPt = key === 'pt';
-  const money = v => isPt ? fmtDur(v) : isBal ? fmt(v) : fmt(v, { sign: true });
+  const isPt = key === 'pt' || key === 'reb';
+  const money = v => key === 'reb' ? `🔥 ${NF0.format(v)}×` : isPt ? fmtDur(v) : isBal ? fmt(v) : fmt(v, { sign: true });
   const cls = v => isPt ? '' : v < 0 ? 'neg' : isBal ? '' : v > 0 ? 'pos' : '';
   const row = (r, i) => `<div class="it ${r.me ? 'me' : ''}${typeof banOf === 'function' && !r.me && banOf(r.name) ? ' banned' : ''}" data-i="${i}"><span class="rn">${i + 1}</span>${avaHTML(r)}<div class="who"><b>${tagHTML(r.clan)}<span class="${nameCls(r)}">${esc(r.disp)}</span>${ownerTag(r)}</b><small>@${esc(r.name)}${titName(r.tit) ? ' · ' + esc(titName(r.tit)) : ''}${isBal ? '' : ' · ' + fmt(r.bal)}</small></div><span class="w num ${cls(val(r))}">${money(val(r))}</span></div>`;
   const pod = (r, i) => r ? `<div class="p${i + 1}"><div class="pa">${avaHTML(r)}<span class="rk" style="background:${['#d8b85a', '#cfcfd4', '#c8875a'][i]}">${i + 1}</span></div><div class="nm ${nameCls(r)}">${esc(r.disp)}</div>${ownOn(r) ? '<div class="owner" style="margin-top:4px">👑 Besitzer</div>' : ''}<div class="vv num">${money(val(r))}</div><div class="blk" style="height:${[150, 110, 80][i]}px"></div></div>` : '<div></div>';
-  const sub = ['Wer hat am meisten Geld?', 'Gewinn heute (gewonnen minus eingesetzt, plus Belohnungen)', 'Gewinn diese Woche – startet jeden Montag neu', `Gewinn im ${MONATE[new Date(Date.now()).getMonth()]}`, 'Wer hat am längsten gespielt? (zählt nur aktive Zeit)'][rgTab];
+  const sub = ['Wer hat am meisten Geld?', 'Gewinn heute (gewonnen minus eingesetzt, plus Belohnungen)', 'Gewinn diese Woche – startet jeden Montag neu', `Gewinn im ${MONATE[new Date(Date.now()).getMonth()]}`, 'Wer hat am längsten gespielt? (zählt nur aktive Zeit)', 'Wer ist am öftesten wiedergeboren? 🔥 (ab Level 50 im Profil)'][rgTab];
   body.innerHTML = `<p class="hint" style="margin-top:-6px">${sub}</p>
     ${N >= 2 ? `<div class="podium">${pod(rows[1], 1)}${pod(rows[0], 0)}${pod(rows[2], 2)}</div>` : ''}
     <div class="sec">Top 10</div>
@@ -6312,6 +6313,7 @@ function openShopX(id, done) {
 /* ================= 🆕 Update-Hinweis (einmal pro Version, jederzeit wieder aufrufbar) ================= */
 const UPD_V = '0.4.5', UPD_UNTIL = new Date(2026, 11, 8).getTime();
 const UPD = [ // nur, was im LETZTEN Update neu ist
+  ['🔥', 'Wiedergeburt', 'Ab Level 50 im Profil: neu starten, Phönix-Punkte für dauerhafte Vorteile, Stern neben dem Namen & neue Bestenliste 🔥.', 'profil'],
   ['🔎', 'Namensvorschläge', 'Beim Freunde-Hinzufügen und Clan-Einladen werden passende Spieler schon beim Tippen vorgeschlagen.', 'freunde'],
   ['⛔', 'Gebannte Spieler', 'Gebannte sieht man jetzt in der Bestenliste: rot gestreift, Name durchgestrichen – mit Grund im Profil.', 'rang'],
   ['🎰', 'Freispiele', 'In Freispielen erscheinen keine 3 Freispiel-Symbole mehr (sah nach Freispielen aus, gab aber keine).', 'halle'],
@@ -6332,7 +6334,7 @@ function updAuto() {
   setTimeout(w, 3500);
 }
 { const H = PAGES.halle; PAGES.halle = el => { H(el); if (Date.now() > UPD_UNTIL) return; const t = $('.halle-top', el); if (!t) return;
-  t.insertAdjacentHTML('afterend', `<button class="lhb" id="updB" style="width:100%;text-align:left;color:#fff;cursor:pointer;font:inherit"><span class="e">🆕</span><div style="flex:1"><b>Update ${UPD_V}:</b> Namensvorschläge, gebannte Spieler sichtbar & Bugfixes<br><small style="color:var(--gold2)">Antippen: Was ist neu?</small></div></button>`);
+  t.insertAdjacentHTML('afterend', `<button class="lhb" id="updB" style="width:100%;text-align:left;color:#fff;cursor:pointer;font:inherit"><span class="e">🆕</span><div style="flex:1"><b>Update ${UPD_V}:</b> 🔥 Wiedergeburt ab Level 50, Namensvorschläge & Bugfixes<br><small style="color:var(--gold2)">Antippen: Was ist neu?</small></div></button>`);
   $('#updB', el).onclick = () => { SND.click(); openUpd(); }; }; }
 { const Pr = PAGES.profil; PAGES.profil = el => { Pr(el); const l = $('#xSty', el); if (l) { l.parentElement.insertAdjacentHTML('beforeend', `<div class="it" id="xUpd"><div class="ibox">🆕</div><span class="lbl">Was ist neu?</span><span class="val">${UPD_V}</span>${icon('right', 'chev')}</div>`); $('#xUpd', el).onclick = openUpd; } }; }
 (function updWait() { if (S && $('#main')) updAuto(); else setTimeout(updWait, 2000); })();
@@ -6627,7 +6629,7 @@ const CHEAT_V = 2;
    Statt dass jeder Spieler alle Ranglisten-Einträge einzeln lädt (jeder Eintrag = 1 Firebase-Lesevorgang),
    baut ab und zu EIN Spieler ein Paket („top/rang“) mit allen aktiven Spielern. Alle anderen laden nur dieses
    eine Dokument (= 1 Lesevorgang). Beim Bauen werden nur Spieler nachgeladen, die sich seit dem letzten Paket geändert haben. */
-const SNAP_F = ['name', 'disp', 'bal', 'level', 'color', 'ts', 'big', 'net', 'bxp', 'wag', 'since', 'best', 'ach', 'own', 'tit', 'frm', 'clan', 'wk', 'wkk', 'dv', 'dk', 'mv', 'mk', 'rbw', 'pt', 'pw', 'pwk', 'crl'];
+const SNAP_F = ['name', 'disp', 'bal', 'level', 'color', 'ts', 'big', 'net', 'bxp', 'wag', 'since', 'best', 'ach', 'own', 'tit', 'frm', 'clan', 'wk', 'wkk', 'dv', 'dk', 'mv', 'mk', 'rbw', 'pt', 'pw', 'pwk', 'crl', 'reb'];
 let SNAP = null, SNAP_OFF = 0, SNAP_P = null;
 const SNAP_WIN = () => Math.floor(Date.now() / 36e5) * 36e5 - 21 * 864e5;
 function snapPack(docs) { return JSON.stringify({ f: SNAP_F, r: docs.map(d => [d.id, ...SNAP_F.map(k => { const v = d[k]; return v === undefined ? null : typeof v === 'number' ? Math.round(v * 100) / 100 : v; })]) }); }
@@ -6946,6 +6948,83 @@ function nsAttach(inp) {
 }
 new MutationObserver(() => { NSUG_IDS.forEach(id => { const i = document.getElementById(id); if (i) nsAttach(i); }); if (NS_BOX && !document.activeElement?.dataset?.ns) nsClose(); }).observe(document.body, { childList: true, subtree: true });
 addEventListener('scroll', e => { if (!NS_BOX || NS_BOX.contains(e.target)) return; const inp = document.activeElement; if (!inp || !inp.dataset || !inp.dataset.ns) return nsClose(); const r = inp.getBoundingClientRect(); NS_BOX.style.left = r.left + 'px'; NS_BOX.style.top = (r.bottom + 6) + 'px'; }, true);
+
+/* ================= 🔥 Wiedergeburt (Phönix) ================= */
+const REB_PTS = 3; // feste Phönix-Punkte pro Wiedergeburt (nicht abhängig vom Geld → kein Farmen)
+const rebNeed = () => 50 + (S.reb || 0) * 5;
+const rebIcon = n => n >= 5 ? '👑' : n >= 3 ? '🔥' : '⭐'.repeat(Math.max(1, n));
+function rebTag(r) { const n = +(r && (r.me ? S.reb : r.reb)) || 0; if (!n) return ''; return ` <span class="owner" style="background:#ff6a0022;color:#ffb36b;border-color:#ff8a3d66">${rebIcon(n)}${n >= 3 ? ' ' + n + '×' : ''}</span>`; }
+const PHX = [ // [id, Icon, Name, Beschreibung je Stufe, Kosten je Stufe]
+  ['start', '💰', 'Startgeld', ['5.000 € nach jeder Wiedergeburt', '25.000 €', '100.000 €'], [1, 2, 3]],
+  ['shops', '🏪', 'Geschäfte behalten', ['Dein bester Laden bleibt', 'Die besten 2 bleiben', 'Die besten 3 bleiben'], [2, 2, 3]],
+  ['bonus', '🎁', 'Tagesbonus', ['Tagesbonus ×2', 'Tagesbonus ×3'], [2, 3]],
+  ['pot', '🧪', 'Täglicher Gratis-Trank', ['Jeden Tag 1× Glückstrank ×2', 'Jeden Tag 1× Glückstrank ×4'], [2, 3]],
+  ['xp', '🚀', 'Schneller leveln', ['+15 % XP', '+30 % XP', '+50 % XP'], [1, 2, 3]],
+];
+const phxN = id => (S && S.phx && S.phx.up && S.phx.up[id]) || 0;
+const START_BY = [500, 5000, 25000, 100000];
+TITLES.push(['phoenix', 'Phönix 🔥', s => (s.reb || 0) >= 1, '1× wiedergeboren']);
+TITLES.push(['unsterb', 'Unsterblich 👑', s => (s.reb || 0) >= 5, '5× wiedergeboren']);
+FRAMES.push(['phx', 'Phönix-Feuer', s => (s.reb || 0) >= 3, '3× wiedergeboren']);
+ACH.push(['reb1', 'Wie Phönix aus der Asche', 'Lass dich wiedergebären', 10000, s => (s.reb || 0) >= 1], ['reb5', 'Unsterblich', '5× wiedergeboren', 100000, s => (s.reb || 0) >= 5]);
+(() => { const st = document.createElement('style'); st.dataset.dyn = '1'; st.textContent = `
+.avatar.fr-phx{box-shadow:0 0 0 3px #ff6a00,0 0 16px #ff3d00,0 -6px 26px #ffb300;animation:phxF .7s ease-in-out infinite alternate}
+@keyframes phxF{to{box-shadow:0 0 0 3px #ffb300,0 0 24px #ff6a00,0 -10px 34px #ff3d00}}
+.phxC{border-radius:24px;padding:20px;background:radial-gradient(ellipse at 50% 0,#4a1a05,#140804 70%);border:1px solid #ff8a3d66;box-shadow:0 0 40px #ff6a0022}
+.phxC h2{margin:0;font-size:28px;background:linear-gradient(90deg,#ffe08a,#ff8a3d,#ff3d00);-webkit-background-clip:text;background-clip:text;color:transparent}
+.phxBig{font-size:80px;text-align:center;filter:drop-shadow(0 0 24px #ff6a00);animation:phxUp 2s ease-in-out infinite}
+@keyframes phxUp{50%{transform:translateY(-8px) scale(1.05)}}`; document.head.appendChild(st); })();
+function openPhoenix() {
+  S.phx = S.phx || { pts: 0, up: {} }; S.phx.up = S.phx.up || {};
+  const need = rebNeed(), can = S.level >= need;
+  const o = sheet(`<div class="row sb"><h2 style="margin:0">🔥 Wiedergeburt</h2><button class="x" data-close>${icon('x')}</button></div>
+    <div class="phxC" style="margin-top:12px"><div class="phxBig">🔥</div>
+      <p style="text-align:center;font-size:18px;margin:6px 0">Du bist <b>${S.reb || 0}×</b> wiedergeboren · <b style="color:#ffb36b">${S.phx.pts} Phönix-Punkte</b></p>
+      <p class="hint" style="text-align:center;margin:0 0 12px">Jede Wiedergeburt: <b>+${REB_PTS} Phönix-Punkte</b>, ein Stern neben deinem Namen, ab 1× Titel „Phönix 🔥“, ab 3× Feuer-Rahmen, ab 5× Titel „Unsterblich 👑“.</p>
+      <div class="hint" style="background:#0006;border-radius:14px;padding:10px 12px;margin-bottom:12px">🔄 <b>Zurückgesetzt:</b> Geld (auf ${fmt(START_BY[phxN('start')])}), Level, Geschäfte${phxN('shops') ? ` (außer den besten ${phxN('shops')})` : ''}, Händler-Upgrades, Tränke<br>✅ <b>Bleibt:</b> Erfolge, Titel, Rahmen, Luxus-Sachen, Clan, Freunde, Phönix-Shop</div>
+      <button class="btn gold w" id="phxGo" ${can ? '' : 'disabled'} style="font-size:20px">${can ? '🔥 Jetzt wiedergeboren werden' : `🔒 Ab Level ${need} (du: ${S.level})`}</button></div>
+    <h3 style="margin:18px 0 8px">🛒 Phönix-Shop</h3><p class="hint" style="margin-top:0">Dauerhaft – bleibt bei jeder Wiedergeburt.</p>
+    <div class="card tight list" style="background:#151517">${PHX.map(([id, ic, n, d, c]) => { const l = phxN(id), mx = l >= c.length;
+      return `<div class="it" style="align-items:flex-start"><div class="ibox" style="font-size:26px">${ic}</div><div style="flex:1"><b style="font-size:18px">${n}</b> <small style="color:var(--mut)">Stufe ${l}/${c.length}</small><p class="hint" style="margin:3px 0 0">${mx ? '✓ ' + d[l - 1] : (l ? d[l - 1] + ' → ' : '') + '<b>' + d[l] + '</b>'}</p></div>
+        <button class="btn ${mx ? 'dark' : 'gold'} xs" data-px="${id}" ${mx || S.phx.pts < c[l] ? 'disabled' : ''} style="align-self:center;white-space:nowrap">${mx ? '✓ Max' : `${c[l]} 🔥`}</button></div>`; }).join('')}</div>`);
+  $$('[data-px]', o).forEach(b => b.onclick = () => {
+    const P = PHX.find(x => x[0] === b.dataset.px), l = phxN(P[0]), c = P[4][l]; if (l >= P[4].length || S.phx.pts < c) return;
+    S.phx.pts -= c; S.phx.up[P[0]] = l + 1; persist(); SND.big(); FX.burst(80, { cols: ['#ff6a00', '#ffb300', '#fff'] });
+    toast(`🔥 ${P[2]}: ${P[3][l]}`, 'good'); o.close(); setTimeout(openPhoenix, 300);
+  });
+  const g = $('#phxGo', o); if (g) g.onclick = async () => {
+    if (S.level < rebNeed()) return;
+    if (!await confirmBox('🔥 Wiedergeburt?', `Dein Geld (${fmt(S.bal)}) und dein Level ${S.level} sind danach weg. Dafür bekommst du <b>+${REB_PTS} Phönix-Punkte</b> und einen Stern.`, 'Weiter')) return;
+    if (!await confirmBox('Wirklich?', 'Das kann man nicht rückgängig machen.', '🔥 Ja, wiedergeboren werden', true)) return;
+    o.close(); doRebirth();
+  };
+}
+function doRebirth() {
+  if (S.level < rebNeed()) return;
+  const keepShops = phxN('shops'), best = Object.entries(S.shops || {}).filter(([k, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, keepShops);
+  const shops = {}, shopX = {}; best.forEach(([k, v]) => { shops[k] = v; if (S.shopX && S.shopX[k]) shopX[k] = S.shopX[k]; });
+  const keepKeys = ['name', 'disp', 'photo', 'color', 'lbId', 'owner', 'cheat', 'cheatV', 'set', 'titles', 'frames', 'tit', 'frm', 'clan', 'friends', 'dmRead', 'created', 'ep', 'ach', 'st', 'tutV', 'tutGift', 'updSeen', 'gifts', 'payGot', 'clGot', 'clInv', 'frSent', 'dmNoteTs', 'wk', 'dy', 'mo', 'pw', 'wpClaim', 'bp', 'cal', 'favs', 'phx', 'lhSeen', 'lhB', 'lhAdm', 'tasks', 'bonus'];
+  const keep = {}; keepKeys.forEach(k => { if (S[k] !== undefined) keep[k] = S[k]; });
+  const start = START_BY[phxN('start')], reb = (S.reb || 0) + 1, oldBal = S.bal;
+  keep.phx = keep.phx || { pts: 0, up: {} }; keep.phx.pts = (keep.phx.pts || 0) + REB_PTS;
+  S = Object.assign(newState(keep.name), keep, { reb, bal: start, level: 1, xp: 0, shops, shopX, rebTs: Date.now() });
+  S.st.maxBal = Math.max(S.st.maxBal || 0, start); S.st.rebLost = r2((S.st.rebLost || 0) + Math.max(0, oldBal));
+  if (reb >= 1 && !S.tit) S.tit = 'phoenix';
+  persist(); cloudLast = ''; cloudPush(true); lbLast = ''; pushScore(true);
+  SND.big(); flash(); FX.burst(260, { cols: ['#ff6a00', '#ffb300', '#ff3d00', '#fff'] });
+  sheet(`<div style="text-align:center"><div class="phxBig">🔥</div><h2 style="font-size:34px;margin:4px 0;background:linear-gradient(90deg,#ffe08a,#ff8a3d,#ff3d00);-webkit-background-clip:text;background-clip:text;color:transparent">Wiedergeboren!</h2>
+    <p style="font-size:18px">Das ist deine <b>${reb}.</b> Wiedergeburt ${rebIcon(reb)}<br>+${REB_PTS} Phönix-Punkte · Start mit ${fmt(start)}</p><button class="btn gold w" data-close>Los geht's! 🔥</button></div>`);
+  try { fsCreate('feed', null, { name: fstr(S.name), disp: fstr(S.disp), txt: fstr(`ist zum ${reb}. Mal wiedergeboren! 🔥`), ts: fint(Date.now()), clan: fstr(S.clan ? S.clan.tag : '') }); } catch (e) { }
+  hdr(true); go('halle', true); checkAch();
+}
+// Vorteile aus dem Phönix-Shop
+{ const E1 = earn; earn = (a, why) => E1(a > 0 && why === 'Tagesbonus' && phxN('bonus') ? r2(a * (1 + phxN('bonus'))) : a, why); }
+{ const X1 = addXP; addXP = x => X1(Math.round(x * (1 + [0, .15, .3, .5][phxN('xp')]))); }
+setInterval(() => { if (!S || !phxN('pot')) return; const d = dayKey(); if (S.phxPotD === d) return; S.phxPotD = d; const m = phxN('pot') >= 2 ? 4 : 2; S.pot[m] = (S.pot[m] || 0) + 1; save(); whenFree(() => toast(`🔥 Phönix-Geschenk: 1× Glückstrank ×${m}!`, 'good', 4000)); }, 15000);
+// Profil: Knopf „Wiedergeburt“
+{ const Pr = PAGES.profil; PAGES.profil = el => { Pr(el); const l = $('#xSty', el); if (!l) return; const need = rebNeed();
+  l.parentElement.insertAdjacentHTML('afterbegin', `<div class="it" id="xReb" style="background:linear-gradient(90deg,#3a1405,transparent)"><div class="ibox">🔥</div><span class="lbl">Wiedergeburt${S.reb ? ` · ${S.reb}×` : ''}</span><span class="val">${S.level >= need ? '<b style="color:#ffb36b">Bereit!</b>' : `ab Lv. ${need}`}</span>${icon('right', 'chev')}</div>`);
+  $('#xReb', el).onclick = () => { SND.click(); openPhoenix(); }; }; }
 </script>
 </body>
 </html>
