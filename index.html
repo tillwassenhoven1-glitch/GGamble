@@ -921,7 +921,7 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 
 /* ===== core.js ===== */
 'use strict';
-const VERSION = '1.0.0';
+const VERSION = '1.0.1';
 const FORCE_V = 12; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
 const WARTUNG = false; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
 /* ================= Helfer ================= */
@@ -1361,7 +1361,7 @@ function addXP(x) {
   S.xp += x; let up = false; const lv0 = S.level;
   const cap = typeof rebNeed === 'function' ? Math.max(rebNeed(), S.level) : Infinity; // 🔥 Höchst-Level bis zur nächsten Wiedergeburt
   while (S.level < cap && S.xp >= xpNeed(S.level)) { S.xp -= xpNeed(S.level); S.level++; up = true; }
-  if (S.level >= cap) { S.xp = Math.min(S.xp, xpNeed(S.level) - 1); if (!S.capNote || S.capNote !== S.level) { S.capNote = S.level; whenFree(() => setTimeout(() => toast(`🔥 Max-Level ${S.level} erreicht! Im Profil kannst du dich wiedergebären – danach geht's bis Level ${S.level + 25}.`, 'good', 6000), 900)); } }
+  if (S.level >= cap) { S.xp = Math.min(S.xp, xpNeed(S.level) - 1); if (!S.capNote || S.capNote !== S.level) { S.capNote = S.level; whenFree(() => setTimeout(() => toast(`🔥 Max-Level ${S.level} erreicht! Mit ${typeof rebMoney === 'function' ? fmt(rebMoney()) : 'genug Geld'} kannst du dich im Profil wiedergebären – danach geht's bis Level ${S.level + 25}.`, 'good', 6000), 900)); } }
   if (up) { const lv = S.level, n = lv - lv0; if (typeof bpAdd === 'function') bpAdd(n * BP_PER / 2); whenFree(() => setTimeout(() => { toast(`Level ${lv} erreicht! +${n * 50} Battle-Pass-Punkte 🎟️ 🎉`, 'good'); FX.burst(80); SND.win(); }, 300)); checkAch(); }
 }
 function applyInterest() {
@@ -4442,7 +4442,7 @@ async function renderRang2(el) {
   const cls = v => isPt ? '' : v < 0 ? 'neg' : isBal ? '' : v > 0 ? 'pos' : '';
   const row = (r, i) => `<div class="it ${r.me ? 'me' : ''}${typeof banOf === 'function' && !r.me && banOf(r.name) ? ' banned' : ''}" data-i="${i}"><span class="rn">${i + 1}</span>${avaHTML(r)}<div class="who"><b>${tagHTML(r.clan)}<span class="${nameCls(r)}">${esc(r.disp)}</span>${ownerTag(r)}</b><small>@${esc(r.name)}${titName(r.tit) ? ' · ' + esc(titName(r.tit)) : ''}${isBal ? '' : ' · ' + fmt(r.bal)}</small></div><span class="w num ${cls(val(r))}">${money(val(r))}</span></div>`;
   const pod = (r, i) => r ? `<div class="p${i + 1}"><div class="pa">${avaHTML(r)}<span class="rk" style="background:${['#d8b85a', '#cfcfd4', '#c8875a'][i]}">${i + 1}</span></div><div class="nm ${nameCls(r)}">${esc(r.disp)}</div>${ownOn(r) ? '<div class="owner" style="margin-top:4px">👑 Besitzer</div>' : ''}<div class="vv num">${money(val(r))}</div><div class="blk" style="height:${[150, 110, 80][i]}px"></div></div>` : '<div></div>';
-  const sub = ['Wer hat am meisten Geld?', 'Gewinn heute (gewonnen minus eingesetzt, plus Belohnungen)', 'Gewinn diese Woche – startet jeden Montag neu', `Gewinn im ${MONATE[new Date(Date.now()).getMonth()]}`, 'Wer hat am längsten gespielt? (zählt nur aktive Zeit)', 'Wer ist am öftesten wiedergeboren? 🔥 (ab Level 50 im Profil)'][rgTab];
+  const sub = ['Wer hat am meisten Geld?', 'Gewinn heute (gewonnen minus eingesetzt, plus Belohnungen)', 'Gewinn diese Woche – startet jeden Montag neu', `Gewinn im ${MONATE[new Date(Date.now()).getMonth()]}`, 'Wer hat am längsten gespielt? (zählt nur aktive Zeit)', 'Wer ist am öftesten wiedergeboren? 🔥 (Wiedergeburt im Profil)'][rgTab];
   body.innerHTML = `<p class="hint" style="margin-top:-6px">${sub}</p>
     ${N >= 2 ? `<div class="podium">${pod(rows[1], 1)}${pod(rows[0], 0)}${pod(rows[2], 2)}</div>` : ''}
     <div class="sec">Top 10</div>
@@ -6324,16 +6324,13 @@ function openShopX(id, done) {
 }
 
 /* ================= 🆕 Update-Hinweis (einmal pro Version, jederzeit wieder aufrufbar) ================= */
-const UPD_V = '1.0.0', UPD_UNTIL = new Date(2026, 11, 9).getTime();
+const UPD_V = '1.0.1', UPD_UNTIL = new Date(2026, 11, 9).getTime();
 const UPD = [ // nur, was im LETZTEN Update neu ist
-  ['🔥', 'Wiedergeburt', 'Ab Level 50 im Profil: neu starten, Phönix-Punkte für dauerhafte Vorteile, Stern neben dem Namen & neue Bestenliste 🔥.', 'profil'],
-  ['🎰', 'Phönix-Automaten & -Lose', 'Nur für Wiedergeborene: neue Automaten (Phönix-Feuer, Asche & Glut, Unsterbliche Krone) und neue Lose (Phönix, Glut, Unsterblich, Drachen, Ewigkeit).', 'halle'],
-  ['🎟️', 'Battle Pass: Winter-Saison', 'Der Battle Pass startet neu – mit Gratis-Drehs, Eis- & Galaxie-Rahmen, Titel „Winterkönig ❄️“ und einem Phönix-Punkt auf Stufe 50.', 'pass'],
-  ['🧱', 'Max-Level', 'Ohne Wiedergeburt ist bei Level 50 Schluss – nach der 1. geht\'s bis 75, nach der 2. bis 100 usw.', 'profil'],
-  ['🔎', 'Namensvorschläge', 'Beim Freunde-Hinzufügen und Clan-Einladen werden passende Spieler schon beim Tippen vorgeschlagen.', 'freunde'],
-  ['⛔', 'Gebannte Spieler', 'Gebannte sieht man in der Bestenliste: rot gestreift, Name durchgestrichen – mit Grund im Profil.', 'rang'],
-  ['🎰', 'Freispiele', 'In Freispielen erscheinen keine 3 Freispiel-Symbole mehr.', 'halle'],
-  ['📱', 'Handy ↔ iPad', 'Dein Spielstand kommt jetzt zuverlässig auf dem anderen Gerät an.', 'halle'],
+  ['🔥', 'Wiedergeburt-Animation', 'Dein altes Leben verbrennt, der Phönix steigt auf – WIEDERGEBOREN!', 'profil'],
+  ['💰', 'Wiedergeburt braucht Geld', 'Jede Wiedergeburt braucht jetzt Level UND Geld: 1. = Level 50 + 1 Mio. €, 2. = Level 75 + 5 Mio. €, 3. = Level 100 + 25 Mio. € …', 'profil'],
+  ['🧔', 'Händler-Upgrades bleiben', 'Was du bei Händler Hugo gekauft hast, behältst du jetzt auch nach der Wiedergeburt.', 'haendler'],
+  ['🎰', 'Phönix-Automaten & -Lose', 'Nur für Wiedergeborene: Phönix-Feuer, Asche & Glut, Unsterbliche Krone + Phönix-, Glut-, Unsterblich-, Drachen- & Ewigkeits-Los.', 'halle'],
+  ['🎟️', 'Battle Pass: Winter-Saison', 'Neu gestartet – mit Gratis-Drehs, Eis- & Galaxie-Rahmen, Titel „Winterkönig ❄️“ und einem Phönix-Punkt auf Stufe 50.', 'pass'],
 ];
 function openUpd() {
   S.updSeen = UPD_V; save();
@@ -6350,7 +6347,7 @@ function updAuto() {
   setTimeout(w, 3500);
 }
 { const H = PAGES.halle; PAGES.halle = el => { H(el); if (Date.now() > UPD_UNTIL) return; const t = $('.halle-top', el); if (!t) return;
-  t.insertAdjacentHTML('afterend', `<button class="lhb" id="updB" style="width:100%;text-align:left;color:#fff;cursor:pointer;font:inherit"><span class="e">🆕</span><div style="flex:1"><b>Version ${UPD_V}:</b> 🔥 Wiedergeburt ab Level 50, Max-Level, Namensvorschläge & Bugfixes<br><small style="color:var(--gold2)">Antippen: Was ist neu?</small></div></button>`);
+  t.insertAdjacentHTML('afterend', `<button class="lhb" id="updB" style="width:100%;text-align:left;color:#fff;cursor:pointer;font:inherit"><span class="e">🆕</span><div style="flex:1"><b>Version ${UPD_V}:</b> 🔥 Wiedergeburt-Animation, Phönix-Automaten & -Lose, Battle Pass Winter-Saison<br><small style="color:var(--gold2)">Antippen: Was ist neu?</small></div></button>`);
   $('#updB', el).onclick = () => { SND.click(); openUpd(); }; }; }
 { const Pr = PAGES.profil; PAGES.profil = el => { Pr(el); const l = $('#xSty', el); if (l) { l.parentElement.insertAdjacentHTML('beforeend', `<div class="it" id="xUpd"><div class="ibox">🆕</div><span class="lbl">Was ist neu?</span><span class="val">${UPD_V}</span>${icon('right', 'chev')}</div>`); $('#xUpd', el).onclick = openUpd; } }; }
 (function updWait() { if (S && $('#main')) updAuto(); else setTimeout(updWait, 2000); })();
@@ -6967,6 +6964,8 @@ addEventListener('scroll', e => { if (!NS_BOX || NS_BOX.contains(e.target)) retu
 
 /* ================= 🔥 Wiedergeburt (Phönix) ================= */
 const REB_PTS = 3; // feste Phönix-Punkte pro Wiedergeburt (nicht abhängig vom Geld → kein Farmen)
+const rebMoney = () => { const n = S.reb || 0; return [1e6, 5e6, 25e6, 100e6][n] || 100e6 * Math.pow(4, n - 3); }; // Geld, das man für die nächste Wiedergeburt haben muss
+const rebReady = () => S.level >= rebNeed() && S.bal >= rebMoney();
 const rebNeed = () => 50 + (S.reb || 0) * 25; // 1. Wiedergeburt ab 50, 2. ab 75, 3. ab 100 … (= gleichzeitig Höchst-Level)
 const rebIcon = n => n >= 5 ? '👑' : n >= 3 ? '🔥' : '⭐'.repeat(Math.max(1, n));
 function rebTag(r) { const n = +(r && (r.me ? S.reb : r.reb)) || 0; if (!n) return ''; return ` <span class="owner" style="background:#ff6a0022;color:#ffb36b;border-color:#ff8a3d66">${rebIcon(n)}${n >= 3 ? ' ' + n + '×' : ''}</span>`; }
@@ -6992,13 +6991,14 @@ ACH.push(['reb1', 'Wie Phönix aus der Asche', 'Lass dich wiedergebären', 10000
 @keyframes phxUp{50%{transform:translateY(-8px) scale(1.05)}}`; document.head.appendChild(st); })();
 function openPhoenix() {
   S.phx = S.phx || { pts: 0, up: {} }; S.phx.up = S.phx.up || {};
-  const need = rebNeed(), can = S.level >= need;
+  const need = rebNeed(), money = rebMoney(), can = rebReady();
   const o = sheet(`<div class="row sb"><h2 style="margin:0">🔥 Wiedergeburt</h2><button class="x" data-close>${icon('x')}</button></div>
     <div class="phxC" style="margin-top:12px"><div class="phxBig">🔥</div>
       <p style="text-align:center;font-size:18px;margin:6px 0">Du bist <b>${S.reb || 0}×</b> wiedergeboren · <b style="color:#ffb36b">${S.phx.pts} Phönix-Punkte</b></p>
       <p class="hint" style="text-align:center;margin:0 0 12px">Ohne Wiedergeburt ist bei <b>Level ${need}</b> Schluss – danach geht's bis Level ${need + 25}. Jede Wiedergeburt: <b>+${REB_PTS} Phönix-Punkte</b>, ein Stern neben deinem Namen, ab 1× Titel „Phönix 🔥“, ab 3× Feuer-Rahmen, ab 5× Titel „Unsterblich 👑“.</p>
       <div class="hint" style="background:#0006;border-radius:14px;padding:10px 12px;margin-bottom:12px">🔄 <b>Zurückgesetzt:</b> Geld (auf ${fmt(START_BY[phxN('start')])}), Level, Geschäfte${phxN('shops') ? ` (außer den besten ${phxN('shops')})` : ''}, Tränke<br>✅ <b>Bleibt:</b> Händler-Upgrades, Erfolge, Titel, Rahmen, Luxus-Sachen, Clan, Freunde, Phönix-Shop</div>
-      <button class="btn gold w" id="phxGo" ${can ? '' : 'disabled'} style="font-size:20px">${can ? '🔥 Jetzt wiedergeboren werden' : `🔒 Ab Level ${need} (du: ${S.level})`}</button></div>
+      <div class="hint" style="background:#0006;border-radius:14px;padding:10px 12px;margin-bottom:12px">📋 <b>Für die ${(S.reb || 0) + 1}. Wiedergeburt brauchst du:</b><br>${S.level >= need ? '✅' : '❌'} Level <b>${need}</b> (du: ${S.level})<br>${S.bal >= money ? '✅' : '❌'} <b>${fmt(money)}</b> auf dem Konto (du: ${fmt(S.bal)})</div>
+      <button class="btn gold w" id="phxGo" ${can ? '' : 'disabled'} style="font-size:20px">${can ? '🔥 Jetzt wiedergeboren werden' : '🔒 Noch nicht bereit'}</button></div>
     <h3 style="margin:18px 0 8px">🛒 Phönix-Shop</h3><p class="hint" style="margin-top:0">Dauerhaft – bleibt bei jeder Wiedergeburt.</p>
     <div class="card tight list" style="background:#151517">${PHX.map(([id, ic, n, d, c]) => { const l = phxN(id), mx = l >= c.length;
       return `<div class="it" style="align-items:flex-start"><div class="ibox" style="font-size:26px">${ic}</div><div style="flex:1"><b style="font-size:18px">${n}</b> <small style="color:var(--mut)">Stufe ${l}/${c.length}</small><p class="hint" style="margin:3px 0 0">${mx ? '✓ ' + d[l - 1] : (l ? d[l - 1] + ' → ' : '') + '<b>' + d[l] + '</b>'}</p></div>
@@ -7009,27 +7009,26 @@ function openPhoenix() {
     toast(`🔥 ${P[2]}: ${P[3][l]}`, 'good'); o.close(); setTimeout(openPhoenix, 300);
   });
   const g = $('#phxGo', o); if (g) g.onclick = async () => {
-    if (S.level < rebNeed()) return;
+    if (!rebReady()) return;
     if (!await confirmBox('🔥 Wiedergeburt?', `Dein Geld (${fmt(S.bal)}) und dein Level ${S.level} sind danach weg. Dafür bekommst du <b>+${REB_PTS} Phönix-Punkte</b> und einen Stern.`, 'Weiter')) return;
     if (!await confirmBox('Wirklich?', 'Das kann man nicht rückgängig machen.', '🔥 Ja, wiedergeboren werden', true)) return;
     o.close(); doRebirth();
   };
 }
 function doRebirth() {
-  if (S.level < rebNeed()) return;
+  if (!rebReady()) return;
   const keepShops = phxN('shops'), best = Object.entries(S.shops || {}).filter(([k, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, keepShops);
   const shops = {}, shopX = {}; best.forEach(([k, v]) => { shops[k] = v; if (S.shopX && S.shopX[k]) shopX[k] = S.shopX[k]; });
   const keepKeys = ['name', 'disp', 'photo', 'color', 'lbId', 'owner', 'cheat', 'cheatV', 'set', 'titles', 'frames', 'tit', 'frm', 'clan', 'friends', 'dmRead', 'created', 'ep', 'ach', 'st', 'tutV', 'tutGift', 'updSeen', 'gifts', 'payGot', 'clGot', 'clInv', 'frSent', 'dmNoteTs', 'wk', 'dy', 'mo', 'pw', 'wpClaim', 'bp', 'cal', 'favs', 'phx', 'up', 'lhSeen', 'lhB', 'lhAdm', 'tasks', 'bonus'];
   const keep = {}; keepKeys.forEach(k => { if (S[k] !== undefined) keep[k] = S[k]; });
-  const start = START_BY[phxN('start')], reb = (S.reb || 0) + 1, oldBal = S.bal;
+  const start = START_BY[phxN('start')], reb = (S.reb || 0) + 1, oldBal = S.bal, oldLvl = S.level;
   keep.phx = keep.phx || { pts: 0, up: {} }; keep.phx.pts = (keep.phx.pts || 0) + REB_PTS;
   S = Object.assign(newState(keep.name), keep, { reb, bal: start, level: 1, xp: 0, shops, shopX, rebTs: Date.now() });
   S.st.maxBal = Math.max(S.st.maxBal || 0, start); S.st.rebLost = r2((S.st.rebLost || 0) + Math.max(0, oldBal));
   if (reb >= 1 && !S.tit) S.tit = 'phoenix';
   persist(); cloudLast = ''; cloudPush(true); lbLast = ''; pushScore(true);
-  SND.big(); flash(); FX.burst(260, { cols: ['#ff6a00', '#ffb300', '#ff3d00', '#fff'] });
-  sheet(`<div style="text-align:center"><div class="phxBig">🔥</div><h2 style="font-size:34px;margin:4px 0;background:linear-gradient(90deg,#ffe08a,#ff8a3d,#ff3d00);-webkit-background-clip:text;background-clip:text;color:transparent">Wiedergeboren!</h2>
-    <p style="font-size:18px">Das ist deine <b>${reb}.</b> Wiedergeburt ${rebIcon(reb)}<br>+${REB_PTS} Phönix-Punkte · Start mit ${fmt(start)}</p><button class="btn gold w" data-close>Los geht's! 🔥</button></div>`);
+  rebAnim(oldBal, oldLvl, reb, start).then(() => sheet(`<div style="text-align:center"><div class="phxBig">🔥</div><h2 style="font-size:34px;margin:4px 0;background:linear-gradient(90deg,#ffe08a,#ff8a3d,#ff3d00);-webkit-background-clip:text;background-clip:text;color:transparent">Wiedergeboren!</h2>
+    <p style="font-size:18px">Das ist deine <b>${reb}.</b> Wiedergeburt ${rebIcon(reb)}<br>+${REB_PTS} Phönix-Punkte · Start mit ${fmt(start)}</p><button class="btn gold w" data-close>Los geht's! 🔥</button></div>`));
   try { fsCreate('feed', null, { name: fstr(S.name), disp: fstr(S.disp), txt: fstr(`ist zum ${reb}. Mal wiedergeboren! 🔥`), ts: fint(Date.now()), clan: fstr(S.clan ? S.clan.tag : '') }); } catch (e) { }
   hdr(true); go('halle', true); checkAch();
 }
@@ -7039,7 +7038,7 @@ function doRebirth() {
 setInterval(() => { if (!S || !phxN('pot')) return; const d = dayKey(); if (S.phxPotD === d) return; S.phxPotD = d; const m = phxN('pot') >= 2 ? 4 : 2; S.pot[m] = (S.pot[m] || 0) + 1; save(); whenFree(() => toast(`🔥 Phönix-Geschenk: 1× Glückstrank ×${m}!`, 'good', 4000)); }, 15000);
 // Profil: Knopf „Wiedergeburt“
 { const Pr = PAGES.profil; PAGES.profil = el => { Pr(el); const l = $('#xSty', el); if (!l) return; const need = rebNeed();
-  l.parentElement.insertAdjacentHTML('afterbegin', `<div class="it" id="xReb" style="background:linear-gradient(90deg,#3a1405,transparent)"><div class="ibox">🔥</div><span class="lbl">Wiedergeburt${S.reb ? ` · ${S.reb}×` : ''}</span><span class="val">${S.level >= need ? '<b style="color:#ffb36b">Bereit!</b>' : `ab Lv. ${need} (Max-Level)`}</span>${icon('right', 'chev')}</div>`);
+  l.parentElement.insertAdjacentHTML('afterbegin', `<div class="it" id="xReb" style="background:linear-gradient(90deg,#3a1405,transparent)"><div class="ibox">🔥</div><span class="lbl">Wiedergeburt${S.reb ? ` · ${S.reb}×` : ''}</span><span class="val">${rebReady() ? '<b style="color:#ffb36b">Bereit!</b>' : `Lv. ${need} + ${shortMoney(rebMoney())}`}</span>${icon('right', 'chev')}</div>`);
   $('#xReb', el).onclick = () => { SND.click(); openPhoenix(); }; }; }
 
 /* ================= 🎟️ Battle Pass – neue Saison mit neuen Belohnungen ================= */
@@ -7062,6 +7061,71 @@ const bpSpinSt = () => Math.max(.1, Math.floor(base() * 100) / 100); // Einsatz 
 }; }
 { const T0 = rwTxt; rwTxt = ([t, v], cap) => t === 'sp' ? `${v} Gratis-Drehs` : t === 'phx' ? `${v} Phönix-Punkt 🔥` : T0([t, v], cap); }
 { const I0 = rwIcon; rwIcon = t => t === 'sp' ? '🎰' : t === 'phx' ? '🔥' : I0(t); }
+
+/* 🔥 Wiedergeburt-Animation: altes Leben verbrennt → Phönix steigt auf → WIEDERGEBOREN */
+function rebAnim(oldBal, oldLvl, reb, start) {
+  return new Promise(done => {
+    const st = document.createElement('style'); st.dataset.dyn = '1'; st.textContent = `
+#rebFx{position:fixed;inset:0;z-index:100000;background:#000;overflow:hidden;color:#fff;font-family:inherit;display:flex;align-items:center;justify-content:center;animation:rfIn .6s ease}
+@keyframes rfIn{from{opacity:0}}
+#rebFx canvas{position:absolute;inset:0;width:100%;height:100%}
+#rebFx .ph{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;transition:opacity .5s,transform .5s}
+#rebFx .old b{display:block;font-size:clamp(40px,11vw,90px);font-weight:900;font-variant-numeric:tabular-nums;color:#ffe0b0;text-shadow:0 0 20px #ff6a00,0 0 50px #ff3d00}
+#rebFx .old small{display:block;font-size:22px;color:#ffb36b;margin-top:8px;letter-spacing:2px}
+#rebFx .old.burn b{animation:rfBurn 1.6s ease-in forwards}
+@keyframes rfBurn{0%{filter:none}60%{color:#ff6a00;filter:blur(1px)}100%{color:#300;filter:blur(8px);transform:translateY(-40px) scale(.8);opacity:0}}
+#rebFx .ring{position:absolute;left:50%;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;border:6px solid #ffb300;box-shadow:0 0 40px #ff6a00,inset 0 0 40px #ff6a00;opacity:0}
+#rebFx .ring.go{animation:rfRing 1.4s cubic-bezier(.2,.8,.3,1) forwards}
+@keyframes rfRing{0%{opacity:1;transform:scale(.2)}100%{opacity:0;transform:scale(30)}}
+#rebFx .bird{position:absolute;left:50%;top:110%;transform:translate(-50%,0);font-size:clamp(110px,30vw,230px);filter:drop-shadow(0 0 30px #ff6a00) drop-shadow(0 0 80px #ff3d00);opacity:0}
+#rebFx .bird.go{animation:rfRise 2.2s cubic-bezier(.2,.9,.3,1) forwards}
+@keyframes rfRise{0%{top:115%;opacity:1;transform:translate(-50%,0) scale(.6)}70%{top:30%;transform:translate(-50%,-50%) scale(1.15)}100%{top:34%;opacity:1;transform:translate(-50%,-50%) scale(1)}}
+#rebFx .bird.fly{animation:rfFloat 1.6s ease-in-out infinite;top:34%;opacity:1;transform:translate(-50%,-50%)}
+@keyframes rfFloat{50%{transform:translate(-50%,-56%) scale(1.04)}}
+#rebFx .ttl{position:absolute;left:0;right:0;top:58%;text-align:center;font-size:clamp(28px,8.4vw,96px);font-weight:900;letter-spacing:1px;white-space:nowrap}
+#rebFx .ttl span{display:inline-block;opacity:0;background:linear-gradient(180deg,#fff3b0,#ffb300 45%,#ff3d00);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 18px #ff6a00)}
+#rebFx .ttl span.on{animation:rfL .5s cubic-bezier(.3,1.8,.5,1) forwards}
+@keyframes rfL{0%{opacity:0;transform:translateY(40px) scale(2.2) rotate(-12deg)}100%{opacity:1;transform:none}}
+#rebFx .sub{position:absolute;left:16px;right:16px;top:calc(58% + clamp(48px,12vw,120px));text-align:center;font-size:clamp(18px,4.6vw,30px);font-weight:800;color:#ffd08a;opacity:0;transition:opacity .6s}
+#rebFx .sub.on{opacity:1}
+#rebFx .skip{position:absolute;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));padding:10px 16px;border-radius:999px;background:#ffffff1a;border:1px solid #ffffff33;color:#fff;font:inherit;font-weight:700}
+#rebFx.shake{animation:rfShake .5s linear}
+@keyframes rfShake{10%,50%,90%{transform:translate(-8px,4px)}30%,70%{transform:translate(8px,-4px)}}
+#rebFx .wht{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+#rebFx .wht.go{animation:rfW .9s ease-out}
+@keyframes rfW{0%{opacity:0}15%{opacity:1}100%{opacity:0}}`;
+    document.head.appendChild(st);
+    const o = document.createElement('div'); o.id = 'rebFx';
+    o.innerHTML = `<canvas></canvas><div class="ph old"><b class="num">${fmt(oldBal)}</b><small>LEVEL ${oldLvl}</small></div><div class="ring"></div><div class="ring" style="animation-delay:.25s"></div><div class="bird">🔥</div><div class="ttl">${[...'WIEDERGEBOREN'].map(c => `<span>${c}</span>`).join('')}</div><div class="sub">${rebIcon(reb)} ${reb}. Wiedergeburt · +${REB_PTS} Phönix-Punkte</div><div class="wht"></div><button class="skip">Überspringen ›</button>`;
+    document.body.appendChild(o);
+    const cv = o.querySelector('canvas'), cx = cv.getContext('2d'); let W, H; const fit = () => { W = cv.width = innerWidth * devicePixelRatio; H = cv.height = innerHeight * devicePixelRatio; }; fit();
+    const P = []; let heat = .3, run = true, t0 = performance.now();
+    const add = (n, burst) => { for (let i = 0; i < n; i++) P.push({ x: burst ? W / 2 + (Math.random() - .5) * W * .1 : Math.random() * W, y: burst ? H * .45 : H + 10, vx: (Math.random() - .5) * (burst ? 18 : 1.5) * devicePixelRatio, vy: -(burst ? 4 + Math.random() * 16 : 1 + Math.random() * 3) * devicePixelRatio, r: (1 + Math.random() * 3.5) * devicePixelRatio, l: 1, d: .004 + Math.random() * .01, c: Math.random() < .5 ? '255,120,0' : Math.random() < .5 ? '255,200,60' : '255,60,0' }); };
+    const loop = () => { if (!run) return; cx.globalCompositeOperation = 'source-over'; cx.fillStyle = `rgba(0,0,0,.22)`; cx.fillRect(0, 0, W, H);
+      const g = cx.createRadialGradient(W / 2, H, 0, W / 2, H, H * .9); g.addColorStop(0, `rgba(255,80,0,${.35 * heat})`); g.addColorStop(1, 'rgba(0,0,0,0)'); cx.fillStyle = g; cx.fillRect(0, 0, W, H);
+      add(Math.round(6 * heat)); cx.globalCompositeOperation = 'lighter';
+      for (let i = P.length - 1; i >= 0; i--) { const p = P[i]; p.x += p.vx + Math.sin((performance.now() - t0) / 300 + i) * .6; p.y += p.vy; p.vy *= .995; p.l -= p.d; if (p.l <= 0 || p.y < -20) { P.splice(i, 1); continue; } cx.beginPath(); cx.fillStyle = `rgba(${p.c},${p.l})`; cx.arc(p.x, p.y, p.r * p.l + .5, 0, 7); cx.fill(); }
+      requestAnimationFrame(loop); };
+    loop();
+    const $o = q => o.querySelector(q), T = [];
+    const at = (ms, fn) => T.push(setTimeout(fn, ms));
+    let fin = false; const end = () => { if (fin) return; fin = true; T.forEach(clearTimeout); o.style.transition = 'opacity .5s'; o.style.opacity = 0; setTimeout(() => { run = false; o.remove(); st.remove(); done(); }, 500); };
+    $o('.skip').onclick = end;
+    // 1) altes Leben zählt runter und verbrennt
+    at(300, () => { const b = $o('.old b'), sm = $o('.old small'); const t1 = performance.now(); SND.click();
+      const tick = () => { const k = Math.min(1, (performance.now() - t1) / 1500), e = 1 - Math.pow(1 - k, 2); if (b) b.textContent = fmt(r2(oldBal * (1 - e))); if (sm) sm.textContent = 'LEVEL ' + Math.max(1, Math.round(oldLvl - (oldLvl - 1) * e)); heat = .3 + e * .9; if (k < 1 && !fin) requestAnimationFrame(tick); }; tick(); });
+    at(1900, () => { $o('.old').classList.add('burn'); heat = 1.4; vib([40, 30, 40]); });
+    // 2) Explosion
+    at(3100, () => { $o('.old').style.opacity = 0; o.classList.add('shake'); $o('.wht').classList.add('go'); o.querySelectorAll('.ring').forEach(r => r.classList.add('go')); add(260, true); SND.big(); vib([120, 60, 200]); heat = 2; });
+    // 3) Phönix steigt auf
+    at(3300, () => { $o('.bird').classList.add('go'); });
+    at(5500, () => { const bd = $o('.bird'); bd.classList.remove('go'); bd.classList.add('fly'); });
+    // 4) Schrift
+    at(4300, () => { o.querySelectorAll('.ttl span').forEach((sp, i) => setTimeout(() => { sp.classList.add('on'); if (i % 3 === 0) SND.click(); }, i * 70)); });
+    at(5600, () => { $o('.sub').classList.add('on'); SND.win(); add(120, true); heat = 1.2; });
+    at(8200, end);
+  });
+}
 </script>
 </body>
 </html>
