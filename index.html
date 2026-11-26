@@ -1275,7 +1275,7 @@ function cloudPut(cid, a, sv) {
   if (data.length > 55000 && ZC.z) return send(ZC.z); // App wird geschlossen & Stand zu groß → der gepackte von vor wenigen Sekunden (sonst käme gar nichts an)
   return send(data);
 }
-let cloudT = 0, cloudLast = '', cloudMine = Date.now(); const DIAG = { cloud: '–', rang: '–' };
+let cloudT = 0, cloudLast = '', cloudMine = Date.now(), SYNC0 = true; /* SYNC0 = erster Abgleich mit der Cloud fertig (vorher nichts hochladen!) */ const DIAG = { cloud: '–', rang: '–' };
 /* 📱📱 Gleiches Konto auf 2 Geräten: Vor dem Hochladen prüfen, ob ein anderes Gerät inzwischen neuer gespeichert hat → dann dessen Stand übernehmen statt ihn zu überschreiben */
 const DEV_ID = (() => { try { let d = localStorage.getItem('gg_dev'); if (!d) { d = Math.random().toString(36).slice(2, 10); localStorage.setItem('gg_dev', d); } return d; } catch (e) { return 'x' + Math.random().toString(36).slice(2, 8); } })();
 const syncBusy = () => (typeof T !== 'undefined' && T.room) || (typeof FDX !== 'undefined' && FDX.cur) || (typeof MS !== 'undefined' && MS && (MS.busy || MS.fs > 0)) || (typeof CR !== 'undefined' && CR.run && !CR.run.done) || !!document.querySelector('.game-ov[data-run]');
@@ -1297,7 +1297,7 @@ setInterval(syncTick, 120000); document.addEventListener('visibilitychange', () 
 function cloudPush(now) {
   if (TAB_DEAD || typeof ONLINE === 'undefined' || !onlineOn() || !S || !ACC) return;
   const run = async () => {
-    cloudT = 0; const a = Accounts.all()[ACC]; if (!a || !a.cid || !S) return; const sig = JSON.stringify(S); if (sig === cloudLast) return;
+    cloudT = 0; if (!SYNC0) return; const a = Accounts.all()[ACC]; if (!a || !a.cid || !S) return; const sig = JSON.stringify(S); if (sig === cloudLast) return;
     if (!now && await cloudSync(true)) return; // anderes Gerät ist neuer → nicht überschreiben
     if (!S) return;
     cloudPut(a.cid, a, S).then(r => { DIAG.cloud = (r.skipped ? 'übersprungen (alter Stand)' : r.status) + ' · ' + new Date().toLocaleTimeString(); if (r.ok) { cloudLast = sig; cloudMine = Date.now(); } }).catch(e => { DIAG.cloud = 'Fehler ' + (e.message || '') + ' · ' + new Date().toLocaleTimeString(); });
@@ -2971,7 +2971,7 @@ function lbId() { if (!S.lbId) { S.lbId = (ACC.replace(/[^a-z0-9]/g, '') || 'x')
 let lbLast = '';
 let lbFull = true;
 let lbOwn = true, lbTier = 0;
-function pushScore(force) { if (TAB_DEAD) return;
+function pushScore(force) { if (TAB_DEAD || !SYNC0) return;
   if (!onlineOn() || !S) return;
   const sig = [S.bal, S.level, S.disp, S.color, S.st.biggest, S.st.rbWag || 0, Object.keys(S.ach).length, S.owner ? 1 : 0, S.wk && S.wk.v, S.dy && S.dy.v, S.tit, S.frm, S.clan ? S.clan.tag + (S.clan.role ? '*' : '') : '', S.reb || 0].join('|'); if (!force && sig === lbLast) return; lbLast = sig;
   const f = { name: { stringValue: S.name }, disp: { stringValue: S.disp }, bal: { doubleValue: S.bal }, level: { integerValue: String(S.level) }, color: { integerValue: String(S.color || 0) }, ts: { integerValue: String(Date.now()) } };
@@ -3743,6 +3743,8 @@ function cloudLink(key) {
 function startApp(key) {
   tabClaim();
   const all = Accounts.all(); ACC = key;
+  const ts0 = all[key].ts || 0; cloudMine = ts0; // Stand auf DIESEM Gerät (bevor irgendwas neu gespeichert wird)
+  SYNC0 = !(onlineOn() && all[key].cid); if (!SYNC0) setTimeout(() => { SYNC0 = true; }, 20000);
   S = Object.assign(newState(all[key].name), all[key].save || {});
   const sv0 = all[key].save || {};
   // zurücksetzen, wenn: alter Spielstand ohne ep ODER Konto wurde vor dem Neustart angelegt (kurzzeitiger Fehler hatte ep zu früh gesetzt)
@@ -3767,7 +3769,16 @@ function startApp(key) {
   $('#hLock').innerHTML = icon('lock');
   hdr(); go('halle'); checkAch(); loadOwner();
   setTimeout(() => cloudLink(key), 1500); extInit();
-  if (onlineOn() && all[key].cid) cloudGet(all[key].cid).then(cl => { const cur = Accounts.all(), x = cur[key]; if (!cl || !x || !x.ts || cl.ts <= x.ts + 5000) return; if (isOldSave(cl.d.save) && !isOldSave(x.save)) { cloudLast = ''; cloudPush(true); return; } x.save = cl.d.save; x.ts = cl.ts; Accounts.put(cur); S = null; toast('Neuerer Spielstand von anderem Gerät geladen ☁️', 'good'); setTimeout(() => location.reload(), 900); }).catch(() => { });
+  /* ☁️ Beim Start ZUERST mit der Cloud abgleichen – erst danach Bestenliste/Cloud hochladen
+     (früher: Handy mit altem Stand hat kurz vorher gespeichert → neuerer Stand vom iPad wurde ignoriert und überschrieben) */
+  const sync0Done = () => { if (SYNC0 && S) return; SYNC0 = true; if (S) { cloudLast = ''; cloudPush(true); lbLast = ''; pushScore(true); } };
+  if (onlineOn() && all[key].cid) cloudGet(all[key].cid).then(cl => {
+    const cur = Accounts.all(), x = cur[key];
+    if (!cl || !x || !cl.d || cl.ts <= ts0 + 5000 || cl.d.dev === DEV_ID) return sync0Done();
+    if (isOldSave(cl.d.save) && !isOldSave(x.save)) return sync0Done();
+    if (S && svProg(cl.d.save) < svProg(S)) { cloudMine = cl.ts; return sync0Done(); } // Cloud hat weniger Fortschritt → unseren behalten & hochladen
+    x.save = cl.d.save; x.ts = cl.ts; Accounts.put(cur); S = null; toast('📱 Neuerer Spielstand von deinem anderen Gerät geladen ☁️', 'good'); setTimeout(() => location.reload(), 900);
+  }).catch(() => sync0Done());
   const pend = shopPending(); if (pend > 1 && away > 6e4) setTimeout(() => toast(`Deine Geschäfte haben ${fmt(pend)} verdient – im Imperium einsammeln 🏪`, 'good', 4500), 1600);
   if (S.fsRun && MACH[S.fsRun.mi] && S.fsRun.fs > 0) setTimeout(resumeFreeSpins, 1200);
   else if (bonusReady()) setTimeout(() => S && openBonus(), 900);
