@@ -751,6 +751,8 @@ body.inmach #app *{animation-play-state:paused!important}
 @keyframes tzpulse2{from{opacity:.45}to{opacity:1}}
 .lines path{vector-effect:non-scaling-stroke}
 .ownername{color:#ff4b3e!important;text-shadow:0 0 12px rgba(255,60,40,.45)}
+.admname{color:#ff9a8f!important}.modname{color:#ffcf94!important}
+.owner.lite{background:none!important;box-shadow:none;font-weight:700;font-size:11px;padding:1px 7px;border:1px solid}
 .owner{display:inline-block;margin-left:8px;text-shadow:none;padding:2px 9px;border-radius:999px;background:linear-gradient(180deg,#ff5a4a,#b3180c);color:#fff;font-size:12px;font-weight:900;letter-spacing:.3px;vertical-align:middle;box-shadow:0 2px 6px rgba(0,0,0,.45);white-space:nowrap}
 .podium .owner,small .owner{margin-left:0}
 .podium .owner{font-size:11px}
@@ -3032,9 +3034,9 @@ const ME_O = () => ({ k: S.lbId, me: true });
 /* 🏅 Abzeichen vom Besitzer (signiert, für alle sichtbar) */
 const BADGES = { 9: ['👑', 'Besitzer', '#ffd84d'], 2: ['🛡️', 'Admin', '#ff5a5a'], 3: ['🔨', 'Moderator', '#ffb84a'], 4: ['💎', 'VIP', '#b06aff'], 5: ['🎥', 'Creator', '#ff7ad9'], 6: ['🐞', 'Beta-Tester', '#5ad86a'], 1: ['🧪', 'Test-Account', '#4ab0ff'] };
 const badgeOf = r => { if (!r || typeof LBH === 'undefined' || !LBH.bdg) return 0; const n = String(r.me ? S && S.name : r.name || '').toLowerCase(); return LBH.bdg[n] || 0; };
-const badgeTag = r => { const b = BADGES[badgeOf(r)]; if (!b || (badgeOf(r) === 9 && ownOn(r))) return ''; return ` <span class="owner" style="background:${b[2]}22;color:${b[2]};border-color:${b[2]}66">${b[0]} ${b[1]}</span>`; };
+const badgeTag = r => { const b = BADGES[badgeOf(r)]; if (!b || (badgeOf(r) === 9 && ownOn(r))) return ''; return ` <span class="owner${badgeOf(r) === 2 || badgeOf(r) === 3 ? ' lite' : ''}" style="background:${b[2]}22;color:${b[2]};border-color:${b[2]}66">${b[0]} ${b[1]}</span>`; };
 const ownerTag = r => (ownOn(r) ? '<span class="owner">👑 Besitzer</span>' : '') + badgeTag(r) + (typeof rebTag === 'function' ? rebTag(r) : '') + (typeof banTag === 'function' ? banTag(r) : '');
-const nameCls = r => (typeof banOf === 'function' && r && !r.me && banOf(r.name) ? 'bannm ' : '') + (ownOn(r) ? 'ownername' : (typeof LUX_T !== 'undefined' && LUX_T.includes(r && r.tit) ? 'luxname' : ''));
+const nameCls = r => (typeof banOf === 'function' && r && !r.me && banOf(r.name) ? 'bannm ' : '') + (ownOn(r) ? 'ownername' : badgeOf(r) === 2 ? 'admname' : badgeOf(r) === 3 ? 'modname' : (typeof LUX_T !== 'undefined' && LUX_T.includes(r && r.tit) ? 'luxname' : ''));
 const RANG_WIP = false; // Bestenliste ist in Arbeit
 async function renderRang(el) {
   if (RANG_WIP) { el.innerHTML = `<h1 class="t">Bestenliste</h1><p class="sub">Top 10 online – nur echte Spieler</p>
@@ -3051,7 +3053,7 @@ async function renderRang(el) {
   if (!mine) { const all = localAll(); mine = { rank: all.findIndex(r => r.me) + 1 || all.length + 1, total: all.length }; }
   const topI = rows.findIndex(r => r.me); if (topI >= 0) mine.rank = topI + 1;
   const body = $('#rgBody', el); if (!body) return;
-  const pod = (r, i) => r ? `<div class="p${i + 1}"><div class="pa">${avaHTML(r)}<span class="rk" style="background:${['#d8b85a', '#cfcfd4', '#c8875a'][i]}">${i + 1}</span></div><div class="nm ${nameCls(r)}">${esc(r.disp)}</div>${ownOn(r) ? '<div class="owner" style="margin-top:4px">👑 Besitzer</div>' : ''}<div class="vv num">${fmt(r.bal)}</div><div class="blk" style="height:${[150, 110, 80][i]}px"></div></div>` : '<div></div>';
+  const pod = (r, i) => r ? `<div class="p${i + 1}"><div class="pa">${avaHTML(r)}<span class="rk" style="background:${['#d8b85a', '#cfcfd4', '#c8875a'][i]}">${i + 1}</span></div><div class="nm ${nameCls(r)}">${esc(r.disp)}</div>${ownOn(r) ? '<div class="owner" style="margin-top:4px">👑 Besitzer</div>' : badgeOf(r) === 2 || badgeOf(r) === 3 ? `<div style="margin-top:4px">${badgeTag(r).replace('style="', 'style="margin-left:0;')}</div>` : ''}<div class="vv num">${fmt(r.bal)}</div><div class="blk" style="height:${[150, 110, 80][i]}px"></div></div>` : '<div></div>';
   const meI = rows.findIndex(r => r.me);
   const meRow = { disp: S.disp, name: S.name, photo: S.photo, color: S.color, bal: S.bal, frm: S.frm, tit: S.tit, clan: S.clan ? S.clan.tag : '' };
   body.innerHTML = `<p class="hint" style="margin-top:-8px">Du bist auf Platz ${NF0.format(mine.rank)} 🏆</p>
@@ -4501,7 +4503,7 @@ async function renderRang2(el) {
   const money = v => key === 'reb' ? `🔥 ${NF0.format(v)}×` : isPt ? fmtDur(v) : isBal ? fmt(v) : fmt(v, { sign: true });
   const cls = v => isPt ? '' : v < 0 ? 'neg' : isBal ? '' : v > 0 ? 'pos' : '';
   const row = (r, i) => `<div class="it ${r.me ? 'me' : ''}${typeof banOf === 'function' && !r.me && banOf(r.name) ? ' banned' : ''}" data-i="${i}"><span class="rn">${i + 1}</span>${avaHTML(r)}<div class="who"><b>${tagHTML(r.clan)}<span class="${nameCls(r)}">${esc(r.disp)}</span>${ownerTag(r)}</b><small>@${esc(r.name)}${titName(r.tit) ? ' · ' + esc(titName(r.tit)) : ''}${isBal ? '' : ' · ' + fmt(r.bal)}</small></div><span class="w num ${cls(val(r))}">${money(val(r))}</span></div>`;
-  const pod = (r, i) => r ? `<div class="p${i + 1}"><div class="pa">${avaHTML(r)}<span class="rk" style="background:${['#d8b85a', '#cfcfd4', '#c8875a'][i]}">${i + 1}</span></div><div class="nm ${nameCls(r)}">${esc(r.disp)}</div>${ownOn(r) ? '<div class="owner" style="margin-top:4px">👑 Besitzer</div>' : ''}<div class="vv num">${money(val(r))}</div><div class="blk" style="height:${[150, 110, 80][i]}px"></div></div>` : '<div></div>';
+  const pod = (r, i) => r ? `<div class="p${i + 1}"><div class="pa">${avaHTML(r)}<span class="rk" style="background:${['#d8b85a', '#cfcfd4', '#c8875a'][i]}">${i + 1}</span></div><div class="nm ${nameCls(r)}">${esc(r.disp)}</div>${ownOn(r) ? '<div class="owner" style="margin-top:4px">👑 Besitzer</div>' : badgeOf(r) === 2 || badgeOf(r) === 3 ? `<div style="margin-top:4px">${badgeTag(r).replace('style="', 'style="margin-left:0;')}</div>` : ''}<div class="vv num">${money(val(r))}</div><div class="blk" style="height:${[150, 110, 80][i]}px"></div></div>` : '<div></div>';
   const sub = ['Wer hat am meisten Geld?', 'Gewinn heute (gewonnen minus eingesetzt, plus Belohnungen)', 'Gewinn diese Woche – startet jeden Montag neu', `Gewinn im ${MONATE[new Date(Date.now()).getMonth()]}`, 'Wer hat am längsten gespielt? (zählt nur aktive Zeit)', 'Wer ist am öftesten wiedergeboren? 🔥 (Wiedergeburt im Profil)'][rgTab];
   body.innerHTML = `<p class="hint" style="margin-top:-6px">${sub}</p>
     ${N >= 2 ? `<div class="podium">${pod(rows[1], 1)}${pod(rows[0], 0)}${pod(rows[2], 2)}</div>` : ''}
