@@ -3570,10 +3570,10 @@ function codeBoxHTML() {
   return `<div class="row"><input class="inp" id="cCode" placeholder="Code…" autocomplete="off"><button class="btn dark sm" id="cGo2">OK</button></div>`;
 }
 /* 🛡️ Admin-Menü (zweiter Code): nur ein paar Rechte */
-function modHTML() { return `<p class="hint" style="margin:0 0 8px">🛡️ <b>Admin</b> – du darfst: Spieler bis ${MOD_LIM.ban} Min. sperren (im Profil oder hier), Glückstränke ×2/×4/×6 (max. ${MOD_LIM.pot}), Energie (max. ${MOD_LIM.en}) und Gratis-Drehs (max. ${MOD_LIM.sp} à ${fmt(MOD_LIM.spSt)}) geben.</p><div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben / sperren</button><button class="btn white xs" data-ch="stat">📊 Statistik</button><button class="btn dark xs" data-ch="moff">🔒 Admin-Menü ausblenden</button></div>`; }
+function modHTML() { return `<p class="hint" style="margin:0 0 8px">🛡️ <b>Admin</b> – du darfst: Nachrichten an alle schicken (max. 1 Std. anpinnen), Spieler bis ${MOD_LIM.ban} Min. sperren (im Profil oder hier), Glückstränke ×2/×4/×6 (max. ${MOD_LIM.pot}), Energie (max. ${MOD_LIM.en}) und Gratis-Drehs (max. ${MOD_LIM.sp} à ${fmt(MOD_LIM.spSt)}) geben.</p><div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben / sperren</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="stat">📊 Statistik</button><button class="btn dark xs" data-ch="moff">🔒 Admin-Menü ausblenden</button></div>`; }
 function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben</button><button class="btn white xs" data-ch="lbh">🙈 Bestenliste-Sperre</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="bdg">🏅 Abzeichen vergeben</button><button class="btn white xs" data-ch="p100">🌈 ×100-Trank für mich</button><button class="btn white xs" data-ch="lh">🌟 Glücksstunde starten</button><button class="btn white xs" data-ch="stat">📊 Statistik</button>${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
 function doCheat(k) {
-  if (ADM_ROLE === 'mod' && !['gift', 'stat', 'moff'].includes(k)) return toast('🛡️ Das darf nur der Besitzer.', 'bad');
+  if (ADM_ROLE === 'mod' && !['gift', 'stat', 'moff', 'bc'].includes(k)) return toast('🛡️ Das darf nur der Besitzer.', 'bad');
   const add = v => { S.bal = r2(S.bal + v); S.st.maxBal = Math.max(S.st.maxBal, S.bal); };
   if (k === 'm1') add(1000); else if (k === 'm2') add(1e6); else if (k === 'm3') add(1e9);
   else if (k === 'lv1') { S.level += 1; S.xp = 0; }
@@ -5230,8 +5230,9 @@ async function admUnlock(code) {
 /* 🛡️ Was ein Admin (nicht Besitzer) darf – wird beim EMPFANGEN geprüft, also fälschungssicher */
 const MOD_LIM = { ban: 60, pot: 10, en: 100, sp: 20, spSt: 5 };
 function modGiftOk(g) {
-  if (!g.to || String(g.to).startsWith('*')) return false; // nichts an alle
   const a = +g.amt, k = g.k || 'm';
+  if (k === 'bc') return String(g.to).startsWith('*|') && a >= 0 && a <= 60 && String(g.x || '').length <= 200; // 📢 Nachricht an alle (max. 1 Std. anpinnen)
+  if (!g.to || String(g.to).startsWith('*')) return false; // sonst nichts an alle
   if (k === 'ban') return g.x !== 'p' && a >= 0 && a <= (g.x === 's' ? MOD_LIM.ban * 60 : MOD_LIM.ban);
   if (k === 'p2' || k === 'p4' || k === 'p6') return a > 0 && a <= MOD_LIM.pot;
   if (k === 'en') return a > 0 && a <= MOD_LIM.en;
@@ -5584,9 +5585,9 @@ function openBc() {
     <p class="hint" style="margin-top:0">Erscheint bei allen Spielern groß auf dem Bildschirm (innerhalb von ~20 Sek., wer offline ist: beim nächsten Öffnen innerhalb von 6 Std.).</p>
     <textarea class="inp" id="bcT" maxlength="200" style="height:120px" placeholder="z. B. Heute Abend Wartung um 20 Uhr!"></textarea>
     <div class="lbl2">📌 Oben anpinnen?</div>
-    <div class="filters" id="bcPin">${[[0, 'Nein'], [10, '10 Min'], [60, '1 Std'], [360, '6 Std'], [1440, '1 Tag'], [2880, '2 Tage']].map(([v, n]) => `<button data-m="${v}" class="${v ? '' : 'on'}">${n}</button>`).join('')}</div>
+    <div class="filters" id="bcPin">${[[0, 'Nein'], [10, '10 Min'], [60, '1 Std'], [360, '6 Std'], [1440, '1 Tag'], [2880, '2 Tage']].filter(([v]) => !isMod() || v <= 60).map(([v, n]) => `<button data-m="${v}" class="${v ? '' : 'on'}">${n}</button>`).join('')}</div>
     <div class="two" style="margin-top:12px"><button class="btn dark" id="bcP">👀 Vorschau</button><button class="btn gold" id="bcGo">📢 Senden</button></div>
-    ${PIN.cur && PIN.cur.until > Date.now() ? `<div class="card tight" style="background:#151517;margin-top:14px;padding:14px 16px"><b>📌 Gerade angepinnt</b> (noch ${Math.ceil((PIN.cur.until - Date.now()) / 60000)} Min.)<div style="color:var(--mut);margin:6px 0 10px">${esc(PIN.cur.x)}</div><button class="btn dark w" id="bcUn">📌 Anpinnung entfernen</button></div>` : ''}`);
+    ${PIN.cur && PIN.cur.until > Date.now() && !isMod() ? `<div class="card tight" style="background:#151517;margin-top:14px;padding:14px 16px"><b>📌 Gerade angepinnt</b> (noch ${Math.ceil((PIN.cur.until - Date.now()) / 60000)} Min.)<div style="color:var(--mut);margin:6px 0 10px">${esc(PIN.cur.x)}</div><button class="btn dark w" id="bcUn">📌 Anpinnung entfernen</button></div>` : ''}`);
   let pinM = 0;
   $('#bcPin', o).onclick = e => { const b = e.target.closest('[data-m]'); if (!b) return; pinM = +b.dataset.m; $$('#bcPin button', o).forEach(x => x.classList.toggle('on', x === b)); SND.click(); };
   const un = $('#bcUn', o); if (un) un.onclick = async function () { this.disabled = true; try { await bcSend('', -1); PIN.cur = null; pinDraw(); toast('📌 Anpinnung entfernt', 'good'); o.close(); } catch (e) { this.disabled = false; toast('Hat nicht geklappt', 'bad'); } };
