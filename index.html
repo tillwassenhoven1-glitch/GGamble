@@ -3529,7 +3529,7 @@ function openSettings() {
     <div class="lbl2">Spielstand-Code (zum Übertragen auf ein anderes Gerät)</div>
     <div class="two"><button class="btn dark sm" id="exp">Code kopieren</button><button class="btn dark sm" id="imp">Code laden</button></div>
     <div class="lbl2">🔑 Code eingeben</div>
-    <div id="cheatBox">${S.cheat ? cheatHTML() : `<div class="row"><input class="inp" id="cCode" placeholder="Code…" autocomplete="off"><button class="btn dark sm" id="cGo2">OK</button></div>`}</div>
+    <div id="cheatBox">${codeBoxHTML()}</div>
     <button class="btn dark w" id="sTut" style="margin-top:22px">🎓 Tutorial nochmal ansehen</button>
     <button class="btn dark w" id="sDiag" style="margin-top:12px">🔍 Online-Diagnose</button>
     <button class="btn dark w" id="rst" style="margin-top:12px">🔄 Konto zurücksetzen</button>
@@ -3546,8 +3546,8 @@ function openSettings() {
   };
   const bindCheat = () => {
     const box = $('#cheatBox', o), g = $('#cGo2', o);
-    if (g) g.onclick = async () => { g.disabled = true; const ok = await admUnlock($('#cCode', o).value.trim()); g.disabled = false; if (ok) { S.cheat = true; S.cheatV = CHEAT_V; save(); toast('😎 Cheat-Menü freigeschaltet!', 'good'); SND.win(); box.innerHTML = cheatHTML(); bindCheat(); } else { toast('❌ Falscher Code', 'bad'); SND.err(); } };
-    box.onclick = e => { const b = e.target.closest('[data-ch]'); if (!b) return; doCheat(b.dataset.ch); box.innerHTML = S.cheat ? cheatHTML() : `<div class="row"><input class="inp" id="cCode" placeholder="Code…" autocomplete="off"><button class="btn dark sm" id="cGo2">OK</button></div>`; bindCheat(); };
+    if (g) g.onclick = async () => { g.disabled = true; const ok = await admUnlock($('#cCode', o).value.trim()); g.disabled = false; if (ok) { if (ok === 'mod') { S.mod = true; S.cheat = false; toast('🛡️ Admin-Menü freigeschaltet!', 'good'); } else { S.cheat = true; S.cheatV = CHEAT_V; S.mod = false; toast('😎 Cheat-Menü freigeschaltet!', 'good'); } save(); SND.win(); box.innerHTML = codeBoxHTML(); bindCheat(); } else { toast('❌ Falscher Code', 'bad'); SND.err(); } };
+    box.onclick = e => { const b = e.target.closest('[data-ch]'); if (!b) return; doCheat(b.dataset.ch); box.innerHTML = codeBoxHTML(); bindCheat(); };
   };
   bindCheat();
   $('#rst', o).onclick = async () => {
@@ -3564,8 +3564,16 @@ function openSettings() {
 
 /* ================= Cheat-Menü ================= */
 const CHEATS = [['m1', '💰 +1.000 €'], ['m2', '💰 +1 Mio. €'], ['m3', '💰 +1 Mrd. €'], ['lv1', '⭐ +1 Level'], ['bp1', '🎟️ +1 Battle-Pass-Stufe'], ['lv', '⭐ +5 Level'], ['lv10', '⭐ +10 Level'], ['lv50', '⭐ +50 Level'], ['lvset', '🎯 Level eingeben …'], ['lvmax', '🔓 Alles freischalten (Level 50)'], ['bp10', '🎟️ +10 Battle-Pass-Stufen'], ['bpreset', '🎟️ Battle Pass zurücksetzen'], ['en', '⚡ Energie voll'], ['pot', '🧪 +3 von jedem Trank'], ['debt', '🧾 Schulden weg'], ['bonus', '🎁 Tagesbonus nochmal'], ['off', '🔒 Cheats ausblenden']];
+function codeBoxHTML() {
+  if (S.cheat && ADM_ROLE !== 'mod') return cheatHTML();
+  if (S.mod && ADM_ROLE === 'mod') return modHTML();
+  return `<div class="row"><input class="inp" id="cCode" placeholder="Code…" autocomplete="off"><button class="btn dark sm" id="cGo2">OK</button></div>`;
+}
+/* 🛡️ Admin-Menü (zweiter Code): nur ein paar Rechte */
+function modHTML() { return `<p class="hint" style="margin:0 0 8px">🛡️ <b>Admin</b> – du darfst: Spieler bis ${MOD_LIM.ban} Min. sperren (im Profil oder hier), Glückstränke ×2/×4/×6 (max. ${MOD_LIM.pot}), Energie (max. ${MOD_LIM.en}) und Gratis-Drehs (max. ${MOD_LIM.sp} à ${fmt(MOD_LIM.spSt)}) geben.</p><div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben / sperren</button><button class="btn white xs" data-ch="stat">📊 Statistik</button><button class="btn dark xs" data-ch="moff">🔒 Admin-Menü ausblenden</button></div>`; }
 function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben</button><button class="btn white xs" data-ch="lbh">🙈 Bestenliste-Sperre</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="bdg">🏅 Abzeichen vergeben</button><button class="btn white xs" data-ch="p100">🌈 ×100-Trank für mich</button><button class="btn white xs" data-ch="lh">🌟 Glücksstunde starten</button><button class="btn white xs" data-ch="stat">📊 Statistik</button>${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
 function doCheat(k) {
+  if (ADM_ROLE === 'mod' && !['gift', 'stat', 'moff'].includes(k)) return toast('🛡️ Das darf nur der Besitzer.', 'bad');
   const add = v => { S.bal = r2(S.bal + v); S.st.maxBal = Math.max(S.st.maxBal, S.bal); };
   if (k === 'm1') add(1000); else if (k === 'm2') add(1e6); else if (k === 'm3') add(1e9);
   else if (k === 'lv1') { S.level += 1; S.xp = 0; }
@@ -3594,6 +3602,7 @@ function doCheat(k) {
       S.pot[100] = (S.pot[100] || 0) + 1; save(); SND.big(); FX.burst(160, { cols: ['#ff5a5a', '#ffb84a', '#ffe14a', '#5ad86a', '#4ab0ff', '#b06aff'] });
       toast(`🌈 Glückstrank ×100 erhalten (du hast jetzt ${S.pot[100]}) – trinken im Glückslabor (Minispiele)`, 'good', 5000); if (curPage === 'spiele') go('spiele', true); })(); return; }
   else if (k === 'own') { if (!isOwner(S.lbId) && !ADM_KEY) return toast('Dein Konto ist nicht als Besitzer erkannt – nutz „🏅 Abzeichen vergeben“ und gib dir 👑 Besitzer.', 'bad', 5000); S.owner = !S.owner; save(); pushScore(true); SND.win(); toast(S.owner ? '👑 Besitzer-Abzeichen aktiviert' : 'Besitzer-Abzeichen deaktiviert', 'good', 1600); return; }
+  else if (k === 'moff') { S.mod = false; toast('Admin-Menü ausgeblendet'); save(); return; }
   else if (k === 'off') { S.cheat = false; toast('Cheats ausgeblendet'); save(); return; }
   SND.coin(); FX.burst(30, { coins: true }); hdr(true); checkAch(); save(); toast('😎 ' + CHEATS.find(c => c[0] === k)[1], 'good', 1600);
 }
@@ -5202,17 +5211,40 @@ const ADM_PUB_OLD = {"kty": "EC", "crv": "P-256", "x": "WsbNQk6Q3CtimW7IEjIA4oFq
 const ADM_CUT = 1795516653105;
 const ADM_ENC = {"s": "4d2hc3+fzqFDCOV019CE3A==", "i": "z9yo+PGTbZo6s5jZ", "c": "oHHvEFNt44tCncyTtvD861FwqsNWKJZq1iLexZZwHnOirNLyv2Xq0ritYCsDAw2xvD5nYTN4GtYm5D0RUCKUf6Gw/EyGz5lp74yVtogFTsr3r7tlZP9JUR89LqprByjxukFJDFu/X/fGsXl3HHt7R8OIYnsjNNz4F7NZLyb8lOQMkhelmzUcjY1+EpLWBJJkyAuitV/43kYY+d8whIHMLs6Gll+9nLuXnSYie9+MKfqJVmR+vhqifNg+a/Kk4ZtT4s+5L/l7mRRq"};
 const b64u = { to: u => btoa(String.fromCharCode(...new Uint8Array(u))), from: b => Uint8Array.from(atob(b), ch => ch.charCodeAt(0)) };
-let ADM_KEY = null;
+const MOD_PUB = {"kty": "EC", "crv": "P-256", "x": "XBjs6ZOJ255pCMpc2fPDumoHd78ZdwvekctsvDBSfbw", "y": "p40z_dDk6mS7t4SBL-oNw4_tjbsUOfFtUtZn6As2zUE"}; // 🛡️ Admin-Code (eingeschränkte Rechte)
+const MOD_ENC = {"s": "daouiKGNYAPquRZvNNI1lw==", "i": "lIfW8xn9wuCUAuH1", "c": "uNSWo21UhNF0sUhaodMYQJNQxkDLwjiuvdi6zkOUReQdcNX9XJdgdHinZMWEnyqDNbLpQ9zilvNuottvjkD2Czq/ut5H9IM4UHKSTAXeqG7veXAFI3VR0Nmkl0gFK0iXgwRC7Lux8Yrne1dppHM2VZeI6qalJ/8jNSHn3bePSj/XDvF5/ODScqRAvi8rtu279/lDIdmGD+xszjS6h6jzw7Ge/pDS6ZT/WmScRpPKemrcu3zaUEOxtzHiCWJg38FY5XxYx+5ODWzS430uxFc5gtm3swWxnmHHtZzZgABL"};
+let ADM_KEY = null, ADM_ROLE = ''; // 'own' = Besitzer, 'mod' = Admin
 async function admUnlock(code) {
-  try {
-    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(code), 'PBKDF2', false, ['deriveKey']);
-    const k = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt: b64u.from(ADM_ENC.s), iterations: 150000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
-    const jwk = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64u.from(ADM_ENC.i) }, k, b64u.from(ADM_ENC.c))));
-    ADM_KEY = await crypto.subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
-    try { localStorage.setItem('gg_adm', code); } catch (e) { }
-    return true;
-  } catch (e) { return false; }
+  for (const [E, role] of [[ADM_ENC, 'own'], [MOD_ENC, 'mod']]) {
+    try {
+      const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(code), 'PBKDF2', false, ['deriveKey']);
+      const k = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt: b64u.from(E.s), iterations: 150000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+      const jwk = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64u.from(E.i) }, k, b64u.from(E.c))));
+      ADM_KEY = await crypto.subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']); ADM_ROLE = role;
+      try { localStorage.setItem('gg_adm', code); } catch (e) { }
+      return role;
+    } catch (e) { }
+  }
+  return false;
 }
+/* 🛡️ Was ein Admin (nicht Besitzer) darf – wird beim EMPFANGEN geprüft, also fälschungssicher */
+const MOD_LIM = { ban: 60, pot: 10, en: 100, sp: 20, spSt: 5 };
+function modGiftOk(g) {
+  if (!g.to || String(g.to).startsWith('*')) return false; // nichts an alle
+  const a = +g.amt, k = g.k || 'm';
+  if (k === 'ban') return g.x !== 'p' && a >= 0 && a <= (g.x === 's' ? MOD_LIM.ban * 60 : MOD_LIM.ban);
+  if (k === 'p2' || k === 'p4' || k === 'p6') return a > 0 && a <= MOD_LIM.pot;
+  if (k === 'en') return a > 0 && a <= MOD_LIM.en;
+  if (k === 'sp') return a > 0 && a <= MOD_LIM.sp && +g.x > 0 && +g.x <= MOD_LIM.spSt;
+  return false;
+}
+function modLbhOk(g, prev) {
+  if (g.n.startsWith('r:')) return true; // Sperr-Grund
+  if (!g.n.startsWith('x:')) return false;
+  if (!g.h) return !prev || !prev.h || !!prev.mod; // entsperren nur, wenn die Sperre auch von einem Admin kam
+  return g.h !== 1 && g.h * 60000 - g.ts <= (MOD_LIM.ban + 2) * 60000;
+}
+
 const giftMsg = g => g.k ? `${g.id}|${g.to}|${g.amt}|${g.ts}|${g.k}|${g.x}` : `${g.id}|${g.to}|${g.amt}|${g.ts}`;
 const GIFT_K = { m: ['💰', 'Geld'], sp: ['🎰', 'Gratis-Drehs'], en: ['⚡', 'Energie'], p2: ['🧪', 'Glückstrank ×2'], p4: ['🧪', 'Glückstrank ×4'], p6: ['🧪', 'Glückstrank ×6'], lv: ['⭐', 'Level'], bp: ['🎟️', 'Battle Pass'], ban: ['⛔', 'Sperren'], fw: ['🎭', 'Fake ×100'] };
 function giftTxt(k, amt, x) {
@@ -5226,10 +5258,10 @@ function giftTxt(k, amt, x) {
   if (k === 'bp') return `${amt > 0 ? '+' : ''}${amt} Battle-Pass-Stufe${Math.abs(amt) === 1 ? '' : 'n'}`;
   return fmt(amt, { sign: true });
 }
-function giftApply(k, a, x) {
+function giftApply(k, a, x, mod) {
   if (k === 'fk') return; // Spaß – es wird nichts gutgeschrieben
   if (k === 'fw') { S.fakeWin = { m: Math.max(2, Math.min(10000, Math.round(a))) }; return; } // 🎭 nächster Dreh zeigt einen Fake-Riesengewinn
-  if (k === 'ban') { S.banUntil = a > 0 ? (x === 'p' ? 8.64e15 : Date.now() + Math.min(30 * 864e5, a * (x === 's' ? 1000 : 60000))) : 0; S.banBy = ''; banCheck(); return; }
+  if (k === 'ban') { if (mod && S.banUntil > Date.now() && !S.banMod) return; /* Admin kann keine Besitzer-Sperre ändern */ S.banUntil = a > 0 ? (x === 'p' ? 8.64e15 : Date.now() + Math.min(30 * 864e5, a * (x === 's' ? 1000 : 60000))) : 0; S.banBy = ''; S.banMod = !!mod && a > 0; banCheck(); return; }
   if (k === 'sp') { const n = Math.max(1, Math.min(500, Math.round(a))), st = Math.max(.1, Math.min(1e6, +x || 1)); S.gspin = S.gspin && S.gspin.st === st ? { n: S.gspin.n + n, st } : { n: (S.gspin ? S.gspin.n : 0) + n, st }; }
   else if (k === 'en') S.energy = (S.energy || 0) + Math.max(1, Math.min(500, Math.round(a)));
   else if (k === 'p2' || k === 'p4' || k === 'p6') { const m = +k[1]; S.pot[m] = (S.pot[m] || 0) + Math.max(1, Math.min(100, Math.round(a))); }
@@ -5239,8 +5271,11 @@ function giftApply(k, a, x) {
 }
 async function giftVerify(g) {
   try {
-    const pk = await crypto.subtle.importKey('jwk', ADM_PUB, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
-    return await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pk, b64u.from(g.sig), new TextEncoder().encode(giftMsg(g)));
+    const pk = await crypto.subtle.importKey('jwk', ADM_PUB, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']), sg = b64u.from(g.sig), msg = new TextEncoder().encode(giftMsg(g));
+    if (await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pk, sg, msg)) return 1;
+    if (!modGiftOk(g)) return false;
+    const pm = await crypto.subtle.importKey('jwk', MOD_PUB, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+    return await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pm, sg, msg) ? 2 : false;
   } catch (e) { return false; }
 }
 async function giftSend(to, amt, msg, k = 'm', x = '', von = '') {
@@ -5253,7 +5288,7 @@ async function giftSend(to, amt, msg, k = 'm', x = '', von = '') {
 }
 function giftReceive(g, all) {
       if (g.k === 'wt') return; // (Zuschauen entfernt)
-      const a = r2(+g.amt), kd = g.k || 'm'; giftApply(kd, a, g.x);
+      const a = r2(+g.amt), kd = g.k || 'm'; giftApply(kd, a, g.x, g._mod);
       try { actEvent(`🎁 ${kd === 'fk' ? 'FAKE ' : ''}${(GIFT_K[kd] || ['', kd])[1]}: ${giftTxt(kd, a, g.x)} erhalten`); } catch (e) { }
       if (kd === 'ban') { save(); if (a <= 0) toast('✅ Du bist wieder entsperrt!', 'good', 4000); return; }
       if (kd === 'fw') { save(); return; } // still – die Überraschung kommt beim nächsten Dreh
@@ -5278,7 +5313,7 @@ async function giftPoll() {
     S.gifts = S.gifts || [];
     for (const g of n) {
       if (S.gifts.includes(g.id) || Date.now() - (g.ts || 0) > 14 * 864e5 || (g.ts || 0) < (S.created || 0)) continue;
-      if (!isFinite(+g.amt) || !await giftVerify({ id: g.id, to: g.to, amt: +g.amt, ts: +g.ts, sig: g.sig || '', k: g.k || '', x: g.x || '' })) continue;
+      const gv = isFinite(+g.amt) && await giftVerify({ id: g.id, to: g.to, amt: +g.amt, ts: +g.ts, sig: g.sig || '', k: g.k || '', x: g.x || '' }); if (!gv) continue; g._mod = gv === 2;
       S.gifts.push(g.id); if (S.gifts.length > 200) S.gifts = S.gifts.slice(-200);
       giftReceive(g);
     }
@@ -5292,7 +5327,7 @@ function banCheck() {
     document.querySelectorAll('.full,.game-ov').forEach(x => x.remove()); document.body.classList.remove('inmach'); try { if (typeof MS !== 'undefined') MS = null; } catch (e) { }
     document.body.insertAdjacentHTML('beforeend', `<div id="banOv" style="position:fixed;inset:0;z-index:9998;background:rgba(5,5,6,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;gap:14px;color:#fff">
       <div style="font-size:72px">⛔</div><h1 style="font-size:34px;margin:0">Du bist gesperrt</h1>
-      <p style="color:#a8a8b0;font-size:18px;margin:0">Der Besitzer hat dich vorübergehend gesperrt.</p>
+      <p style="color:#a8a8b0;font-size:18px;margin:0">${S.banMod ? 'Ein Admin' : 'Der Besitzer'} hat dich vorübergehend gesperrt.</p>
       <div id="banT" class="num" style="font-size:54px;font-weight:900;color:#ff6b6b"></div></div>`);
     ov = document.getElementById('banOv');
   }
@@ -5303,24 +5338,26 @@ function banCheck() {
 setInterval(() => { if (S) banCheck(); }, 1000);
 function giftStart() { if (!onlineOn()) return; setTimeout(giftPoll, 2500); setInterval(giftPoll, 90000); document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(giftPoll, 1500); }); setTimeout(() => typeof bcPoll === 'function' && bcPoll(), 3500); setInterval(() => typeof bcPoll === 'function' && bcPoll(), 120000); document.addEventListener('visibilitychange', () => { if (!document.hidden && typeof bcPoll === 'function') setTimeout(bcPoll, 800); }); }
 function openGift() {
+  const MOD = isMod(), MOD_K = ['p2', 'p4', 'p6', 'en', 'sp', 'ban'];
   const o = sheet(`<div class="row sb"><h2>🎁 Spielern etwas geben</h2><button class="x" data-close>${icon('x')}</button></div>
     <div class="lbl2" style="margin-top:0">Spielername</div><input class="inp" id="gfN" maxlength="18" placeholder="z. B. Robin" autocomplete="off">
-    <div class="filters" id="gfAll" style="margin-top:8px"><button data-a="0" class="on">👤 Ein Spieler</button><button data-a="1">📢 Alle, die gerade online sind</button></div>
-    <div class="lbl2">Was?</div><div class="fdgg" id="gfK" style="grid-template-columns:repeat(4,1fr)">${Object.entries(GIFT_K).map(([k, [ic, n]]) => `<button class="btn ${k === 'm' ? 'gold' : 'dark'}" data-k="${k}" style="font-size:13px;padding:10px 4px">${ic}<br>${n.replace('Glückstrank ', '')}</button>`).join('')}</div>
+    <div class="filters" id="gfAll" style="margin-top:8px${MOD ? ';display:none' : ''}"><button data-a="0" class="on">👤 Ein Spieler</button><button data-a="1">📢 Alle, die gerade online sind</button></div>
+    <div class="lbl2">Was?</div><div class="fdgg" id="gfK" style="grid-template-columns:repeat(4,1fr)">${Object.entries(GIFT_K).filter(([k]) => !MOD || MOD_K.includes(k)).map(([k, [ic, n]]) => `<button class="btn ${k === (MOD ? 'p2' : 'm') ? 'gold' : 'dark'}" data-k="${k}" style="font-size:13px;padding:10px 4px">${ic}<br>${n.replace('Glückstrank ', '')}</button>`).join('')}</div>
     <div class="lbl2" id="gfAL">Betrag (mit Minus zum Abziehen, z. B. -500)</div><input class="inp num" id="gfA" type="number" inputmode="decimal" placeholder="z. B. 1000">
     <div id="gfUW" class="hidden"><div class="filters" id="gfU" style="margin-top:8px"><button data-u="m" class="on">Minuten</button><button data-u="s">Sekunden</button></div>
       <button class="btn dark w" id="gfUnban" style="margin-top:10px">🔓 Sperre aufheben</button></div>
     <div id="gfXW" class="hidden"><div class="lbl2">Einsatz pro Gratis-Dreh</div><input class="inp num" id="gfX" type="number" inputmode="decimal" value="10"></div>
     <div class="lbl2">Nachricht (optional)</div><input class="inp" id="gfM" maxlength="120" placeholder="z. B. Entschädigung fürs Duell 😉">
-    <div class="card tight list" style="background:#151517;margin-top:14px">
+    <div class="card tight list" style="background:#151517;margin-top:14px${MOD ? ';display:none' : ''}">
       <div class="it"><div style="flex:1"><b>😜 Fake-Geschenk</b><small style="display:block;color:var(--mut)">Sieht echt aus, aber es wird nichts gutgeschrieben (nur bei Geld)</small></div><button class="tog" id="gfF"></button></div>
       <div class="it hidden" id="gfFR"><div style="flex:1"><b>Danach auflösen</b><small style="display:block;color:var(--mut)">Nach „OK“ kommt „😜 Reingelegt!“</small></div><button class="tog" id="gfR"></button></div></div>
     <div id="gfVW" class="hidden"><div class="lbl2">Absender anzeigen als (optional)</div><input class="inp" id="gfV" maxlength="24" placeholder="z. B. Luise"></div>
     <button class="btn gold w" id="gfGo" style="margin-top:16px">Senden</button>
-    <p class="hint">Der Spieler bekommt das Geld beim nächsten Öffnen bzw. innerhalb von 30 Sekunden, mit einer Meldung. Geschenke sind fälschungssicher signiert.</p>`);
-  let kind = 'm';
+    ${MOD ? `<p class="hint" style="color:#7ad7ff">🛡️ Als Admin: sperren max. ${MOD_LIM.ban} Min., Tränke max. ${MOD_LIM.pot}, Energie max. ${MOD_LIM.en}, Gratis-Drehs max. ${MOD_LIM.sp} à ${fmt(MOD_LIM.spSt)}. Mehr wird beim Spieler nicht angenommen.</p>` : ''}<p class="hint">Der Spieler bekommt das Geld beim nächsten Öffnen bzw. innerhalb von 30 Sekunden, mit einer Meldung. Geschenke sind fälschungssicher signiert.</p>`);
+  let kind = MOD ? 'p2' : 'm';
   const LBL0 = 0; const LBL = { ban: 'Wie viele Minuten sperren? (0 = entsperren)', fw: '🎭 Welchen Fake-Multiplikator zeigen? (nur Show, kein echtes Geld)', bp: 'Wie viele Battle-Pass-Stufen? (Minus zum Abziehen)', m: 'Betrag (mit Minus zum Abziehen, z. B. -500)', sp: 'Anzahl Gratis-Drehs', en: 'Wie viel Energie?', p2: 'Wie viele Tränke?', p4: 'Wie viele Tränke?', p6: 'Wie viele Tränke?', lv: 'Wie viele Level? (Minus zum Abziehen)' };
   $('#gfK', o).onclick = e => { const b = e.target.closest('[data-k]'); if (!b) return; kind = b.dataset.k; $$('#gfK button', o).forEach(x => x.className = 'btn ' + (x.dataset.k === kind ? 'gold' : 'dark')); $('#gfAL', o).textContent = LBL[kind]; $('#gfXW', o).classList.toggle('hidden', kind !== 'sp'); $('#gfUW', o).classList.toggle('hidden', kind !== 'ban'); if (kind === 'fw' && !$('#gfA', o).value) $('#gfA', o).value = 100; SND.click(); };
+  if (MOD) setTimeout(() => { const b = $('#gfK [data-k="p2"]', o); if (b) b.click(); }, 0);
   let unit = 'm';
   $('#gfU', o).onclick = e => { const b = e.target.closest('[data-u]'); if (!b) return; unit = b.dataset.u; $$('#gfU button', o).forEach(x => x.classList.toggle('on', x === b)); $('#gfAL', o).textContent = unit === 's' ? 'Wie viele Sekunden sperren? (0 = entsperren)' : LBL.ban; SND.click(); };
   let fake = false, reveal = false;
@@ -5340,6 +5377,7 @@ function openGift() {
     if (toAll && kind === 'ban') { this.disabled = false; return toast('Alle sperren geht nicht 😅', 'bad'); }
     if (!toAll) try { if (!await nameTaken(nm)) { this.disabled = false; return toast(`Spieler „${esc(nm)}“ gibt es nicht`, 'bad'); } } catch (e) { }
     if (fake && kind !== 'm') return toast('Fake geht nur bei Geld 😜', 'bad');
+    if (MOD && !modGiftOk({ to: nm, amt, k: kind, x })) { this.disabled = false; return toast(kind === 'ban' ? `🛡️ Als Admin höchstens ${MOD_LIM.ban} Min. sperren` : '🛡️ Das ist mehr, als Admins geben dürfen', 'bad'); }
     const kk = fake ? 'fk' : kind, xx = fake ? (reveal ? '1' : '0') : x, von = fake ? $('#gfV', o).value.trim() : '';
     try { await giftSend(nm, amt, msg, kk, xx, von); SND.win(); toast(`${fake ? '😜 Fake-' : '🎁 '}${giftTxt(kk, amt, xx)} an ${toAll ? "alle, die online sind" : esc(nm)} geschickt`, 'good'); o.close(); }
     catch (e) { this.disabled = false; toast(e.message === 'key' ? 'Bitte Cheat-Code einmal neu eingeben (Admin-Schlüssel fehlt).' : 'Senden fehlgeschlagen – Firebase-Regeln prüfen.', 'bad'); }
@@ -5356,12 +5394,16 @@ async function lbhLoad(force) {
     const docs = await fsQuery({ from: [{ collectionId: 'lbsperre' }], limit: 500 });
     const pk = await crypto.subtle.importKey('jwk', ADM_PUB, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
     const pkOld = await crypto.subtle.importKey('jwk', ADM_PUB_OLD, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+    const pkMod = await crypto.subtle.importKey('jwk', MOD_PUB, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
     const best = {};
-    for (const d of docs) {
+    for (const d of [...docs].sort((x, y) => (+x.ts || 0) - (+y.ts || 0))) {
       const g = { id: d.id, n: String(d.n || '').toLowerCase(), h: +d.h || 0, ts: +d.ts || 0 };
       if (!g.n || (best[g.n] && best[g.n].ts >= g.ts)) continue;
-      try { const sg = b64u.from(d.sig || ''), msg = new TextEncoder().encode(lbhMsg(g)); if (await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pk, sg, msg) || (g.ts < ADM_CUT && await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pkOld, sg, msg))) best[g.n] = g; } catch (e) { }
+      try { const sg = b64u.from(d.sig || ''), msg = new TextEncoder().encode(lbhMsg(g));
+        if (await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pk, sg, msg) || (g.ts < ADM_CUT && await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pkOld, sg, msg))) best[g.n] = g;
+        else if (modLbhOk(g, best[g.n]) && await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pkMod, sg, msg)) { g.mod = 1; best[g.n] = g; } } catch (e) { }
     }
+    LBH.vb = best;
     const vals = Object.values(best);
     LBH.set = new Set(vals.filter(g => g.h && !g.n.startsWith('b:')).map(g => g.n)); LBH.t = Date.now();
     LBH.bdg = {}; vals.filter(g => g.n.startsWith('b:') && g.h).forEach(g => { LBH.bdg[g.n.slice(2)] = g.h; });
@@ -6570,7 +6612,8 @@ PAGES.tisch = renderTisch;
 { const RU = roomUI; roomUI = () => { RU(); const o = T.ov; if (!o) return; const d = $('#rDuel', o); if (d && d.parentElement) { d.parentElement.insertAdjacentHTML('afterend', `<button class="btn gold w" id="rTisch" style="margin:4px 0 6px">👥 Zusammen spielen: 🃏 🎡 🐎</button>`); $('#rTisch', o).onclick = () => { o.close(); go('tisch'); }; } }; }
 
 /* ================= 🏢 Clans 0.4.3: Einladungen, Rollen, Kicken, Admin-Löschen ================= */
-const isAdm = () => !!(typeof ADM_KEY !== 'undefined' && ADM_KEY);
+const isAdm = () => !!(typeof ADM_KEY !== 'undefined' && ADM_KEY && ADM_ROLE === 'own');
+const isMod = () => !!(typeof ADM_KEY !== 'undefined' && ADM_KEY && ADM_ROLE === 'mod');
 const clDel = tag => !!(LBH && LBH.set && LBH.set.has('c:' + String(tag).toLowerCase()));
 const clInvOk = tag => !!(S.clInv && S.clInv[tag] && Date.now() - S.clInv[tag].ts < 7 * 864e5);
 const clIsOwn = (c, name = S.name) => !!c && String(c.own).toLowerCase() === String(name).toLowerCase();
@@ -6687,6 +6730,7 @@ const CHEAT_V = 2;
 (function cheatReset() {
   if (!S) return setTimeout(cheatReset, 1500);
   if (S.cheat && S.cheatV !== CHEAT_V) { S.cheat = false; save(); }
+  if (S.cheat && ADM_ROLE === 'mod') { S.cheat = false; S.mod = true; save(); }
   setTimeout(cheatReset, 30000);
 })();
 
@@ -6779,7 +6823,7 @@ function banTag(r) {
   return (u ? ` <span class="owner" style="background:#ff3b3b22;color:#ff6b6b;border-color:#ff6b6b66">⛔ GEBANNT${u === Infinity ? ' (dauerhaft)' : ''}</span>` : '') + (hid ? ' <span class="owner" style="background:#88888822;color:#aaa;border-color:#88888866">🙈 Ausgeblendet</span>' : '');
 }
 // lbhLoad legt nur „h != 0“ in LBH.set – den Zeitpunkt holen wir aus den Rohdaten (gleiche Abfrage, kommt aus dem Zwischenspeicher)
-{ const L1 = lbhLoad; lbhLoad = async force => { const r = await L1(force); try { const docs = await fsQuery({ from: [{ collectionId: 'lbsperre' }], limit: 500 }); const best = {}; docs.forEach(d => { const n = String(d.n || '').toLowerCase(); if (n.startsWith('x:') && (!best[n] || (+d.ts || 0) > best[n].ts)) best[n] = { ts: +d.ts || 0, h: +d.h || 0 }; }); LBH.ban = {}; Object.entries(best).forEach(([n, g]) => { if (g.h && LBH.set.has(n)) LBH.ban[n.slice(2)] = g.h; }); LBH.why = {}; LBH.set.forEach(n => { if (!n.startsWith('r:')) return; const d = docs.filter(x => String(x.n || '').toLowerCase() === n).sort((a, b) => (+b.ts || 0) - (+a.ts || 0))[0]; const p = n.slice(2).split('|'), k = p[0]; if (d && (!LBH.why[k] || +d.ts > LBH.why[k].ts)) LBH.why[k] = { t: whyDec(String(d.n).slice(2).split('|').slice(1).join('|')), ts: +d.ts }; }); } catch (e) { } return r; }; }
+{ const L1 = lbhLoad; lbhLoad = async force => { const r = await L1(force); try { const docs = await fsQuery({ from: [{ collectionId: 'lbsperre' }], limit: 500 }); const best = {}; Object.values(LBH.vb || {}).forEach(g => { if (g.n.startsWith('x:')) best[g.n] = g; }); LBH.ban = {}; Object.entries(best).forEach(([n, g]) => { if (g.h && LBH.set.has(n)) LBH.ban[n.slice(2)] = g.h; }); LBH.why = {}; LBH.set.forEach(n => { if (!n.startsWith('r:')) return; const d = docs.filter(x => String(x.n || '').toLowerCase() === n).sort((a, b) => (+b.ts || 0) - (+a.ts || 0))[0]; const p = n.slice(2).split('|'), k = p[0]; if (d && (!LBH.why[k] || +d.ts > LBH.why[k].ts)) LBH.why[k] = { t: whyDec(String(d.n).slice(2).split('|').slice(1).join('|')), ts: +d.ts }; }); } catch (e) { } return r; }; }
 async function admBan(name, mins, why = '') { // mins: >0 Minuten, -1 = dauerhaft, 0 = entsperren
   const nm = String(name).toLowerCase(); why = String(why || '').replace(/\|/g, '/').trim().slice(0, 100);
   await giftSend(nm, mins === -1 ? 1 : Math.max(0, mins), why, 'ban', mins === -1 ? 'p' : '');
@@ -6789,17 +6833,20 @@ async function admBan(name, mins, why = '') { // mins: >0 Minuten, -1 = dauerhaf
   try { FQ_C.clear(); } catch (e) { }
 }
 function admProfileBox(r, shpIn) {
-  if (!isAdm() || !r || r.me || !r.name) return;
+  if ((!isAdm() && !isMod()) || !r || r.me || !r.name) return;
+  const MOD = !isAdm(), vb = LBH.vb && LBH.vb['x:' + String(r.name).toLowerCase()], canUn = !MOD || !vb || !!vb.mod;
   const shp = shpIn || [...document.querySelectorAll('.ov .sheet')].pop(); if (!shp || shp.querySelector('#admPB') || !shp.textContent.includes('@' + r.name)) return;
   const nm = String(r.name).toLowerCase(), u = banOf(nm), hid = lbhHas(nm);
   shp.insertAdjacentHTML('beforeend', `<div class="card" id="admPB" style="margin-top:14px;border:1px solid #ff6b6b55;background:#1a0f10">
     <h3 style="font-size:19px;margin:0 0 6px">🛡️ Admin · @${esc(r.name)}</h3>
     <p class="hint" style="margin:0 0 10px">${u && LBH.why && LBH.why[nm] && LBH.why[nm].t ? `Grund: <b>${esc(LBH.why[nm].t)}</b><br>` : ''}${u ? `⛔ Gesperrt ${u === Infinity ? '<b>dauerhaft</b>' : 'bis <b>' + new Date(u).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + '</b>'}` : '✅ Nicht gesperrt'}${hid ? ' · 🙈 aus der Bestenliste ausgeblendet' : ''}</p>
-    ${u ? `<button class="btn gold w" data-ab="0">🔓 Sperre aufheben</button>` : `<div class="lbl2" style="margin-top:0">Sperren für …</div><div class="fdgg" style="grid-template-columns:repeat(3,1fr)">
+    ${u ? (canUn ? `<button class="btn gold w" data-ab="0">🔓 Sperre aufheben</button>` : '<p class="hint" style="margin:0">🔒 Diese Sperre kommt vom Besitzer – nur er kann sie aufheben.</p>') : MOD ? `<div class="lbl2" style="margin-top:0">Sperren für … (Admin: max. ${MOD_LIM.ban} Min.)</div><div class="fdgg" style="grid-template-columns:repeat(3,1fr)">
+      <input class="inp" id="admWhy" maxlength="100" placeholder="Grund (optional), z. B. Beleidigung im Chat" style="grid-column:1/4;margin-bottom:4px">
+      <button class="btn dark xs" data-ab="10">10 Min.</button><button class="btn dark xs" data-ab="30">30 Min.</button><button class="btn dark xs" data-ab="60">1 Std.</button></div>` : `<div class="lbl2" style="margin-top:0">Sperren für …</div><div class="fdgg" style="grid-template-columns:repeat(3,1fr)">
       <input class="inp" id="admWhy" maxlength="100" placeholder="Grund (optional), z. B. Beleidigung im Chat" style="grid-column:1/4;margin-bottom:4px">
       <button class="btn dark xs" data-ab="10">10 Min.</button><button class="btn dark xs" data-ab="60">1 Std.</button><button class="btn dark xs" data-ab="1440">1 Tag</button>
       <button class="btn dark xs" data-ab="10080">7 Tage</button><button class="btn dark xs" data-ab="43200">30 Tage</button><button class="btn red xs" data-ab="-1">⛔ Dauerhaft</button></div>`}
-    <button class="btn dark w" data-ah="${hid ? 0 : 1}" style="margin-top:10px">${hid ? '👀 Wieder in der Bestenliste zeigen' : '🙈 Aus der Bestenliste ausblenden'}</button></div>`);
+    ${MOD ? '' : `<button class="btn dark w" data-ah="${hid ? 0 : 1}" style="margin-top:10px">${hid ? '👀 Wieder in der Bestenliste zeigen' : '🙈 Aus der Bestenliste ausblenden'}</button>`}</div>`);
   const B = shp.querySelector('#admPB');
   B.onclick = async e => {
     const b = e.target.closest('[data-ab],[data-ah]'); if (!b) return;
@@ -6814,7 +6861,7 @@ function admProfileBox(r, shpIn) {
     } catch (er) { b.disabled = false; toast(er.message === 'key' ? 'Bitte Cheat-Code neu eingeben (Admin-Schlüssel fehlt).' : 'Hat nicht geklappt', 'bad'); }
   };
 }
-{ const PP = playerProfile; playerProfile = (r, rank) => { PP(r, rank); if (!isAdm() || !r || r.me) return; let n = 0; const t = () => { const shp = [...document.querySelectorAll('.ov .sheet')].pop(); if (shp && shp.textContent.includes('@' + r.name)) { try { admProfileBox(r); } catch (e) { } } else if (n++ < 20) setTimeout(t, 200); }; setTimeout(t, 60); }; }
+{ const PP = playerProfile; playerProfile = (r, rank) => { PP(r, rank); if ((!isAdm() && !isMod()) || !r || r.me) return; let n = 0; const t = () => { const shp = [...document.querySelectorAll('.ov .sheet')].pop(); if (shp && shp.textContent.includes('@' + r.name)) { try { admProfileBox(r); } catch (e) { } } else if (n++ < 20) setTimeout(t, 200); }; setTimeout(t, 60); }; }
 // Geschenk-Menü: „Sperren“ auch dort vermerken + Option „Dauerhaft“
 { const GS = giftSend; giftSend = async (to, amt, msg, k, x, von) => { const r = await GS(to, amt, msg, k, x, von); if (k === 'ban' && to && to !== '*' && x !== 'p') { try { const h = amt > 0 ? Math.ceil((Date.now() + Math.min(30 * 864e5, amt * (x === 's' ? 1000 : 60000))) / 60000) : 0; await lbhSet('x:' + String(to).toLowerCase(), h); } catch (e) { } } return r; }; }
 
