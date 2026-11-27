@@ -906,6 +906,14 @@ body.inmach #app *{animation-play-state:paused!important}
 
 <script>
 /* 🔥 Firebase-Zähler: zählt Lese-/Schreibvorgänge dieses Geräts pro Bereich (für die Admin-Statistik) */
+/* 🧩 Firebase auf mehrere Projekte verteilen: Bereich → Projekt. Leer = alles im Haupt-Projekt.
+   Haupt-Projekt (ggamble-fa902) behält: konten, namen (Spielstände bleiben, wo sie sind) */
+const FB_P = {
+  // rang: { apiKey: '...', projectId: '...' },   ← hier kommen die neuen Projekte rein
+};
+const FB_GROUPS = { rang: ['rang', 'top', 'lbsperre', 'clans'], live: ['online', 'treff', 'duelle', 'bilder', 'feed'], chat: ['chat', 'dm', 'gifts'] };
+const FB_SPLIT = {}; for (const [g, cols] of Object.entries(FB_GROUPS)) if (FB_P[g] && FB_P[g].apiKey && FB_P[g].projectId) cols.forEach(c => FB_SPLIT[c] = FB_P[g]);
+let FB_RAW = false; // true = Umleitung kurz aus (nur beim Daten-Umzug)
 const FBM = { t0: Date.now(), c: {}, err: 0 };
 (() => {
   const F = window.fetch.bind(window);
@@ -917,6 +925,8 @@ const FBM = { t0: Date.now(), c: {}, err: 0 };
     let col = (path.split('/')[1] || '').split(':')[0] || '?', kind = 'r';
     if (url.includes(':runQuery') || url.includes(':runAggregationQuery')) { try { col = JSON.parse(o.body).structuredQuery?.from?.[0]?.collectionId || JSON.parse(o.body).structuredAggregationQuery?.structuredQuery?.from?.[0]?.collectionId || col; } catch (e) { } kind = url.includes('Aggregation') ? 'a' : 'q'; }
     else if (m !== 'GET') kind = 'w';
+    const P = !FB_RAW && FB_SPLIT[col];
+    if (P) { const nu = url.replace(/\/projects\/[^/]+\//, `/projects/${P.projectId}/`).replace(/([?&]key=)[^&]+/, `$1${P.apiKey}`); u = typeof u === 'string' ? nu : new Request(nu, u); }
     const res = await F(u, o);
     try {
       if (res.status === 429) FBM.err++;
@@ -3597,7 +3607,7 @@ function codeBoxHTML() {
 }
 /* 🛡️ Admin-Menü (zweiter Code): nur ein paar Rechte */
 function modHTML() { return `<p class="hint" style="margin:0 0 8px">🛡️ <b>Admin</b> – du darfst: Nachrichten an alle schicken (max. 1 Std. anpinnen), Spieler bis ${MOD_LIM.ban} Min. sperren (im Profil oder hier), Glückstränke ×2/×4/×6 (max. ${MOD_LIM.pot}, auch an alle), Energie (max. ${MOD_LIM.en}) und Gratis-Drehs (max. ${MOD_LIM.sp} à ${fmt(MOD_LIM.spSt)}) geben.</p><div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben / sperren</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="stat">📊 Statistik</button><button class="btn dark xs" data-ch="moff">🔒 Admin-Menü ausblenden</button></div>`; }
-function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben</button><button class="btn white xs" data-ch="lbh">🙈 Bestenliste-Sperre</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="bdg">🏅 Abzeichen vergeben</button><button class="btn white xs" data-ch="mt">🛠️ Wartung</button><button class="btn white xs" data-ch="nbs">🚫 Alle mit verbotenem Namen sperren</button><button class="btn white xs" data-ch="p100">🌈 ×100-Trank für mich</button><button class="btn white xs" data-ch="lh">🌟 Glücksstunde starten</button><button class="btn white xs" data-ch="stat">📊 Statistik</button>${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
+function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben</button><button class="btn white xs" data-ch="lbh">🙈 Bestenliste-Sperre</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="bdg">🏅 Abzeichen vergeben</button><button class="btn white xs" data-ch="mt">🛠️ Wartung</button><button class="btn white xs" data-ch="fbm">📦 Daten umziehen</button><button class="btn white xs" data-ch="nbs">🚫 Alle mit verbotenem Namen sperren</button><button class="btn white xs" data-ch="p100">🌈 ×100-Trank für mich</button><button class="btn white xs" data-ch="lh">🌟 Glücksstunde starten</button><button class="btn white xs" data-ch="stat">📊 Statistik</button>${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
 function doCheat(k) {
   if (ADM_ROLE === 'mod' && !['gift', 'stat', 'moff', 'bc'].includes(k)) return toast('🛡️ Das darf nur der Besitzer.', 'bad');
   const add = v => { S.bal = r2(S.bal + v); S.st.maxBal = Math.max(S.st.maxBal, S.bal); };
@@ -3622,6 +3632,7 @@ function doCheat(k) {
   else if (k === 'stat') { if (typeof openStats === 'function') openStats(); return; }
   else if (k === 'nbs') { nbSweep(); return; }
   else if (k === 'mt') { openMt(); return; }
+  else if (k === 'fbm') { fbMigrate(); return; }
   else if (k === 'bdg') { if (typeof openBadges === 'function') openBadges(); return; }
   else if (k === 'p100') { (async () => { // 3× bestätigen
       if (!await confirmBox('🌈 Glückstrank ×100 geben?', 'Der stärkste Trank im Spiel – 100-fach Glück für 10 Drehs.', 'Ja (1/3)')) return;
@@ -7637,6 +7648,25 @@ function openAnn() {
   const w = () => { if (!S) return; if ((S.tutV || 0) < TUT_V || S.updSeen !== UPD_V || document.querySelector('.ov,#tutOv,.full,.game-ov,#banOv,#mtOv,#bnOv') || (typeof popBusy === 'function' && popBusy())) return setTimeout(w, 2500); openAnn(); };
   setTimeout(w, 4500);
 })();
+
+/* 📦 Daten-Umzug (Besitzer): Sperren/Abzeichen, Clans und Profilbilder vom Haupt-Projekt in die neuen Projekte kopieren */
+async function fbMigrate() {
+  const cols = ['lbsperre', 'clans', 'bilder'].filter(c => FB_SPLIT[c]);
+  if (!cols.length) return toast('Noch keine neuen Projekte eingetragen', 'bad');
+  if (!await confirmBox('Daten umziehen?', `Kopiert ${cols.join(', ')} ins neue Projekt. Dauert kurz – Seite offen lassen.`, 'Umziehen', false)) return;
+  let n = 0, f = 0;
+  for (const col of cols) {
+    let docs = [];
+    FB_RAW = true;
+    try { const r = await fetch(`${FS()}:runQuery?key=${ONLINE.apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ structuredQuery: { from: [{ collectionId: col }], limit: 5000 } }) }); docs = (await r.json()).filter(x => x.document).map(x => x.document); }
+    finally { FB_RAW = false; }
+    for (const d of docs) {
+      const id = d.name.split('/').pop();
+      try { const r = await fetch(`${FS()}/${col}/${encodeURIComponent(id)}?key=${ONLINE.apiKey}&currentDocument.exists=false`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: d.fields }) }); if (r.ok || r.status === 409 || r.status === 400) n++; else f++; } catch (e) { f++; }
+    }
+  }
+  toast(`📦 Umzug fertig: ${n} kopiert${f ? `, ${f} Fehler` : ''}`, f ? 'bad' : 'good', 5000);
+}
 </script>
 </body>
 </html>
