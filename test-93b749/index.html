@@ -4621,6 +4621,7 @@ function openPay(k, d, after) {
     upd(); if (amt < 10) return toast('Mindestens 10 €', 'bad');
     if (amt > S.bal + 1e-9) return toast('So viel Guthaben hast du nicht (Dispo zählt nicht)', 'bad');
     if (S.banUntil > Date.now()) return toast('Du bist gerade gesperrt', 'bad');
+    { const so = await sessGet(true); if (so.err) return toast('Gerade keine Verbindung – bitte gleich nochmal', 'bad'); if (so.other) { o.close(); sessLost(); return; } } // 🔒 nur vom aktiven Gerät
     if (!await confirmBox(`${fmt(amt)} an ${esc(d)} schicken?`, `${esc(d)} bekommt <b>${fmt(r2(amt * (1 - PAY_TAX)))}</b> (5 % Steuer).`, 'Schicken')) return;
     this.disabled = true; const net = r2(amt * (1 - PAY_TAX));
     S.bal = r2(S.bal - amt); S.st.sent = r2((S.st.sent || 0) + amt); if (typeof wkAdd === 'function') wkAdd(-amt); save(); hdr(true);
@@ -5227,8 +5228,11 @@ function actPing() { // bei Änderung höchstens alle 20 Sek. melden
 }
 async function onlBeat() {
   if (!S || !onlineOn() || document.hidden || !S.lbId) return;
+  if (SESS.lost) return;
+  if (SESS.claimed) { const o = await sessGet(); if (o.other) { sessLost(); return; } } // anderes Gerät hat übernommen → nicht zurückklauen
   const a = actNow(); ACT.last = a; ACT.beatT = Date.now();
-  const f = { ts: fint(Date.now()), n: fstr(S.disp) }; // nur Online-Status (Zuschauen entfernt)
+  const f = { ts: fint(Date.now()), n: fstr(S.disp), u: fstr(SESS.id) }; // Online-Status + welches Gerät gerade spielt
+  SESS.claimed = true;
   try {
     const r = await fetch(fsDoc('online/' + S.lbId), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: f }) });
     if (r.status === 403) await fetch(fsDoc('online/' + S.lbId), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: { ts: f.ts, n: f.n } }) }); // alte Regeln
@@ -7669,6 +7673,31 @@ async function fbMigrate() {
   }
   toast(`📦 Umzug fertig: ${n} kopiert${f ? `, ${f} Fehler` : ''}`, f ? 'bad' : 'good', 5000);
 }
+
+/* 🔒 Nur 1 Gerät gleichzeitig: das zuletzt geöffnete Gerät spielt, das andere pausiert (verhindert doppeltes Geld) */
+const SESS = { id: DEV_ID + '-' + Math.random().toString(36).slice(2, 8), claimed: false, lost: false };
+async function sessGet(strict) {
+  if (!S || !S.lbId || !onlineOn()) return {};
+  try {
+    const r = await fetch(fsDoc('online/' + S.lbId) + '&nc=' + Date.now(), { cache: 'no-store' });
+    if (r.status === 404) return {}; if (!r.ok) return strict ? { err: 1 } : {};
+    const f = (await r.json()).fields || {}, u = f.u && f.u.stringValue, ts = +(f.ts && (f.ts.integerValue || f.ts.doubleValue)) || 0;
+    return { other: !!(u && u !== SESS.id && Date.now() - ts < 180000), u, ts };
+  } catch (e) { return strict ? { err: 1 } : {}; }
+}
+function sessLost() {
+  if (SESS.lost || !S) return; SESS.lost = true;
+  try { persist(); cloudLast = ''; cloudPush(true); } catch (e) { } // eigenen Stand noch schnell sichern
+  document.querySelectorAll('.full,.game-ov,.ov').forEach(x => x.remove()); document.body.classList.remove('inmach'); try { if (typeof MS !== 'undefined') MS = null; } catch (e) { }
+  document.body.insertAdjacentHTML('beforeend', `<div id="sessOv" style="position:fixed;inset:0;z-index:9996;background:rgba(5,5,6,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;gap:14px;color:#fff">
+    <div style="font-size:64px">📱</div><h1 style="font-size:28px;margin:0">Dein Konto ist auf einem anderen Gerät offen</h1>
+    <p style="color:#a8a8b0;font-size:16px;margin:0;max-width:420px;line-height:1.5">Damit nichts doppelt oder verloren geht, kann man immer nur auf <b style="color:#fff">einem Gerät gleichzeitig</b> spielen. Dein Stand ist gespeichert 💾</p>
+    <button class="btn white" id="sessGo" style="min-width:240px;margin-top:6px">▶️ Hier weiterspielen</button>
+    <p style="color:#6a6a72;font-size:13px;margin:0">Das andere Gerät wird dann pausiert.</p></div>`);
+  document.getElementById('sessGo').onclick = function () { this.disabled = true; this.textContent = 'Lädt …'; setTimeout(() => location.reload(), 2500); }; // kurz warten, damit der andere Stand oben ist
+}
+setInterval(async () => { if (!S || document.hidden || SESS.lost || !SESS.claimed) return; const o = await sessGet(); if (o.other) sessLost(); }, 30000);
+document.addEventListener('visibilitychange', async () => { if (document.hidden || !S || SESS.lost || !SESS.claimed) return; const o = await sessGet(); if (o.other) sessLost(); });
 </script>
 </body>
 </html>
