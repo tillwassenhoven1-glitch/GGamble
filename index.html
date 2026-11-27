@@ -1321,6 +1321,7 @@ const base = () => r2(40 * Math.pow(1.13, S.level));
 const xpNeed = l => Math.round(200 * Math.pow(l, 1.8)); // doppelt so viel XP pro Level wie früher
 function touchToday() { if (S.today.d !== dayKey()) S.today = { d: dayKey(), v: 0 }; }
 function canPay(a) {
+  if (typeof meBadName === 'function' && meBadName()) { badNameCheck(); return false; }
   if (isLocked()) { toast('Dein Konto ist gesperrt – hol dir Geld in den Minispielen oder verkauf die Schulden.', 'bad'); SND.err(); return false; }
   if (S.banUntil && S.banUntil > Date.now()) { banCheck(); return false; }
   if (S.bal - a < -dispoNow() - 1e-9) { toast(dispoNow() ? `Nicht genug Guthaben – Dispo nur bis ${fmt(-DISPO)}.` : (S.note > 0 ? 'Nicht genug Guthaben – mit offenem Schuldschein gibt es keinen Dispo.' : 'Nicht genug Guthaben – nach einer Insolvenz gibt es 24 Std. keinen Dispo.'), 'bad'); SND.err(); return false; }
@@ -3518,7 +3519,7 @@ function editProfile() {
     }; img.src = URL.createObjectURL(f);
   };
   const r = $('#eR', o); if (r) r.onclick = () => { photo = ''; r.remove(); };
-  $('#eS', o).onclick = () => { const n = $('#eN', o).value.trim(); if (n.length < 2) { toast('Name zu kurz', 'bad'); return; } S.disp = n; S.color = col; S.photo = photo; S.st.edits++; persist(); hdr(); if (typeof phUpload === 'function') setTimeout(phUpload, 300); o.close(); go('profil', true); toast('Profil gespeichert ✓', 'good'); };
+  $('#eS', o).onclick = () => { const n = $('#eN', o).value.trim(); if (n.length < 2) { toast('Name zu kurz', 'bad'); return; } if (badName(n) && !isOwner(S.lbId)) { toast('🚫 Dieser Name ist nicht erlaubt', 'bad'); return; } S.disp = n; S.color = col; S.photo = photo; S.st.edits++; persist(); hdr(); if (typeof phUpload === 'function') setTimeout(phUpload, 300); o.close(); go('profil', true); toast('Profil gespeichert ✓', 'good'); };
 }
 function openSettings() {
   const o = sheet(`<div class="row sb"><h2>Einstellungen</h2><button class="x" data-close>${icon('x')}</button></div>
@@ -3672,6 +3673,7 @@ function showLogin() {
     const name = $('#lName').value.trim(), pw = $('#lPw').value, key = name.toLowerCase(), all = Accounts.all(), err = t => { $('#lErr').textContent = t; SND.err(); };
     if (name.length < 2) return err('Name: mindestens 2 Zeichen');
     if (!/^[\p{L}\p{N} _.\-]+$/u.test(name)) return err('Name: nur Buchstaben, Zahlen, Leerzeichen, _ . -');
+    if (reg && badName(name)) return err('🚫 Dieser Name ist nicht erlaubt – nimm bitte einen anderen.');
     if (pw.length < 4) return err('Passwort: mindestens 4 Zeichen');
     const on = onlineOn(), cid = await cloudId(key, pw), mkSalt = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
     $('#lGo').disabled = true; const done = () => { $('#lGo').disabled = false; };
@@ -3910,25 +3912,27 @@ async function idRestore() {
 }
 /* ✏️ Login-Namen ändern: neues Konto-Dokument + neuer Name, alter Bestenlisten-Eintrag wird ausgeblendet */
 const REN_CD = 7 * 864e5; let renOldCid = '';
-async function renameAcc(name, pw) {
+async function renameAcc(name, pw, force) {
   name = String(name || '').trim(); const key = name.toLowerCase(), old = ACC, all = Accounts.all(), a = all[old];
   const bad = t => { toast(t, 'bad'); SND.err(); };
   if (!a) return bad('Konto nicht gefunden');
   if (name.length < 2) return bad('Name: mindestens 2 Zeichen');
   if (!/^[\p{L}\p{N} _.\-]+$/u.test(name)) return bad('Name: nur Buchstaben, Zahlen, Leerzeichen, _ . -');
+  if (badName(name)) return bad('🚫 Dieser Name ist nicht erlaubt');
+  force = force && badName(S.name);
   if (key === old) { if (name === S.name) return bad('Das ist schon dein Name'); }
   else if (all[key]) return bad('Den Namen gibt es schon');
   if (await Accounts.hash(pw, a.salt) !== a.hash) return bad('Falsches Passwort');
-  const left = (S.renT || 0) + REN_CD - Date.now(); if (left > 0) return bad(`Du kannst deinen Namen erst in ${Math.ceil(left / 864e5)} Tag(en) wieder ändern`);
+  const left = force ? 0 : (S.renT || 0) + REN_CD - Date.now(); if (left > 0) return bad(`Du kannst deinen Namen erst in ${Math.ceil(left / 864e5)} Tag(en) wieder ändern`);
   if (isOwner(S.lbId)) return bad('Das Besitzer-Konto kann nicht umbenannt werden');
   if (key !== old && onlineOn()) {
-    if (typeof lbhLoad === 'function' && (await lbhLoad(true)).has(old)) return bad('Namensänderung ist gerade nicht möglich');
+    if (!force && typeof lbhLoad === 'function' && (await lbhLoad(true)).has(old)) return bad('Namensänderung ist gerade nicht möglich');
     let t = true; try { t = await nameTaken(key); } catch (e) { return bad('Keine Verbindung – bitte später nochmal'); }
     if (t) return bad('Den Namen hat schon jemand');
   }
-  if (!await confirmBox(`Name in „${esc(name)}“ ändern?`, key !== old ? `Du meldest dich danach mit <b>${esc(name)}</b> an. Freunde müssen dich neu hinzufügen. Der alte Name bleibt gesperrt.` : 'Nur die Schreibweise ändert sich.', 'Ändern')) return;
+  if (!force && !await confirmBox(`Name in „${esc(name)}“ ändern?`, key !== old ? `Du meldest dich danach mit <b>${esc(name)}</b> an. Freunde müssen dich neu hinzufügen. Der alte Name bleibt gesperrt.` : 'Nur die Schreibweise ändert sich.', 'Ändern')) return;
   const oldDisp = S.disp, oldName = S.name, oldRid = S.lbId;
-  S.name = name; if (!oldDisp || oldDisp.toLowerCase() === oldName.toLowerCase()) S.disp = name; S.renT = Date.now(); a.name = name;
+  S.name = name; if (!oldDisp || oldDisp.toLowerCase() === oldName.toLowerCase() || badName(oldDisp)) S.disp = name; S.renT = Date.now(); a.name = name;
   if (key !== old) {
     const rid = newRid(key); renOldCid = a.cid;
     if (onlineOn()) {
@@ -7309,6 +7313,47 @@ setInterval(() => { try { if (S && onlineOn()) lbhLoad(); } catch (e) { } }, 700
 
 /* Minispiel-Overlay: kein Durchscrollen der Seite dahinter (iOS) */
 document.addEventListener('touchmove', e => { if (e.target.closest && e.target.closest('.game-ov')) e.preventDefault(); }, { passive: false });
+
+/* 🚫 Verbotene Namen (Schimpfwörter + „Wassenhoven“): neu anlegen geht nicht, bestehende Konten sind gesperrt, bis der Name geändert ist */
+const BAD_W = ['wassenhoven', 'wasenhove', 'wasenhof', 'hurensohn', 'hurenkind', 'hure', 'fotze', 'wichser', 'wixer', 'schlampe', 'misgeburt', 'spast', 'behindert', 'arschl', 'arschg', 'arschkr', 'fick', 'bastard', 'schwuchtel', 'kanake', 'neger', 'niger', 'niga', 'hitler', 'nazi', 'siegheil', 'fuck', 'fck', 'shit', 'bitch', 'cunt', 'pusy', 'penis', 'vagina', 'porno', 'titen', 'muschi', 'wanker', 'motherf', 'schlong', 'pimel', 'sperma', 'vergewalt', 'kinderf', 'pedo', 'pädo', 'hoden', 'kacke', 'scheiße', 'scheise', 'drecksau', 'dreckssau', 'opfa', 'mongo', 'retard'];
+function nameNorm(n) {
+  return String(n || '').toLowerCase().replace(/[0@4]/g, m => ({ '0': 'o', '@': 'a', '4': 'a' })[m]).replace(/[1!|]/g, 'i').replace(/3/g, 'e').replace(/[5$]/g, 's').replace(/7/g, 't')
+    .replace(/ph/g, 'f').replace(/ck/g, 'k').replace(/[^a-zäöüß]/g, '').replace(/(.)\1+/g, '$1');
+}
+const BAD_N = BAD_W.map(w => nameNorm(w));
+function badName(n) { const t = nameNorm(n); return !!t && BAD_N.some(w => w && t.includes(w)); }
+const meBadName = () => !!(S && !isOwner(S.lbId) && (badName(S.name) || badName(S.disp)));
+/* Andere sehen solche Namen nicht: aus der Bestenliste raus, im Chat ausgeblendet */
+{ const FQ = fsQuery; fsQuery = async (q, ...r) => {
+  const d = await FQ(q, ...r), col = q && q.from && q.from[0] && q.from[0].collectionId;
+  if (!Array.isArray(d)) return d;
+  if (col === 'rang') return d.filter(x => isOwner(x.id) || !(badName(x.name) || badName(x.disp)));
+  if (col === 'chat' || col === 'dm' || col === 'feed') d.forEach(x => { if (badName(x.disp) || badName(x.name) || badName(x.von)) x.disp = '🚫 Name gesperrt'; });
+  return d;
+}; }
+/* Eigenes Konto mit verbotenem Namen → Sperrbildschirm mit „Namen ändern“ */
+function badNameCheck() {
+  let ov = document.getElementById('bnOv');
+  if (!meBadName()) { if (ov) { ov.remove(); toast('✅ Neuer Name – viel Spaß!', 'good'); } return; }
+  if (ov) return;
+  document.querySelectorAll('.full,.game-ov').forEach(x => x.remove()); document.body.classList.remove('inmach'); try { if (typeof MS !== 'undefined') MS = null; } catch (e) { }
+  const nb = badName(S.name);
+  document.body.insertAdjacentHTML('beforeend', `<div id="bnOv" style="position:fixed;inset:0;z-index:9997;background:rgba(5,5,6,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;gap:14px;color:#fff">
+    <div style="font-size:64px">🚫</div><h1 style="font-size:30px;margin:0">Dein Name ist nicht erlaubt</h1>
+    <p style="color:#a8a8b0;font-size:17px;margin:0;max-width:420px">Bitte such dir einen neuen Namen aus – danach kannst du ganz normal weiterspielen. Dein Geld und dein Fortschritt bleiben.</p>
+    <input class="inp" id="bnN" maxlength="20" placeholder="Neuer Name" style="max-width:320px">
+    ${nb ? '<input class="inp" id="bnP" type="password" placeholder="Dein Passwort" style="max-width:320px">' : ''}
+    <button class="btn white" id="bnGo" style="min-width:220px">Namen ändern</button></div>`);
+  ov = document.getElementById('bnOv');
+  $('#bnGo', ov).onclick = async () => {
+    const n = $('#bnN', ov).value.trim();
+    if (n.length < 2) return toast('Name: mindestens 2 Zeichen', 'bad');
+    if (badName(n)) return toast('🚫 Dieser Name ist auch nicht erlaubt', 'bad');
+    if (nb) { await renameAcc(n, $('#bnP', ov).value, true); return; }
+    S.disp = n; persist(); lbLast = ''; pushScore(true); hdr(true); badNameCheck();
+  };
+}
+setInterval(() => { if (S) badNameCheck(); }, 3000); setTimeout(() => { if (S) badNameCheck(); }, 1500);
 </script>
 </body>
 </html>
