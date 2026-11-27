@@ -2998,7 +2998,7 @@ function renderImperium(el) {
 'use strict';
 /* ================= Rangliste (online, nur echte Konten) ================= */
 /* 🔧 Online-Bestenliste: hier die Werte aus Firebase eintragen (siehe README) */
-const ONLINE = { apiKey: 'AIzaSyDIpbW5ZADQGdtRdA813J1TZIJOHgiXRaY', projectId: 'ggamble-fa902' };
+const ONLINE = { apiKey: 'AIzaSyB0_JA0bnBhubUGuCoTODLIcZ4psrLBbIM', projectId: 'ggamble-konten' }; // 💾 Haupt-Projekt: Konten & Namen
 const onlineOn = () => !!(ONLINE.apiKey && ONLINE.projectId);
 const FS = () => `https://firestore.googleapis.com/v1/projects/${ONLINE.projectId}/databases/(default)/documents`;
 function lbId() { if (!S.lbId) { S.lbId = (ACC.replace(/[^a-z0-9]/g, '') || 'x').slice(0, 12) + '-' + Math.random().toString(36).slice(2, 10); save(); } return S.lbId; }
