@@ -911,7 +911,7 @@ body.inmach #app *{animation-play-state:paused!important}
 const FB_P = {
   rang: { apiKey: 'AIzaSyCoRasqBd0S9hPe15VT7X0eZji_Rcjs578', projectId: 'ggamble-rang' },
   live: { apiKey: 'AIzaSyDsurOjR6U5GrOCRiq1Mzd0E89-QiMhM9c', projectId: 'ggamble-live' },
-  // chat: { apiKey: '...', projectId: '...' },
+  chat: { apiKey: 'AIzaSyDJTmHI99af2S63V-j7QvatWA-OntF2yd4', projectId: 'ggamble-chat' },
 };
 const FB_GROUPS = { rang: ['rang', 'top', 'lbsperre', 'clans'], live: ['online', 'treff', 'duelle', 'bilder', 'feed'], chat: ['chat', 'dm', 'gifts'] };
 const FB_SPLIT = {}; for (const [g, cols] of Object.entries(FB_GROUPS)) if (FB_P[g] && FB_P[g].apiKey && FB_P[g].projectId) cols.forEach(c => FB_SPLIT[c] = FB_P[g]);
@@ -1244,7 +1244,7 @@ const Accounts = {
 };
 let S = null, ACC = null;
 /* 🔄 Großer Neustart: alle Konten starten neu (neue Wirtschaft). Zum erneuten Zurücksetzen RESET_EP ändern. */
-const RESET_EP = '2026-11-17-neustart', RESET_TS = Date.UTC(2026, 10, 17, 15, 5);
+const RESET_EP = '2026-11-27-hardreset', RESET_TS = Date.UTC(2026, 10, 27, 16, 0); // 🧹 harter Neustart (neue Firebase-Projekte)
 function newState(name) {
   const now = Date.now();
   return {
