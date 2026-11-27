@@ -5342,7 +5342,7 @@ function giftTxt(k, amt, x) {
   return fmt(amt, { sign: true });
 }
 function giftApply(k, a, x, mod) {
-  if (k === 'tx') { S.tixSt = S.tixSt || {}; const old = S.tixSt[x]; S.tixSt[x] = a; save(); if (old !== a) whenFree(() => { toast(`🎟️ Dein Ticket ist jetzt: <b>${TIX_ST[a] ? TIX_ST[a][0] + ' ' + TIX_ST[a][1] : '?'}</b>`, a === 2 ? 'good' : '', 5000, () => openMyTix()); try { SND.coin(); } catch (e) { } }); return; } // 🎟️ Ticket-Status
+  if (k === 'tx') { S.tixSt = S.tixSt || {}; const old = S.tixSt[x]; S.tixSt[x] = a; save(); if (old !== a) whenFree(() => { toast(`🎟️ Dein Ticket ist jetzt: <b>${TIX_ST[a] ? TIX_ST[a][0] + ' ' + TIX_ST[a][1] : '?'}</b>${(S.tixNote || {})[x] ? '<br>💬 ' + esc(S.tixNote[x]) : ''}`, a === 2 ? 'good' : '', 7000, () => openMyTix()); try { SND.coin(); } catch (e) { } }); return; } // 🎟️ Ticket-Status
   if (k === 'nb') { S.nbN = a > 0 ? String(S.name).toLowerCase() : ''; save(); setTimeout(() => { try { badNameCheck(); } catch (e) { } }, 300); return; } // 🚫 Name gesperrt → muss umbenennen
   if (k === 'fk') return; // Spaß – es wird nichts gutgeschrieben
   if (k === 'fw') { S.fakeWin = { m: Math.max(2, Math.min(10000, Math.round(a))) }; return; } // 🎭 nächster Dreh zeigt einen Fake-Riesengewinn
@@ -5373,6 +5373,7 @@ async function giftSend(to, amt, msg, k = 'm', x = '', von = '') {
 }
 function giftReceive(g, all) {
       if (g.k === 'wt') return; // (Zuschauen entfernt)
+      if ((g.k || '') === 'tx' && g.msg) { S.tixNote = S.tixNote || {}; S.tixNote[g.x] = String(g.msg).slice(0, 200); }
       const a = r2(+g.amt), kd = g.k || 'm'; giftApply(kd, a, g.x, g._mod);
       try { actEvent(`🎁 ${kd === 'fk' ? 'FAKE ' : ''}${(GIFT_K[kd] || ['', kd])[1]}: ${giftTxt(kd, a, g.x)} erhalten`); } catch (e) { }
       if (kd === 'nb' || kd === 'tx') return;
@@ -7835,7 +7836,7 @@ async function openTix(cat0) {
 function openMyTix() {
   const L = S.tix || [], st = S.tixSt || {};
   sheet(`<div class="row sb"><h2>📋 Meine Tickets</h2><button class="x" data-close>${icon('x')}</button></div>
-    <div class="card tight list rl">${L.length ? L.map(x => { const s = TIX_ST[st[x.id] || 0]; return `<div class="it" style="align-items:flex-start;gap:10px"><div style="font-size:22px">${TIX_CAT[x.cat] ? TIX_CAT[x.cat][0] : '🎟️'}</div><div class="who" style="flex:1"><b style="font-size:14px;font-weight:600;white-space:normal">${esc(x.t)}</b><small>${new Date(x.ts).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · 📍 ${esc(x.page || '')}</small></div><span class="chip" style="white-space:nowrap">${s[0]} ${s[1]}</span></div>`; }).join('') : '<div class="empty">Noch keine Tickets – tipp unten rechts auf 🐞</div>'}</div>`);
+    <div class="card tight list rl">${L.length ? L.map(x => { const s = TIX_ST[st[x.id] || 0]; return `<div class="it" style="align-items:flex-start;gap:10px"><div style="font-size:22px">${TIX_CAT[x.cat] ? TIX_CAT[x.cat][0] : '🎟️'}</div><div class="who" style="flex:1"><b style="font-size:14px;font-weight:600;white-space:normal">${esc(x.t)}</b><small>${new Date(x.ts).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · 📍 ${esc(x.page || '')}</small>${(S.tixNote || {})[x.id] ? `<div style="margin-top:6px;padding:8px 10px;border-radius:10px;background:#1a160a;font-size:13px">💬 <b>Antwort:</b> ${esc(S.tixNote[x.id])}</div>` : ''}</div><span class="chip" style="white-space:nowrap">${s[0]} ${s[1]}</span></div>`; }).join('') : '<div class="empty">Noch keine Tickets – tipp unten rechts auf 🐞</div>'}</div>`);
 }
 /* 🐞 schwebender Knopf – überall, solange Beta/Tester */
 function tixBtn() {
@@ -7852,7 +7853,9 @@ async function openTixAdm() {
   const o = sheet(`<div class="row sb"><h2>🎟️ Tickets</h2><button class="x" data-close>${icon('x')}</button></div>
     <div class="filters" id="taF"><button data-f="o" class="on">🟢 Offen</button><button data-f="1">🟡 In Arbeit</button><button data-f="2">✅ Erledigt</button><button data-f="a">Alle</button></div>
     <div id="taL" style="margin-top:10px"><div class="empty">Lade …</div></div>`);
-  let docs = [], f = 'o', ST = {}; try { ST = JSON.parse(localStorage.getItem('gg_tixst') || '{}'); } catch (e) { }
+  let docs = [], f = 'o', ST = {}, NT = {}, KY = {}; try { ST = JSON.parse(localStorage.getItem('gg_tixst') || '{}'); NT = JSON.parse(localStorage.getItem('gg_tixnt') || '{}'); KY = JSON.parse(localStorage.getItem('gg_tixky') || '{}'); } catch (e) { }
+  const isBA = x => /Beta-Bewerbung/.test(x.t) && /Wartung/.test(x.page); // 🧪 Bewerbung von der Wartungsseite (noch kein Konto)
+  const saveT = () => { try { localStorage.setItem('gg_tixst', JSON.stringify(ST)); localStorage.setItem('gg_tixnt', JSON.stringify(NT)); localStorage.setItem('gg_tixky', JSON.stringify(KY)); } catch (e) { } };
   try { docs = await fsQuery0({ from: [{ collectionId: 'dm' }], where: rangeQ('ats', '¤tix', Date.now() - 30 * 864e5), orderBy: [{ field: { fieldPath: 'ats' }, direction: 'DESCENDING' }], limit: 300 }); } catch (e) { }
   const T = docs.map(d => { const m = TIX_RE.exec(d.txt || ''); return m && { id: d.id, von: d.von, disp: d.disp || d.von, ts: +d.ts || 0, cat: m[1], page: m[2], img: m[3] === '1', t: m[4] }; }).filter(Boolean);
   const draw = () => {
@@ -7860,7 +7863,9 @@ async function openTixAdm() {
     $('#taL', o).innerHTML = L.length ? `<div class="card tight list rl">${L.map(x => { const s = ST[x.id] || 0; return `<div class="it" style="flex-direction:column;align-items:stretch;gap:8px" data-id="${x.id}">
       <div class="row" style="gap:10px;align-items:flex-start"><div style="font-size:22px">${TIX_CAT[x.cat][0]}</div><div class="who" style="flex:1"><b style="font-size:14px;font-weight:600;white-space:normal">${esc(x.t)}</b><small>@${esc(x.von)} · ${new Date(x.ts).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · 📍 ${esc(x.page)}</small></div><span class="chip">${TIX_ST[s][0]}</span></div>
       ${x.img ? `<button class="btn dark xs" data-img="${x.id}">📸 Screenshot ansehen</button>` : ''}
-      <div class="row" style="gap:6px">${[1, 2, 3].map(v => `<button class="btn ${s === v ? 'gold' : 'dark'} xs" style="flex:1" data-st="${v}">${TIX_ST[v][0]} ${TIX_ST[v][1]}</button>`).join('')}</div></div>`; }).join('')}</div>` : '<div class="empty">Keine Tickets hier 🎉</div>';
+      ${NT[x.id] ? `<div style="padding:8px 10px;border-radius:10px;background:#1a160a;font-size:13px">💬 Deine Antwort: ${esc(NT[x.id])}</div>` : ''}${KY[x.id] ? `<div style="padding:8px 10px;border-radius:10px;background:#0f1a10;font-size:13px">🔑 Schlüssel: <b class="num">${KY[x.id]}</b> (nur für @${esc(x.von)})</div>` : ''}
+      <input class="inp tnote" maxlength="120" placeholder="Antwort dazuschreiben (optional) …" style="font-size:14px;padding:10px 12px">
+      <div class="row" style="gap:6px">${(isBA(x) ? [[1, '🟡 In Arbeit'], [2, '✅ Annehmen + 🔑'], [3, '❌ Ablehnen']] : [[1, '🟡 Wird gemacht'], [2, '✅ Erledigt'], [3, '❌ Abgelehnt']]).map(([v, t]) => `<button class="btn ${s === v ? 'gold' : 'dark'} xs" style="flex:1" data-st="${v}">${t}</button>`).join('')}</div></div>`; }).join('')}</div>` : '<div class="empty">Keine Tickets hier 🎉</div>';
   };
   draw();
   $('#taF', o).onclick = e => { const b = e.target.closest('[data-f]'); if (!b) return; f = b.dataset.f; $$('#taF button', o).forEach(x => x.classList.toggle('on', x === b)); draw(); };
@@ -7868,9 +7873,24 @@ async function openTixAdm() {
     const im = e.target.closest('[data-img]');
     if (im) { im.disabled = true; try { const r = await fetch(fsDoc('bilder/' + im.dataset.img), { cache: 'no-store' }); const p = r.ok ? ((await r.json()).fields || {}).p : null; if (p && p.stringValue) im.outerHTML = `<img src="${p.stringValue}" style="width:100%;max-width:300px;border-radius:12px;border:1px solid #26262c">`; else im.textContent = 'Kein Bild gefunden'; } catch (x) { im.textContent = 'Fehler'; } return; }
     const b = e.target.closest('[data-st]'); if (!b) return; const it = b.closest('[data-id]'), x = T.find(t => t.id === it.dataset.id), v = +b.dataset.st;
+    const note = ($('.tnote', it).value || '').trim().slice(0, 120);
+    if (isBA(x) && v === 2 && !await confirmBox(`🔑 @${esc(x.von)} annehmen?`, `Es wird ein Beta-Schlüssel erzeugt, der <b>nur für den Namen „${esc(x.von)}“</b> funktioniert. Er erscheint direkt auf seiner Wartungsseite.`, 'Annehmen')) return;
     b.disabled = true;
-    try { await giftSend(x.von, v, '', 'tx', x.id); ST[x.id] = v; try { localStorage.setItem('gg_tixst', JSON.stringify(ST)); } catch (er) { } toast(`${TIX_ST[v][0]} @${esc(x.von)} bekommt Bescheid`, 'good'); draw(); }
-    catch (er) { b.disabled = false; toast(er.message === 'key' ? 'Bitte Cheat-Code neu eingeben' : 'Hat nicht geklappt', 'bad'); }
+    try {
+      if (isBA(x)) {
+        let key = '';
+        if (v === 2) {
+          key = KY[x.id] || '';
+          if (!key) { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', r4 = () => [...crypto.getRandomValues(new Uint8Array(4))].map(c => A[c % 32]).join(''); key = `BETA-${r4()}-${r4()}`; }
+          const h = await betaHash(key); await lbhSet('k:' + h, 1);
+          await fsCreate('namen', 'beta~' + h, { t: fint(Date.now()), rid: fstr(x.von) }); // Schlüssel fest für diesen Namen reserviert
+          KY[x.id] = key; let ks = []; try { ks = JSON.parse(localStorage.getItem('gg_bkeys') || '[]'); } catch (er) { } if (!ks.some(k => k.k === key)) { ks.push({ k: key, h, t: Date.now() }); try { localStorage.setItem('gg_bkeys', JSON.stringify(ks)); } catch (er) { } }
+        }
+        await giftSend('¤bt:' + x.id, v, note, 'tx', key);
+      } else await giftSend(x.von, v, note, 'tx', x.id);
+      ST[x.id] = v; if (note) NT[x.id] = note; saveT();
+      toast(`${TIX_ST[v][0]} @${esc(x.von)} bekommt Bescheid${v === 2 && isBA(x) ? ' – inkl. 🔑 Schlüssel' : ''}`, 'good'); draw();
+    } catch (er) { b.disabled = false; toast(er.message === 'key' ? 'Bitte Cheat-Code neu eingeben' : 'Hat nicht geklappt', 'bad'); }
   };
 }
 

@@ -24,6 +24,7 @@
   #btF input:focus,#btF textarea:focus{border-color:#d8b85a}
   #btGo{width:100%;border:0;border-radius:12px;padding:13px;font:inherit;font-weight:800;font-size:16px;background:linear-gradient(180deg,#f6dc8a,#c9a43e);color:#1a1206;cursor:pointer}
   #btGo:disabled{opacity:.5}
+  .bts{border:1px solid;border-radius:16px;padding:14px 16px;text-align:left;margin-top:4px;font-size:15px}
 </style>
 </head>
 <body>
@@ -42,6 +43,7 @@
     <button id="btGo">📨 Abschicken</button>
     <p id="btE" style="font-size:13px;min-height:16px;margin-top:6px"></p>
   </div>
+  <div id="btS" style="width:100%;max-width:420px"></div>
   <div class="run"><canvas id="run"></canvas><div class="row"><span>🦖 Tap / Space = jump</span><span id="hi"></span></div></div>
   <p class="de">🇩🇪 Wartungsarbeiten – GGamble wird komplett neu aufgebaut. Ab Montag, 30.11. startet die Beta-Testphase.</p>
 <script>
@@ -84,10 +86,34 @@ document.getElementById('btGo').onclick = async function () {
   try {
     const r = await fetch(`https://firestore.googleapis.com/v1/projects/${CHAT.projectId}/databases/(default)/documents/dm?documentId=${id}&key=${CHAT.apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) });
     if (!r.ok) throw 0;
-    try { localStorage.setItem('bt_sent', String(Date.now())); } catch (e) { }
+    try { localStorage.setItem('bt_sent', String(Date.now())); const L = JSON.parse(localStorage.getItem('bt_apps') || '[]'); L.push({ id, n, ts }); localStorage.setItem('bt_apps', JSON.stringify(L.slice(-3))); } catch (e) { }
+    setTimeout(btPoll, 1500);
     document.getElementById('btF').innerHTML = '<div style="text-align:center;padding:10px 0"><div style="font-size:44px">🎉</div><b style="font-size:18px">Bewerbung abgeschickt!</b><p class="de" style="color:#a8a8b0;margin-top:6px">Danke! Wir melden uns bei dir – mit etwas Glück bekommst du einen Beta-Schlüssel. 🔑</p></div>';
   } catch (e) { this.disabled = false; err('Hat nicht geklappt – Internet prüfen'); }
 };
+/* 📬 Antwort auf die Bewerbung anzeigen (Angenommen + Schlüssel / In Arbeit / Abgelehnt) */
+async function btPoll() {
+  let L = []; try { L = JSON.parse(localStorage.getItem('bt_apps') || '[]'); } catch (e) { }
+  if (!L.length) return;
+  const box = document.getElementById('btS'); let html = '';
+  for (const a of L) {
+    let st = null;
+    try {
+      const pre = '¤bt:' + a.id + '|';
+      const r = await fetch(`https://firestore.googleapis.com/v1/projects/${CHAT.projectId}/databases/(default)/documents:runQuery?key=${CHAT.apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ structuredQuery: { from: [{ collectionId: 'gifts' }], where: { compositeFilter: { op: 'AND', filters: [{ fieldFilter: { field: { fieldPath: 'to' }, op: 'GREATER_THAN_OR_EQUAL', value: { stringValue: pre } } }, { fieldFilter: { field: { fieldPath: 'to' }, op: 'LESS_THAN', value: { stringValue: pre + '~' } } }] } }, limit: 20 } }) });
+      const j = await r.json(); const docs = j.filter(x => x.document).map(x => x.document.fields).sort((x, y) => (+(y.ts.integerValue || 0)) - (+(x.ts.integerValue || 0)));
+      if (docs[0]) st = { v: +(docs[0].amt.doubleValue ?? docs[0].amt.integerValue ?? 0), msg: (docs[0].msg || {}).stringValue || '', key: (docs[0].x || {}).stringValue || '' };
+    } catch (e) { }
+    const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+    const note = st && st.msg ? `<p style="margin:8px 0 0;color:#e8e8ee">💬 ${esc(st.msg)}</p>` : '';
+    if (!st) html += `<div class="bts" style="border-color:#26262c">📨 <b>Bewerbung als „${esc(a.n)}“ abgeschickt</b><p class="de" style="margin:4px 0 0">Wir schauen sie uns bald an – schau später nochmal hier vorbei.</p></div>`;
+    else if (st.v === 2) html += `<div class="bts" style="border-color:#5ad07a;background:#0d1a10">🎉 <b>Angenommen! Willkommen als Beta-Tester!</b><div style="margin:10px 0;font-size:24px;font-weight:900;letter-spacing:.06em;color:#7ad07a;user-select:all">${esc(st.key)}</div><p class="de" style="margin:0;color:#a8a8b0">Ab Montag mit dem Namen <b style="color:#fff">„${esc(a.n)}“</b> registrieren und diesen Schlüssel eingeben. Er funktioniert nur für diesen Namen. 🔑</p>${note}</div>`;
+    else if (st.v === 3) html += `<div class="bts" style="border-color:#ff6b6b;background:#1a0d0d">😕 <b>Leider abgelehnt</b>${note || '<p class="de" style="margin:6px 0 0">Diesmal hat es nicht geklappt.</p>'}</div>`;
+    else html += `<div class="bts" style="border-color:#f3d27a;background:#1a160a">⏳ <b>Deine Bewerbung wird gerade angeschaut</b><p class="de" style="margin:4px 0 0">Kurz warten – du bekommst die Antwort hier.</p>${note}</div>`;
+  }
+  box.innerHTML = html;
+}
+btPoll(); setInterval(() => { if (!document.hidden) btPoll(); }, 30000);
 /* 🦖 Mini-Runner */
 (() => {
   const cv = document.getElementById('run'), W = 600, H = 170, GY = 140; cv.width = W * 2; cv.height = H * 2; const c = cv.getContext('2d'); c.scale(2, 2);
