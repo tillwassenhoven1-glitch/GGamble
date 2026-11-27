@@ -4687,7 +4687,7 @@ async function dmPoll(first) {
   } catch (e) { }
 }
 function frBadge() { const n = unreadAll(); const h = $('#hChat'); if (h && n) h.classList.add('dot'); const b = $('#frBtnN'); if (b) b.textContent = n ? ` (${n})` : ''; }
-function dmStart() { if (DM.iv || !onlineOn()) return; dmPoll(true); DM.iv = setInterval(() => { if (!document.hidden) dmPoll(false); }, 60000); }
+function dmStart() { if (DM.iv || !onlineOn()) return; dmPoll(true); DM.iv = setInterval(() => { if (!document.hidden) dmPoll(false); }, 30000); }
 function renderFreunde(el) {
   frList();
   const others = [...new Set(DM.inbox.map(m => m.von))].filter(k => !isFriend(k));
@@ -5420,7 +5420,7 @@ function banCheck() {
   if (perm) { const pp = ov.querySelector('p'); if (pp && !pp.dataset.p) { pp.dataset.p = 1; pp.textContent = 'Der Besitzer hat dich dauerhaft gesperrt.'; } }
 }
 setInterval(() => { if (S) banCheck(); }, 1000);
-function giftStart() { if (!onlineOn()) return; setTimeout(giftPoll, 2500); setInterval(giftPoll, 90000); document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(giftPoll, 1500); }); setTimeout(() => typeof bcPoll === 'function' && bcPoll(), 3500); setInterval(() => typeof bcPoll === 'function' && bcPoll(), 120000); document.addEventListener('visibilitychange', () => { if (!document.hidden && typeof bcPoll === 'function') setTimeout(bcPoll, 800); }); }
+function giftStart() { if (!onlineOn()) return; setTimeout(giftPoll, 2500); setInterval(giftPoll, 30000); /* 🎁 Geschenke schneller (eigenes Chat-Projekt) */ document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(giftPoll, 1500); }); setTimeout(() => typeof bcPoll === 'function' && bcPoll(), 3500); setInterval(() => typeof bcPoll === 'function' && !document.hidden && bcPoll(), 45000); /* 📢 Ansagen, Umfragen, Wartung */ document.addEventListener('visibilitychange', () => { if (!document.hidden && typeof bcPoll === 'function') setTimeout(bcPoll, 800); }); }
 function openGift() {
   const MOD = isMod(), MOD_K = ['p2', 'p4', 'p6', 'en', 'sp', 'ban'];
   const o = sheet(`<div class="row sb"><h2>🎁 Spielern etwas geben</h2><button class="x" data-close>${icon('x')}</button></div>
@@ -7476,7 +7476,7 @@ async function mtPoll() {
   clearTimeout(MT_T); MT_T = setTimeout(mtPoll, mtActive() ? 15000 : 30000);
   if (typeof onlineOn !== 'function' || !onlineOn() || document.hidden) return;
   try {
-    if (Date.now() - MT_FED > 70000 || !MTQ.last) { // nur selbst abfragen, wenn die Ansagen-Abfrage gerade nicht läuft (z. B. nicht eingeloggt)
+    if (Date.now() - MT_FED > 60000 || !MTQ.last) { // nur selbst abfragen, wenn die Ansagen-Abfrage gerade nicht läuft (z. B. nicht eingeloggt)
       const from = MTQ.last ? MTQ.last - 2000 : Date.now() - 7 * 864e5;
       mtFeed(await fsQuery0({ from: [{ collectionId: 'gifts' }], where: rangeQ('to', '*', from), limit: 60 }), true);
     }
