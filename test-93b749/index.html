@@ -3608,10 +3608,10 @@ function codeBoxHTML() {
   return `<div class="row"><input class="inp" id="cCode" placeholder="Code…" autocomplete="off"><button class="btn dark sm" id="cGo2">OK</button></div>`;
 }
 /* 🛡️ Admin-Menü (zweiter Code): nur ein paar Rechte */
-function modHTML() { return `<p class="hint" style="margin:0 0 8px">🛡️ <b>Admin</b> – du darfst: Nachrichten an alle schicken (max. 1 Std. anpinnen), Spieler bis ${MOD_LIM.ban} Min. sperren (im Profil oder hier), Glückstränke ×2/×4/×6 (max. ${MOD_LIM.pot}, auch an alle), Energie (max. ${MOD_LIM.en}) und Gratis-Drehs (max. ${MOD_LIM.sp} à ${fmt(MOD_LIM.spSt)}) geben.</p><div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben / sperren</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="stat">📊 Statistik</button><button class="btn dark xs" data-ch="moff">🔒 Admin-Menü ausblenden</button></div>`; }
-function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben</button><button class="btn white xs" data-ch="lbh">🙈 Bestenliste-Sperre</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="bdg">🏅 Abzeichen vergeben</button><button class="btn white xs" data-ch="beta">🧪 Beta-Schlüssel</button><button class="btn white xs" data-ch="mt">🛠️ Wartung</button><button class="btn white xs" data-ch="fbm">📦 Daten umziehen</button><button class="btn white xs" data-ch="nbs">🚫 Alle mit verbotenem Namen sperren</button><button class="btn white xs" data-ch="p100">🌈 ×100-Trank für mich</button><button class="btn white xs" data-ch="lh">🌟 Glücksstunde starten</button><button class="btn white xs" data-ch="stat">📊 Statistik</button>${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
+function modHTML() { return `<p class="hint" style="margin:0 0 8px">🛡️ <b>Admin</b> – du darfst: Nachrichten an alle schicken (max. 1 Std. anpinnen), Spieler bis ${MOD_LIM.ban} Min. sperren (im Profil oder hier), Glückstränke ×2/×4/×6 (max. ${MOD_LIM.pot}, auch an alle), Energie (max. ${MOD_LIM.en}) und Gratis-Drehs (max. ${MOD_LIM.sp} à ${fmt(MOD_LIM.spSt)}) geben.</p><div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben / sperren</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="tix">🎟️ Tickets</button><button class="btn white xs" data-ch="stat">📊 Statistik</button><button class="btn dark xs" data-ch="moff">🔒 Admin-Menü ausblenden</button></div>`; }
+function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben</button><button class="btn white xs" data-ch="lbh">🙈 Bestenliste-Sperre</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="bdg">🏅 Abzeichen vergeben</button><button class="btn white xs" data-ch="tix">🎟️ Tickets</button><button class="btn white xs" data-ch="beta">🧪 Beta-Schlüssel</button><button class="btn white xs" data-ch="mt">🛠️ Wartung</button><button class="btn white xs" data-ch="fbm">📦 Daten umziehen</button><button class="btn white xs" data-ch="nbs">🚫 Alle mit verbotenem Namen sperren</button><button class="btn white xs" data-ch="p100">🌈 ×100-Trank für mich</button><button class="btn white xs" data-ch="lh">🌟 Glücksstunde starten</button><button class="btn white xs" data-ch="stat">📊 Statistik</button>${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
 function doCheat(k) {
-  if (ADM_ROLE === 'mod' && !['gift', 'stat', 'moff', 'bc'].includes(k)) return toast('🛡️ Das darf nur der Besitzer.', 'bad');
+  if (ADM_ROLE === 'mod' && !['gift', 'stat', 'moff', 'bc', 'tix'].includes(k)) return toast('🛡️ Das darf nur der Besitzer.', 'bad');
   const add = v => { S.bal = r2(S.bal + v); S.st.maxBal = Math.max(S.st.maxBal, S.bal); };
   if (k === 'm1') add(1000); else if (k === 'm2') add(1e6); else if (k === 'm3') add(1e9);
   else if (k === 'lv1') { S.level += 1; S.xp = 0; }
@@ -3635,6 +3635,7 @@ function doCheat(k) {
   else if (k === 'nbs') { nbSweep(); return; }
   else if (k === 'mt') { openMt(); return; }
   else if (k === 'beta') { openBetaKeys(); return; }
+  else if (k === 'tix') { openTixAdm(); return; }
   else if (k === 'fbm') { fbMigrate(); return; }
   else if (k === 'bdg') { if (typeof openBadges === 'function') openBadges(); return; }
   else if (k === 'p100') { (async () => { // 3× bestätigen
@@ -5294,6 +5295,7 @@ const MOD_LIM = { ban: 60, pot: 10, en: 100, sp: 20, spSt: 5 };
 function modGiftOk(g) {
   const a = +g.amt, k = g.k || 'm';
   if (k === 'nb') return !!g.to && !String(g.to).startsWith('*') && (a === 0 || a === 1); // 🚫 Name sperren
+  if (k === 'tx') return !!g.to && !String(g.to).startsWith('*') && a >= 0 && a <= 3; // 🎟️ Ticket-Status
   if (k === 'bc') return String(g.to).startsWith('*|') && a >= 0 && a <= 60 && String(g.x || '').length <= 200; // 📢 Nachricht an alle (max. 1 Std. anpinnen)
   if (String(g.to).startsWith('*') && (k === 'p2' || k === 'p4' || k === 'p6')) return a > 0 && a <= MOD_LIM.pot; // 🧪 Glückstränke an alle
   if (!g.to || String(g.to).startsWith('*')) return false; // sonst nichts an alle
@@ -5325,6 +5327,7 @@ function giftTxt(k, amt, x) {
   return fmt(amt, { sign: true });
 }
 function giftApply(k, a, x, mod) {
+  if (k === 'tx') { S.tixSt = S.tixSt || {}; const old = S.tixSt[x]; S.tixSt[x] = a; save(); if (old !== a) whenFree(() => { toast(`🎟️ Dein Ticket ist jetzt: <b>${TIX_ST[a] ? TIX_ST[a][0] + ' ' + TIX_ST[a][1] : '?'}</b>`, a === 2 ? 'good' : '', 5000, () => openMyTix()); try { SND.coin(); } catch (e) { } }); return; } // 🎟️ Ticket-Status
   if (k === 'nb') { S.nbN = a > 0 ? String(S.name).toLowerCase() : ''; save(); setTimeout(() => { try { badNameCheck(); } catch (e) { } }, 300); return; } // 🚫 Name gesperrt → muss umbenennen
   if (k === 'fk') return; // Spaß – es wird nichts gutgeschrieben
   if (k === 'fw') { S.fakeWin = { m: Math.max(2, Math.min(10000, Math.round(a))) }; return; } // 🎭 nächster Dreh zeigt einen Fake-Riesengewinn
@@ -5357,7 +5360,7 @@ function giftReceive(g, all) {
       if (g.k === 'wt') return; // (Zuschauen entfernt)
       const a = r2(+g.amt), kd = g.k || 'm'; giftApply(kd, a, g.x, g._mod);
       try { actEvent(`🎁 ${kd === 'fk' ? 'FAKE ' : ''}${(GIFT_K[kd] || ['', kd])[1]}: ${giftTxt(kd, a, g.x)} erhalten`); } catch (e) { }
-      if (kd === 'nb') return;
+      if (kd === 'nb' || kd === 'tx') return;
       if (kd === 'ban') { save(); if (a <= 0) toast('✅ Du bist wieder entsperrt!', 'good', 4000); return; }
       if (kd === 'fw') { save(); return; } // still – die Überraschung kommt beim nächsten Dreh
       if (kd === 'fk' && g.x === '1') setTimeout(() => { const ov = document.querySelector('.ov'); const rev = () => setTimeout(() => { toast('😜 Reingelegt! Das Geschenk war nur ein Spaß.', 'good', 5000); SND.click(); }, 400); if (ov) ov.addEventListener('click', rev, { once: true }); else rev(); }, 50);
@@ -7760,6 +7763,102 @@ function openBetaKeys() {
       toast(`🧪 ${ok} Schlüssel erzeugt`, 'good'); o.close(); openBetaKeys();
     }
   });
+}
+
+/* ================= 🎟️ Tickets: 🐞 Bug-Knopf überall (mit Screenshot), Ticket-Status, Besitzer-Übersicht ================= */
+const TIX_CAT = { b: ['🐞', 'Fehler'], i: ['💡', 'Idee'], f: ['❓', 'Frage'] };
+const TIX_ST = [['🟢', 'Offen'], ['🟡', 'Wird gemacht'], ['✅', 'Erledigt'], ['❌', 'Abgelehnt']];
+const TIX_RE = /^¤TIX\|([bif])\|([^|]*)\|([01])\|([\s\S]*)$/;
+const tixShow = () => !!(S && (betaActive() || S.betaKey || (typeof ADM_KEY !== 'undefined' && ADM_KEY) || Date.now() < BETA.until));
+function pageName() { if (document.querySelector('.game-ov')) return 'Minispiel'; if (typeof MS !== 'undefined' && MS && MS.m) return 'Automat: ' + MS.m.n; const o = document.querySelector('.ov h2'); return (o ? o.textContent.trim().slice(0, 24) + ' @ ' : '') + (typeof curPage !== 'undefined' ? curPage : '?'); }
+let H2C = null;
+function h2cLoad() { if (window.html2canvas) return Promise.resolve(); if (H2C) return H2C; H2C = new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js'; sc.onload = res; sc.onerror = () => { H2C = null; rej(); }; document.head.appendChild(sc); }); return H2C; }
+async function tixShot() { // kleines JPEG ≤ 19.500 Zeichen (passt in „bilder“)
+  try {
+    await Promise.race([h2cLoad(), new Promise((_, r) => setTimeout(r, 6000))]);
+    const cv = await html2canvas(document.body, { backgroundColor: '#050506', scale: .6, useCORS: true, logging: false, width: innerWidth, height: innerHeight, x: scrollX, y: scrollY, ignoreElements: el => el.id === 'tixB' });
+    const out = document.createElement('canvas'); let w = 300;
+    for (let i = 0; i < 6; i++) {
+      out.width = w; out.height = Math.round(cv.height / cv.width * w); out.getContext('2d').drawImage(cv, 0, 0, out.width, out.height);
+      for (const q of [.55, .4, .3]) { const d = out.toDataURL('image/jpeg', q); if (d.length <= 19500) return d; }
+      w = Math.round(w * .8);
+    }
+  } catch (e) { }
+  return '';
+}
+async function openTix(cat0) {
+  const page = pageName();
+  const b0 = document.getElementById('tixB'); if (b0) { b0.disabled = true; b0.textContent = '⏳'; }
+  const shot = await tixShot(); if (b0) { b0.disabled = false; b0.textContent = '🐞'; }
+  let cat = cat0 || 'b', useShot = !!shot;
+  const o = sheet(`<div class="row sb"><h2>🎟️ Ticket schreiben</h2><button class="x" data-close>${icon('x')}</button></div>
+    <p class="hint" style="margin-top:0">Danke fürs Testen! 💛 Du bekommst Bescheid, wenn sich am Ticket was tut.</p>
+    <div class="filters" id="txC">${Object.entries(TIX_CAT).map(([k, [e, n]]) => `<button data-c="${k}" class="${k === cat ? 'on' : ''}">${e} ${n}</button>`).join('')}</div>
+    <textarea class="inp" id="txT" maxlength="240" rows="4" placeholder="Was ist passiert? Was hast du gemacht? Oder: deine Idee …" style="margin-top:10px;resize:none;font:inherit"></textarea>
+    <div class="row sb" style="font-size:12px;color:var(--mut);margin-top:4px"><span>📍 ${esc(page)}</span><span id="txN">0/240</span></div>
+    ${shot ? `<label class="row" style="gap:10px;margin-top:12px;align-items:flex-start;cursor:pointer"><input type="checkbox" id="txS" checked style="margin-top:4px"><div style="flex:1"><b>📸 Screenshot mitschicken</b><img src="${shot}" style="display:block;width:120px;border-radius:10px;margin-top:6px;border:1px solid #26262c"></div></label>` : '<p class="hint">📸 Screenshot ging gerade nicht – kein Problem.</p>'}
+    <button class="btn gold w" id="txGo" style="margin-top:14px">📨 Abschicken</button>
+    <button class="btn dark w" id="txMy" style="margin-top:8px">📋 Meine Tickets${(S.tix || []).length ? ` (${S.tix.length})` : ''}</button>`);
+  $('#txC', o).onclick = e => { const b = e.target.closest('[data-c]'); if (!b) return; cat = b.dataset.c; $$('#txC button', o).forEach(x => x.classList.toggle('on', x === b)); };
+  $('#txT', o).oninput = () => { $('#txN', o).textContent = $('#txT', o).value.length + '/240'; };
+  const cb = $('#txS', o); if (cb) cb.onchange = () => { useShot = cb.checked; };
+  $('#txMy', o).onclick = () => { o.close(); openMyTix(); };
+  $('#txGo', o).onclick = async function () {
+    const t = $('#txT', o).value.trim(); if (t.length < 5) return toast('Schreib bitte kurz, worum es geht 🙂', 'bad');
+    if ((S.tix || []).filter(x => Date.now() - x.ts < 60000).length >= 3) return toast('Kurz warten – maximal 3 Tickets pro Minute', 'bad');
+    this.disabled = true; this.textContent = 'Sende …';
+    const id = 'tx' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ts = Date.now(), img = useShot && shot ? 1 : 0;
+    try {
+      if (img) { try { await fetch(fsDoc('bilder/' + id), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: { p: fstr(shot), ts: fint(ts) } }) }); } catch (e) { } }
+      const txt = `¤TIX|${cat}|${page.replace(/\|/g, '/').slice(0, 40)}|${img}|${t}`.slice(0, 300);
+      const r = await fsCreate('dm', id, { von: fstr(meKey()), an: fstr('¤tix'), disp: fstr(S.disp), txt: fstr(txt), ts: fint(ts), cts: fstr('¤tix|' + padTs(ts)), ats: fstr('¤tix|' + padTs(ts)) });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      S.tix = S.tix || []; S.tix.unshift({ id, cat, t, ts, page }); S.tix = S.tix.slice(0, 50); save();
+      SND.win(); toast('🎟️ Ticket abgeschickt – danke! 💛', 'good', 4000); o.close();
+    } catch (e) { this.disabled = false; this.textContent = '📨 Abschicken'; toast('Hat nicht geklappt – Internet prüfen', 'bad'); }
+  };
+  setTimeout(() => { const ta = $('#txT', o); if (ta) ta.focus(); }, 250);
+}
+function openMyTix() {
+  const L = S.tix || [], st = S.tixSt || {};
+  sheet(`<div class="row sb"><h2>📋 Meine Tickets</h2><button class="x" data-close>${icon('x')}</button></div>
+    <div class="card tight list rl">${L.length ? L.map(x => { const s = TIX_ST[st[x.id] || 0]; return `<div class="it" style="align-items:flex-start;gap:10px"><div style="font-size:22px">${TIX_CAT[x.cat] ? TIX_CAT[x.cat][0] : '🎟️'}</div><div class="who" style="flex:1"><b style="font-size:14px;font-weight:600;white-space:normal">${esc(x.t)}</b><small>${new Date(x.ts).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · 📍 ${esc(x.page || '')}</small></div><span class="chip" style="white-space:nowrap">${s[0]} ${s[1]}</span></div>`; }).join('') : '<div class="empty">Noch keine Tickets – tipp unten rechts auf 🐞</div>'}</div>`);
+}
+/* 🐞 schwebender Knopf – überall, solange Beta/Tester */
+function tixBtn() {
+  let b = document.getElementById('tixB');
+  const show = tixShow() && !document.getElementById('mtOv') && !document.getElementById('betaOv') && !document.getElementById('sessOv') && !document.getElementById('bnOv') && !document.getElementById('banOv');
+  if (!show) { if (b) b.remove(); return; }
+  if (b) return;
+  document.body.insertAdjacentHTML('beforeend', `<button id="tixB" title="Fehler oder Idee melden" style="position:fixed;right:12px;bottom:calc(env(safe-area-inset-bottom) + 92px);z-index:880;width:46px;height:46px;border-radius:50%;border:1px solid #ffffff22;background:rgba(24,24,28,.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-size:22px;box-shadow:0 6px 18px rgba(0,0,0,.5);cursor:pointer;display:flex;align-items:center;justify-content:center">🐞</button>`);
+  b = document.getElementById('tixB'); b.onclick = () => { try { SND.click(); } catch (e) { } openTix('b'); };
+}
+setInterval(tixBtn, 1500);
+/* 👑 Besitzer/Admins: alle Tickets */
+async function openTixAdm() {
+  const o = sheet(`<div class="row sb"><h2>🎟️ Tickets</h2><button class="x" data-close>${icon('x')}</button></div>
+    <div class="filters" id="taF"><button data-f="o" class="on">🟢 Offen</button><button data-f="1">🟡 In Arbeit</button><button data-f="2">✅ Erledigt</button><button data-f="a">Alle</button></div>
+    <div id="taL" style="margin-top:10px"><div class="empty">Lade …</div></div>`);
+  let docs = [], f = 'o', ST = {}; try { ST = JSON.parse(localStorage.getItem('gg_tixst') || '{}'); } catch (e) { }
+  try { docs = await fsQuery0({ from: [{ collectionId: 'dm' }], where: rangeQ('ats', '¤tix', Date.now() - 30 * 864e5), orderBy: [{ field: { fieldPath: 'ats' }, direction: 'DESCENDING' }], limit: 300 }); } catch (e) { }
+  const T = docs.map(d => { const m = TIX_RE.exec(d.txt || ''); return m && { id: d.id, von: d.von, disp: d.disp || d.von, ts: +d.ts || 0, cat: m[1], page: m[2], img: m[3] === '1', t: m[4] }; }).filter(Boolean);
+  const draw = () => {
+    const L = T.filter(x => { const s = ST[x.id] || 0; return f === 'a' || (f === 'o' ? s === 0 : String(s) === f); });
+    $('#taL', o).innerHTML = L.length ? `<div class="card tight list rl">${L.map(x => { const s = ST[x.id] || 0; return `<div class="it" style="flex-direction:column;align-items:stretch;gap:8px" data-id="${x.id}">
+      <div class="row" style="gap:10px;align-items:flex-start"><div style="font-size:22px">${TIX_CAT[x.cat][0]}</div><div class="who" style="flex:1"><b style="font-size:14px;font-weight:600;white-space:normal">${esc(x.t)}</b><small>@${esc(x.von)} · ${new Date(x.ts).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · 📍 ${esc(x.page)}</small></div><span class="chip">${TIX_ST[s][0]}</span></div>
+      ${x.img ? `<button class="btn dark xs" data-img="${x.id}">📸 Screenshot ansehen</button>` : ''}
+      <div class="row" style="gap:6px">${[1, 2, 3].map(v => `<button class="btn ${s === v ? 'gold' : 'dark'} xs" style="flex:1" data-st="${v}">${TIX_ST[v][0]} ${TIX_ST[v][1]}</button>`).join('')}</div></div>`; }).join('')}</div>` : '<div class="empty">Keine Tickets hier 🎉</div>';
+  };
+  draw();
+  $('#taF', o).onclick = e => { const b = e.target.closest('[data-f]'); if (!b) return; f = b.dataset.f; $$('#taF button', o).forEach(x => x.classList.toggle('on', x === b)); draw(); };
+  $('#taL', o).onclick = async e => {
+    const im = e.target.closest('[data-img]');
+    if (im) { im.disabled = true; try { const r = await fetch(fsDoc('bilder/' + im.dataset.img), { cache: 'no-store' }); const p = r.ok ? ((await r.json()).fields || {}).p : null; if (p && p.stringValue) im.outerHTML = `<img src="${p.stringValue}" style="width:100%;max-width:300px;border-radius:12px;border:1px solid #26262c">`; else im.textContent = 'Kein Bild gefunden'; } catch (x) { im.textContent = 'Fehler'; } return; }
+    const b = e.target.closest('[data-st]'); if (!b) return; const it = b.closest('[data-id]'), x = T.find(t => t.id === it.dataset.id), v = +b.dataset.st;
+    b.disabled = true;
+    try { await giftSend(x.von, v, '', 'tx', x.id); ST[x.id] = v; try { localStorage.setItem('gg_tixst', JSON.stringify(ST)); } catch (er) { } toast(`${TIX_ST[v][0]} @${esc(x.von)} bekommt Bescheid`, 'good'); draw(); }
+    catch (er) { b.disabled = false; toast(er.message === 'key' ? 'Bitte Cheat-Code neu eingeben' : 'Hat nicht geklappt', 'bad'); }
+  };
 }
 </script>
 </body>
