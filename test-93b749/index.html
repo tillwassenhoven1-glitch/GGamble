@@ -2035,6 +2035,7 @@ function openBonus() {
   const o = sheet(`<div class="row sb"><div><h2>Tagesbonus</h2><p class="hint" style="margin:6px 0 0;font-size:17px">Serie ${streak} Tag${streak > 1 ? 'e' : ''} · Basis ${fmt(basis)}</p></div><button class="x" data-close>${icon('x')}</button></div>
     <div class="wheelwrap"><svg class="wheelpin" viewBox="0 0 36 56"><path d="M18 54 L4 20 A15 15 0 1 1 32 20 Z" fill="#f4f4f4" stroke="#bbb"/><circle cx="18" cy="16" r="6" fill="#111"/></svg><canvas id="wcv" width="840" height="840"></canvas></div>
     ${bonusReady() ? '<button class="btn white w" id="wGo" style="font-size:22px;padding:20px">Gratis drehen</button>' : `<button class="btn dark w" disabled>Morgen wieder – Serie: ${S.bonus.streak} Tage</button>`}`, { center: true });
+  try { const ww = $('.wheelwrap', o); if (ww && typeof streakBar === 'function') ww.insertAdjacentHTML('beforebegin', streakBar(streak)); } catch (e) { } // 🎁 7-Tage-Serie
   const cv = $('#wcv', o), c = cv.getContext('2d'), R = 420, n = WHEEL.length, seg = Math.PI * 2 / n;
   c.translate(R, R);
   c.beginPath(); c.arc(0, 0, R - 4, 0, 7); c.fillStyle = '#d6d6d8'; c.fill();
@@ -2061,6 +2062,7 @@ function openBonus() {
     setTimeout(async () => {
       alive = false; const amt = r2(basis * mult);
       S.bonus = { last: dayKey(), streak }; S.st.bonusStreak = Math.max(S.st.bonusStreak, streak);
+      try { streakExtra(streak); } catch (e) { }
       earn(amt, 'Tagesbonus'); o.close(); hdr(true);
       await celebrate(amt, mult >= 3 ? 12 : mult * 3, mult >= 3 ? 'TAGES BONUS' : null);
       toast(`Tagesbonus: ${mult}× → ${fmt(amt)} 🎁`, 'good'); setTimeout(() => S && calMaybe(), 2500);
@@ -3609,7 +3611,7 @@ function codeBoxHTML() {
 }
 /* 🛡️ Admin-Menü (zweiter Code): nur ein paar Rechte */
 function modHTML() { return `<p class="hint" style="margin:0 0 8px">🛡️ <b>Admin</b> – du darfst: Nachrichten an alle schicken (max. 1 Std. anpinnen), Spieler bis ${MOD_LIM.ban} Min. sperren (im Profil oder hier), Glückstränke ×2/×4/×6 (max. ${MOD_LIM.pot}, auch an alle), Energie (max. ${MOD_LIM.en}) und Gratis-Drehs (max. ${MOD_LIM.sp} à ${fmt(MOD_LIM.spSt)}) geben.</p><div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben / sperren</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="tix">🎟️ Tickets</button><button class="btn white xs" data-ch="stat">📊 Statistik</button><button class="btn dark xs" data-ch="moff">🔒 Admin-Menü ausblenden</button></div>`; }
-function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben</button><button class="btn white xs" data-ch="lbh">🙈 Bestenliste-Sperre</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="bdg">🏅 Abzeichen vergeben</button><button class="btn white xs" data-ch="tix">🎟️ Tickets</button><button class="btn white xs" data-ch="beta">🧪 Beta-Schlüssel</button><button class="btn white xs" data-ch="mt">🛠️ Wartung</button><button class="btn white xs" data-ch="fbm">📦 Daten umziehen</button><button class="btn white xs" data-ch="nbs">🚫 Alle mit verbotenem Namen sperren</button><button class="btn white xs" data-ch="p100">🌈 ×100-Trank für mich</button><button class="btn white xs" data-ch="lh">🌟 Glücksstunde starten</button><button class="btn white xs" data-ch="stat">📊 Statistik</button>${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
+function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben</button><button class="btn white xs" data-ch="lbh">🙈 Bestenliste-Sperre</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="bdg">🏅 Abzeichen vergeben</button><button class="btn white xs" data-ch="tix">🎟️ Tickets</button><button class="btn white xs" data-ch="poll">📊 Umfragen</button><button class="btn white xs" data-ch="ref">🔗 Einladungen</button><button class="btn white xs" data-ch="beta">🧪 Beta-Schlüssel</button><button class="btn white xs" data-ch="mt">🛠️ Wartung</button><button class="btn white xs" data-ch="fbm">📦 Daten umziehen</button><button class="btn white xs" data-ch="nbs">🚫 Alle mit verbotenem Namen sperren</button><button class="btn white xs" data-ch="p100">🌈 ×100-Trank für mich</button><button class="btn white xs" data-ch="lh">🌟 Glücksstunde starten</button><button class="btn white xs" data-ch="stat">📊 Statistik</button>${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
 function doCheat(k) {
   if (ADM_ROLE === 'mod' && !['gift', 'stat', 'moff', 'bc', 'tix'].includes(k)) return toast('🛡️ Das darf nur der Besitzer.', 'bad');
   const add = v => { S.bal = r2(S.bal + v); S.st.maxBal = Math.max(S.st.maxBal, S.bal); };
@@ -3636,6 +3638,8 @@ function doCheat(k) {
   else if (k === 'mt') { openMt(); return; }
   else if (k === 'beta') { openBetaKeys(); return; }
   else if (k === 'tix') { openTixAdm(); return; }
+  else if (k === 'poll') { openPollAdm(); return; }
+  else if (k === 'ref') { openRefAdm(); return; }
   else if (k === 'fbm') { fbMigrate(); return; }
   else if (k === 'bdg') { if (typeof openBadges === 'function') openBadges(); return; }
   else if (k === 'p100') { (async () => { // 3× bestätigen
@@ -5641,6 +5645,7 @@ async function bcPoll() {
     S.gifts = S.gifts || []; let last = null;
     for (const g of n.sort((a, b) => (a.ts || 0) - (b.ts || 0))) {
       if (g.k === 'mt') continue; // 🛠️ Wartung (eigene Abfrage)
+      if (g.k === 'poll') { try { await pollFeed(g); } catch (e) { } continue; } // 📊 Umfrage
       if (S.gifts.includes(g.id)) continue;
       if (g.k === 'bc' && +g.amt < 0) continue; // „Anpinnung entfernen“ ist keine Ansage
       if (g.k === 'bc' && Date.now() - (+g.ts || 0) > 6 * 36e5) continue; // große Ansage nur bis 6 Std. danach
@@ -7859,6 +7864,155 @@ async function openTixAdm() {
     try { await giftSend(x.von, v, '', 'tx', x.id); ST[x.id] = v; try { localStorage.setItem('gg_tixst', JSON.stringify(ST)); } catch (er) { } toast(`${TIX_ST[v][0]} @${esc(x.von)} bekommt Bescheid`, 'good'); draw(); }
     catch (er) { b.disabled = false; toast(er.message === 'key' ? 'Bitte Cheat-Code neu eingeben' : 'Hat nicht geklappt', 'bad'); }
   };
+}
+
+/* ================= 📊 Umfragen (Besitzer erstellt, alle stimmen ab – 1 Stimme pro Spieler) ================= */
+const POLL_DAYS = 3;
+let POLLS = (() => { try { return JSON.parse(localStorage.getItem('gg_polls') || '[]'); } catch (e) { return []; } })();
+async function pollFeed(g) {
+  if (POLLS.some(p => p.id === g.id)) return;
+  if (Date.now() - (+g.ts || 0) > POLL_DAYS * 864e5) return;
+  if ((await giftVerify({ id: g.id, to: g.to, amt: +g.amt, ts: +g.ts, sig: g.sig || '', k: 'poll', x: g.x || '' })) !== 1) return; // nur vom Besitzer
+  let d; try { d = JSON.parse(g.x); } catch (e) { return; }
+  if (!d || !d.q || !Array.isArray(d.o)) return;
+  POLLS.push({ id: g.id, ts: +g.ts, q: String(d.q).slice(0, 120), o: d.o.slice(0, 4).map(x => String(x).slice(0, 40)) });
+  POLLS = POLLS.filter(p => Date.now() - p.ts < POLL_DAYS * 864e5).slice(-10);
+  try { localStorage.setItem('gg_polls', JSON.stringify(POLLS)); } catch (e) { }
+  pollNudge();
+}
+const pollOpen = () => POLLS.filter(p => Date.now() - p.ts < POLL_DAYS * 864e5 && !(S.pollV || {})[p.id] && (S.created || 0) < p.ts + POLL_DAYS * 864e5);
+function pollNudge() { const p = pollOpen()[0]; if (!p || !S || (S.pollSeen || {})[p.id]) return; whenFree(() => { S.pollSeen = S.pollSeen || {}; S.pollSeen[p.id] = 1; save(); openPoll(p.id); }); }
+async function pollCount(id, from) {
+  const docs = await fsQuery0({ from: [{ collectionId: 'dm' }], where: rangeQ('ats', '¤poll', from - 60000), limit: 1000 });
+  const c = {}; let n = 0; docs.forEach(d => { const m = /^¤VOTE\|([^|]+)\|(\d)$/.exec(d.txt || ''); if (m && m[1] === id) { c[m[2]] = (c[m[2]] || 0) + 1; n++; } }); return { c, n };
+}
+async function openPoll(id) {
+  const p = POLLS.find(x => x.id === id); if (!p) return;
+  const voted = (S.pollV || {})[id];
+  const o = sheet(`<div class="row sb"><h2>📊 Umfrage</h2><button class="x" data-close>${icon('x')}</button></div>
+    <p style="font-size:20px;font-weight:800;margin:4px 0 14px;line-height:1.3">${esc(p.q)}</p>
+    <div id="poO">${p.o.map((t, i) => `<button class="btn ${voted === i + 1 ? 'gold' : 'dark'} w" data-v="${i}" style="margin-bottom:8px;justify-content:flex-start;text-align:left;position:relative;overflow:hidden"><span class="pbar" style="position:absolute;left:0;top:0;bottom:0;width:0;background:#d8b85a33;transition:width .6s"></span><span style="position:relative;flex:1">${esc(t)}</span><span class="pnum num" style="position:relative;opacity:.8"></span></button>`).join('')}</div>
+    <p class="hint" id="poH" style="margin:6px 0 0">${voted ? 'Danke für deine Stimme! 💛' : 'Tipp auf deine Antwort – du kannst nur einmal abstimmen.'}</p>`);
+  const show = async () => {
+    try { const { c, n } = await pollCount(id, p.ts); $$('#poO [data-v]', o).forEach(b => { const k = c[b.dataset.v] || 0, pc = n ? Math.round(k / n * 100) : 0; b.querySelector('.pbar').style.width = pc + '%'; b.querySelector('.pnum').textContent = pc + ' %'; }); $('#poH', o).textContent = `Danke für deine Stimme! 💛 · ${n} Stimme${n === 1 ? '' : 'n'}`; } catch (e) { }
+  };
+  if (voted) show();
+  $('#poO', o).onclick = async e => {
+    const b = e.target.closest('[data-v]'); if (!b || (S.pollV || {})[id]) return; const v = +b.dataset.v;
+    $$('#poO button', o).forEach(x => x.disabled = true);
+    try {
+      const ts = Date.now(), r = await fsCreate('dm', 'pv-' + id + '-' + meKey().replace(/[^a-z0-9]/g, '_'), { von: fstr(meKey()), an: fstr('¤poll'), disp: fstr(S.disp), txt: fstr(`¤VOTE|${id}|${v}`), ts: fint(ts), cts: fstr('¤poll|' + padTs(ts)), ats: fstr('¤poll|' + padTs(ts)) });
+      if (!r.ok && r.status !== 409) throw new Error('HTTP ' + r.status);
+      S.pollV = S.pollV || {}; S.pollV[id] = v + 1; save(); b.classList.remove('dark'); b.classList.add('gold'); SND.win(); show(); pollCard();
+    } catch (er) { $$('#poO button', o).forEach(x => x.disabled = false); toast('Hat nicht geklappt – Internet prüfen', 'bad'); }
+  };
+}
+function pollCard() { const el = document.getElementById('pollB'); if (el) el.remove(); }
+{ const H = PAGES.halle; PAGES.halle = el => { H(el); if (!S) return; const p = pollOpen()[0]; if (!p) return;
+  el.insertAdjacentHTML('afterbegin', `<button id="pollB" class="lhb" style="width:100%;text-align:left;color:#fff;cursor:pointer;font:inherit;margin-bottom:12px"><span class="e">📊</span><div style="flex:1"><b>Umfrage:</b> ${esc(p.q)}<br><small style="color:#f3d27a">Antippen und abstimmen</small></div></button>`);
+  $('#pollB', el).onclick = () => { SND.click(); openPoll(p.id); }; }; }
+/* Besitzer: Umfrage erstellen & Ergebnisse */
+function openPollAdm() {
+  const o = sheet(`<div class="row sb"><h2>📊 Umfragen</h2><button class="x" data-close>${icon('x')}</button></div>
+    <div class="lbl2">Frage</div><input class="inp" id="paQ" maxlength="120" placeholder="z. B. Welcher Automat macht am meisten Spaß?">
+    <div class="lbl2">Antworten (2–4)</div>${[0, 1, 2, 3].map(i => `<input class="inp pao" maxlength="40" placeholder="Antwort ${i + 1}${i > 1 ? ' (optional)' : ''}" style="margin-bottom:6px">`).join('')}
+    <button class="btn gold w" id="paGo" style="margin-top:8px">📊 An alle schicken</button>
+    <div class="lbl2" style="margin-top:18px">Letzte Umfragen</div><div id="paL">${POLLS.length ? '' : '<div class="empty">Noch keine</div>'}</div>`);
+  POLLS.slice().reverse().forEach(async p => { const d = document.createElement('div'); d.className = 'card tight'; d.style.marginBottom = '8px'; d.innerHTML = `<b>${esc(p.q)}</b><div class="hint">lade …</div>`; $('#paL', o).appendChild(d);
+    try { const { c, n } = await pollCount(p.id, p.ts); d.querySelector('.hint').innerHTML = p.o.map((t, i) => `${esc(t)}: <b>${c[i] || 0}</b> (${n ? Math.round((c[i] || 0) / n * 100) : 0} %)`).join('<br>') + `<br>Gesamt: ${n}`; } catch (e) { } });
+  $('#paGo', o).onclick = async function () {
+    const q = $('#paQ', o).value.trim(), opts = $$('.pao', o).map(x => x.value.trim()).filter(Boolean);
+    if (q.length < 3 || opts.length < 2) return toast('Frage + mindestens 2 Antworten', 'bad');
+    this.disabled = true;
+    try { await giftSend('*', 0, '', 'poll', JSON.stringify({ q, o: opts })); toast('📊 Umfrage geschickt – kommt bei allen in ~2 Min. an', 'good', 4000); o.close(); try { BCQ.last = 0; bcPoll(); } catch (e) { } }
+    catch (e) { this.disabled = false; toast(e.message === 'key' ? 'Bitte Cheat-Code neu eingeben' : 'Hat nicht geklappt', 'bad'); }
+  };
+}
+
+/* ================= 🔗 Freunde einladen: eigener QR-Code + Link, Besitzer sieht, wer wen geworben hat ================= */
+const GG_URL = 'https://tillwassenhoven1-glitch.github.io/GGamble/';
+try { const v = new URLSearchParams(location.search).get('von'); if (v && /^[\p{L}\p{N} _.\-]{1,20}$/u.test(v)) localStorage.setItem('gg_ref', JSON.stringify({ k: 'von:' + v.toLowerCase(), t: Date.now() })); } catch (e) { }
+const myRefUrl = () => GG_URL + '?von=' + encodeURIComponent(meKey());
+let QRL = null;
+function qrLoad() { if (window.qrcode) return Promise.resolve(); if (QRL) return QRL; QRL = new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js'; sc.onload = res; sc.onerror = () => { QRL = null; rej(); }; document.head.appendChild(sc); }); return QRL; }
+async function refList() { // alle Einladungen (neue Spieler melden, über wen sie kamen)
+  const docs = await fsQuery0({ from: [{ collectionId: 'dm' }], where: rangeQ('ats', '¤ref', Date.now() - 120 * 864e5), limit: 1000 });
+  return docs.map(d => { const m = /^¤REF\|(.+)$/.exec(d.txt || ''); return m && { von: m[1], neu: d.von, disp: d.disp || d.von, ts: +d.ts || 0 }; }).filter(Boolean);
+}
+async function openInvite() {
+  const url = myRefUrl();
+  const o = sheet(`<div class="row sb"><h2>🔗 Freunde einladen</h2><button class="x" data-close>${icon('x')}</button></div>
+    <p class="hint" style="margin-top:0">Dein eigener QR-Code! Wer darüber neu dazukommt, bekommt <b>+${fmt(REF_BONUS)}</b> Startbonus – und du wirst als Einlader gemerkt. 🎁</p>
+    <div id="ivQ" style="display:flex;justify-content:center;margin:12px 0"><div style="width:220px;height:220px;border-radius:18px;background:#fff;display:flex;align-items:center;justify-content:center;color:#000">lädt …</div></div>
+    <div class="card tight" style="word-break:break-all;font-size:13px;color:var(--mut)">${esc(url)}</div>
+    <div class="row" style="gap:8px;margin-top:10px"><button class="btn gold" id="ivCp" style="flex:1">📋 Link kopieren</button>${navigator.share ? '<button class="btn dark" id="ivSh" style="flex:1">📤 Teilen</button>' : ''}</div>
+    <div class="card tight" style="margin-top:14px;text-align:center"><small style="color:var(--mut)">Schon eingeladen</small><div id="ivN" class="num" style="font-size:30px;font-weight:900">…</div></div>`);
+  try { await qrLoad(); const q = qrcode(0, 'M'); q.addData(url); q.make(); $('#ivQ', o).innerHTML = `<div style="background:#fff;padding:14px;border-radius:18px">${q.createSvgTag({ cellSize: 6, margin: 0, scalable: false })}</div>`; } catch (e) { $('#ivQ', o).innerHTML = '<p class="hint">QR-Code ging gerade nicht – teil einfach den Link.</p>'; }
+  $('#ivCp', o).onclick = async () => { try { await navigator.clipboard.writeText(url); toast('📋 Link kopiert', 'good'); } catch (e) { toast(url); } };
+  const sh = $('#ivSh', o); if (sh) sh.onclick = () => navigator.share({ title: 'GGamble', text: 'Komm zu GGamble – mit meinem Link bekommst du +500 € Startbonus! 🎰', url }).catch(() => { });
+  try { const L = await refList(); $('#ivN', o).textContent = L.filter(x => x.von === meKey()).length; } catch (e) { $('#ivN', o).textContent = '–'; }
+}
+/* neuer Spieler: Einladung melden (einmal) */
+(function refReport() {
+  if (!S) return setTimeout(refReport, 3000);
+  const k = S.refBonus; if (!k) { if (Date.now() - (S.created || 0) < 30 * 60000) setTimeout(refReport, 5000); return; } if (!String(k).startsWith('von:') || S.refSent) return;
+  const von = String(k).slice(4); if (von === meKey()) { S.refSent = 1; save(); return; }
+  const ts = Date.now();
+  fsCreate('dm', 'rf-' + meKey().replace(/[^a-z0-9]/g, '_'), { von: fstr(meKey()), an: fstr('¤ref'), disp: fstr(S.disp), txt: fstr('¤REF|' + von), ts: fint(ts), cts: fstr('¤ref|' + padTs(ts)), ats: fstr('¤ref|' + padTs(ts)) })
+    .then(r => { if (r.ok || r.status === 409) { S.refSent = 1; save(); } }).catch(() => { });
+})();
+/* Besitzer: wer hat wen eingeladen + belohnen */
+async function openRefAdm() {
+  const o = sheet(`<div class="row sb"><h2>🔗 Einladungen</h2><button class="x" data-close>${icon('x')}</button></div><div id="raL"><div class="empty">Lade …</div></div>`);
+  let L = []; try { L = await refList(); } catch (e) { }
+  const by = {}; L.forEach(x => (by[x.von] = by[x.von] || []).push(x));
+  const rows = Object.entries(by).sort((a, b) => b[1].length - a[1].length);
+  $('#raL', o).innerHTML = rows.length ? `<div class="card tight list rl">${rows.map(([v, xs]) => `<div class="it" style="flex-direction:column;align-items:stretch;gap:6px"><div class="row sb"><b>@${esc(v)}</b><span class="chip gold">${xs.length} eingeladen</span></div><small style="color:var(--mut)">${xs.map(x => '@' + esc(x.neu)).join(', ')}</small><div class="row" style="gap:6px">${[500, 2000, 10000].map(a => `<button class="btn dark xs" style="flex:1" data-rw="${esc(v)}" data-a="${a}">💰 ${fmt(a)}</button>`).join('')}</div></div>`).join('')}</div>` : '<div class="empty">Noch niemand über einen Einladungs-Link gekommen</div>';
+  $('#raL', o).onclick = async e => { const b = e.target.closest('[data-rw]'); if (!b) return; if (!await confirmBox(`${fmt(+b.dataset.a)} an @${esc(b.dataset.rw)}?`, 'Als Dankeschön fürs Einladen.', 'Schicken')) return; b.disabled = true;
+    try { await giftSend(b.dataset.rw, +b.dataset.a, 'Danke fürs Einladen! 🔗'); toast('💰 Geschickt', 'good'); } catch (er) { b.disabled = false; toast(er.message === 'key' ? 'Bitte Cheat-Code neu eingeben' : 'Hat nicht geklappt', 'bad'); } };
+}
+{ const Pr = PAGES.profil; PAGES.profil = el => { Pr(el); const l = $('#xSty', el); if (!l) return;
+  l.parentElement.insertAdjacentHTML('afterbegin', `<div class="it" id="xInv"><div class="ibox">🔗</div><span class="lbl">Freunde einladen</span><span class="val">QR-Code</span>${icon('right', 'chev')}</div><div class="it" id="xApp"><div class="ibox">📱</div><span class="lbl">Als App installieren</span>${icon('right', 'chev')}</div><div class="it" id="xTix"><div class="ibox">🎟️</div><span class="lbl">Meine Tickets</span>${icon('right', 'chev')}</div>`);
+  $('#xInv', el).onclick = () => { SND.click(); openInvite(); }; $('#xApp', el).onclick = () => { SND.click(); appInstall(); }; $('#xTix', el).onclick = () => { SND.click(); openMyTix(); }; }; }
+
+/* ================= 🎁 Login-Serie: 7-Tage-Leiste im Tagesbonus, Tag 7 = Extra-Belohnung ================= */
+const STREAK_RW = ['', '', '', '⚡ +5 Energie', '', '', '🧪 Glückstrank ×2', '🎁 Mega-Truhe'];
+function streakBar(streak) {
+  const d = ((streak - 1) % 7) + 1;
+  return `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:12px 0 4px">${[1, 2, 3, 4, 5, 6, 7].map(i => `<div style="text-align:center;padding:8px 2px;border-radius:12px;border:1px solid ${i <= d ? '#d8b85a' : '#26262c'};background:${i === d ? 'linear-gradient(135deg,#3a2a08,#1c1407)' : i < d ? '#1a160a' : '#111114'}"><div style="font-size:11px;color:var(--mut)">Tag ${i}</div><div style="font-size:18px">${i < d ? '✅' : i === 7 ? '🎁' : i === 4 ? '⚡' : i === 6 ? '🧪' : '💰'}</div></div>`).join('')}</div>
+    <p class="hint" style="margin:0;font-size:13px">Jeden Tag reinkommen = mehr Bonus. Einen Tag verpasst → Serie fängt neu an. Tag 4: ⚡ Energie · Tag 6: 🧪 Trank · Tag 7: 🎁 Mega-Truhe</p>`;
+}
+function streakExtra(streak) { // Extras für Tag 4 / 6 / 7 (jede Woche neu)
+  const d = ((streak - 1) % 7) + 1; if (S.stkDay === dayKey()) return; S.stkDay = dayKey();
+  if (d === 4) { addEnergy(5); toast('⚡ Serien-Belohnung: +5 Energie', 'good', 4000); }
+  if (d === 6) { S.pot = S.pot || {}; S.pot[2] = (S.pot[2] || 0) + 1; toast('🧪 Serien-Belohnung: Glückstrank ×2', 'good', 4000); }
+  if (d === 7) { const amt = r2(Math.max(2000, (S.level || 1) * 1500)); earn(amt, 'Serien-Truhe'); S.pot = S.pot || {}; S.pot[4] = (S.pot[4] || 0) + 1; whenFree(() => { SND.big(); FX.burst(180, { coins: true }); sheet(`<div style="text-align:center"><div style="font-size:80px">🎁</div><h2 style="font-size:30px;margin:6px 0">Mega-Truhe!</h2><p style="font-size:18px">7 Tage am Stück – stark! 💪<br><b style="color:#f3d27a">+${fmt(amt)}</b> und ein <b>🧪 Glückstrank ×4</b></p><button class="btn white w" data-close style="margin-top:10px">Nice!</button></div>`); }); }
+  save(); hdr(true);
+}
+
+/* ================= 🎉 Event-Wochenende: Fr 18 Uhr – So 23:59 automatisch Doppel-XP ================= */
+const EV = { on: true, mult: 2 };
+function evActive() { if (!EV.on) return false; const b = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Berlin' })), d = b.getDay(), h = b.getHours(); return d === 6 || d === 0 || (d === 5 && h >= 18); }
+function evLeft() { const b = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Berlin' })); const end = new Date(b); end.setDate(b.getDate() + ((7 - b.getDay()) % 7)); end.setHours(23, 59, 59, 0); const l = end - b, h = Math.floor(l / 36e5); return h >= 24 ? `${Math.floor(h / 24)} T. ${h % 24} Std.` : `${h} Std. ${Math.floor(l / 6e4) % 60} Min.`; }
+{ const AX = addXP; addXP = x => AX(evActive() ? x * EV.mult : x); }
+{ const H = PAGES.halle; PAGES.halle = el => { H(el); if (!evActive()) return;
+  el.insertAdjacentHTML('afterbegin', `<div id="evB" style="display:flex;align-items:center;gap:12px;padding:12px 16px;margin-bottom:12px;border-radius:18px;border:1px solid #9a7bff66;background:linear-gradient(135deg,#1e1440,#0f0a22);box-shadow:0 0 22px rgba(150,110,255,.18)"><span style="font-size:28px">🎉</span><div style="flex:1"><b style="font-size:16px">Doppel-XP-Wochenende!</b><div style="font-size:12.5px;color:#c9b8ff">Alle XP ×2 · noch ${evLeft()}</div></div></div>`); }; }
+
+/* ================= 📱 Als App installieren (Homebildschirm) ================= */
+let PWA_EV = null; addEventListener('beforeinstallprompt', e => { e.preventDefault(); PWA_EV = e; });
+(() => { try {
+  if (!document.querySelector('link[rel=manifest]')) { const l = document.createElement('link'); l.rel = 'manifest'; l.href = 'manifest.webmanifest'; document.head.appendChild(l); }
+  if (!document.querySelector('link[rel=apple-touch-icon]')) { const l = document.createElement('link'); l.rel = 'apple-touch-icon'; l.href = 'icon-192.png'; document.head.appendChild(l); }
+  [['apple-mobile-web-app-capable', 'yes'], ['mobile-web-app-capable', 'yes'], ['apple-mobile-web-app-title', 'GGamble'], ['apple-mobile-web-app-status-bar-style', 'black-translucent']].forEach(([n, c]) => { if (!document.querySelector(`meta[name="${n}"]`)) { const m = document.createElement('meta'); m.name = n; m.content = c; document.head.appendChild(m); } });
+  if ('serviceWorker' in navigator && /^https:/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => { });
+} catch (e) { } })();
+function appInstall() {
+  if (matchMedia('(display-mode: standalone)').matches || navigator.standalone) return toast('📱 Du nutzt GGamble schon als App 😎', 'good');
+  if (PWA_EV) { PWA_EV.prompt(); PWA_EV.userChoice.then(c => { if (c.outcome === 'accepted') toast('📱 Installiert – viel Spaß!', 'good'); PWA_EV = null; }); return; }
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  sheet(`<div class="row sb"><h2>📱 Als App installieren</h2><button class="x" data-close>${icon('x')}</button></div>
+    <div class="card tight list rl">${(ios ? [['1️⃣', 'Unten auf <b>Teilen</b> tippen (Quadrat mit Pfeil ⬆️)'], ['2️⃣', '<b>„Zum Home-Bildschirm“</b> auswählen'], ['3️⃣', 'Oben rechts <b>„Hinzufügen“</b> – fertig! 🎉']] : [['1️⃣', 'Oben rechts auf <b>⋮</b> (drei Punkte) tippen'], ['2️⃣', '<b>„App installieren“</b> oder <b>„Zum Startbildschirm hinzufügen“</b>'], ['3️⃣', 'Bestätigen – fertig! 🎉']]).map(([e, t]) => `<div class="it" style="gap:12px"><div style="font-size:22px">${e}</div><div style="flex:1;font-size:15px">${t}</div></div>`).join('')}</div>
+    <p class="hint">Dann startet GGamble wie eine richtige App – ohne Browser-Leiste.</p>`);
 }
 </script>
 </body>
