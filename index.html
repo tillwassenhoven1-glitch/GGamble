@@ -3772,7 +3772,7 @@ function startApp(key) {
   tabClaim();
   const all = Accounts.all(); ACC = key;
   const ts0 = all[key].ts || 0; cloudMine = ts0; // Stand auf DIESEM Gerät (bevor irgendwas neu gespeichert wird)
-  SYNC0 = !(onlineOn() && all[key].cid); if (!SYNC0) setTimeout(() => { SYNC0 = true; }, 20000);
+  SYNC0 = !(onlineOn() && all[key].cid); // bis zum erfolgreichen Abgleich wird NICHTS hochgeladen (lokal wird weiter gespeichert)
   S = Object.assign(newState(all[key].name), all[key].save || {});
   const sv0 = all[key].save || {};
   // zurücksetzen, wenn: alter Spielstand ohne ep ODER Konto wurde vor dem Neustart angelegt (kurzzeitiger Fehler hatte ep zu früh gesetzt)
@@ -3800,13 +3800,14 @@ function startApp(key) {
   /* ☁️ Beim Start ZUERST mit der Cloud abgleichen – erst danach Bestenliste/Cloud hochladen
      (früher: Handy mit altem Stand hat kurz vorher gespeichert → neuerer Stand vom iPad wurde ignoriert und überschrieben) */
   const sync0Done = () => { if (SYNC0 && S) return; SYNC0 = true; if (S) { cloudLast = ''; cloudPush(true); lbLast = ''; pushScore(true); } };
-  if (onlineOn() && all[key].cid) cloudGet(all[key].cid).then(cl => {
+  const sync0 = () => cloudGet(all[key].cid).then(cl => {
     const cur = Accounts.all(), x = cur[key];
     if (!cl || !x || !cl.d || cl.ts <= ts0 + 5000 || cl.d.dev === DEV_ID) return sync0Done();
     if (isOldSave(cl.d.save) && !isOldSave(x.save)) return sync0Done();
     if (S && svProg(cl.d.save) < svProg(S)) { cloudMine = cl.ts; return sync0Done(); } // Cloud hat weniger Fortschritt → unseren behalten & hochladen
     x.save = cl.d.save; x.ts = cl.ts; Accounts.put(cur); S = null; toast('📱 Neuerer Spielstand von deinem anderen Gerät geladen ☁️', 'good'); setTimeout(() => location.reload(), 900);
-  }).catch(() => sync0Done());
+  }).catch(() => { setTimeout(() => { if (!SYNC0 && S) sync0(); }, 30000); }); // Firebase gerade nicht erreichbar (z. B. Limit) → später nochmal prüfen statt blind hochladen
+  if (onlineOn() && all[key].cid) sync0();
   const pend = shopPending(); if (pend > 1 && away > 6e4) setTimeout(() => toast(`Deine Geschäfte haben ${fmt(pend)} verdient – im Imperium einsammeln 🏪`, 'good', 4500), 1600);
   if (S.fsRun && MACH[S.fsRun.mi] && S.fsRun.fs > 0) setTimeout(resumeFreeSpins, 1200);
   else if (bonusReady()) setTimeout(() => S && openBonus(), 900);
@@ -7459,7 +7460,7 @@ async function mtDraw() {
   let ov = document.getElementById('mtOv'), bn = document.getElementById('mtBn');
   if (!mtActive()) {
     if (ov) { ov.remove(); toast('✅ Wartung vorbei – weiter geht\'s!', 'good', 4000); if (!S) setTimeout(() => location.reload(), 1200); }
-    if (bn) bn.remove(); mtWas = false; return;
+    if (bn) bn.remove(); mtWas = false; MT_SAVE = ''; MT_SAVE_ST = ''; return;
   }
   mtWas = true;
   if (await mtPass()) { // Besitzer/Admin: normal spielen, kleiner Hinweis oben
@@ -7468,6 +7469,10 @@ async function mtDraw() {
     const t = document.getElementById('mtBnT'); if (t) t.textContent = mtLeft(); return;
   }
   if (bn) bn.remove();
+  if (!ov && S && MT_SAVE !== 'done') { // 💾 erst laufenden Dreh fertig spielen lassen und alles speichern – dann Wartungs-Bildschirm
+    if (MT_SAVE === 'busy') return; MT_SAVE = 'busy';
+    mtSave().then(st => { MT_SAVE = 'done'; MT_SAVE_ST = st; mtDraw(); }); return;
+  }
   if (!ov) {
     try { if (S) persist(); } catch (e) { }
     document.querySelectorAll('.full,.game-ov').forEach(x => x.remove()); document.body.classList.remove('inmach'); try { if (typeof MS !== 'undefined') MS = null; } catch (e) { }
@@ -7475,7 +7480,7 @@ async function mtDraw() {
       <div style="font-size:72px">🛠️</div><h1 style="font-size:36px;margin:0">Wartungsarbeiten</h1>
       <p id="mtX" style="color:#a8a8b0;font-size:18px;max-width:420px;line-height:1.5;margin:0"></p>
       <div style="color:#6a6a72;font-size:14px">Geht weiter in</div><div id="mtT" class="num" style="font-size:46px;font-weight:900;color:#f3d27a"></div>
-      <p style="color:#6a6a72;font-size:13px;margin:0">Dein Spielstand ist sicher gespeichert 💾 · Die Seite geht automatisch weiter.</p>
+      <p id="mtS" style="color:#6a6a72;font-size:13px;margin:0">Dein Spielstand ist sicher gespeichert 💾 · Die Seite geht automatisch weiter.</p>
       <div style="width:100%;max-width:520px;margin-top:10px"><canvas id="mtRun" style="width:100%;height:auto;display:block;border-radius:14px;background:#0d0d10;border:1px solid #26262c;touch-action:none;cursor:pointer"></canvas>
       <div class="row sb" style="font-size:12px;color:#6a6a72;margin-top:6px"><span>🦖 Antippen / Leertaste = springen</span><span id="mtHi"></span></div></div>
       <div class="row" style="gap:8px;margin-top:18px;max-width:320px;width:100%"><input class="inp" id="mtC" placeholder="Code" autocomplete="off" style="flex:1"><button class="btn dark sm" id="mtGo">Rein</button></div></div>`);
@@ -7484,6 +7489,20 @@ async function mtDraw() {
   }
   ov.querySelector('#mtX').innerHTML = MT_CUR.x ? `<b style="color:#fff">Grund:</b> ${esc(MT_CUR.x)}` : 'GGamble ist gleich wieder da! Wir machen gerade ein paar Verbesserungen.';
   ov.querySelector('#mtT').textContent = mtLeft();
+  const ms = ov.querySelector('#mtS'); if (ms && MT_SAVE_ST === 'fail') { ms.innerHTML = '⚠️ <b style="color:#f3d27a">Online-Speichern hat nicht geklappt</b> – dein Stand ist auf diesem Gerät gespeichert. Bitte <b>auf diesem Gerät</b> weiterspielen, wenn die Wartung vorbei ist.'; }
+}
+/* 💾 Vor der Wartung: laufendes Spiel abwarten (max. 12 Sek.), dann lokal + online speichern */
+let MT_SAVE = '', MT_SAVE_ST = '';
+async function mtSave() {
+  const t0 = Date.now();
+  while (Date.now() - t0 < 12000 && ((typeof MS !== 'undefined' && MS && (MS.busy || MS.fs > 0)) || (typeof syncBusy === 'function' && syncBusy()))) await new Promise(r => setTimeout(r, 400));
+  try { persist(); } catch (e) { }
+  try {
+    const a = Accounts.all()[ACC]; if (!a || !a.cid || !onlineOn()) return 'local';
+    if (!SYNC0) return 'fail';
+    const r = await cloudPut(a.cid, a, S); if (r && r.ok) { cloudLast = JSON.stringify(S); cloudMine = Date.now(); try { const c = Accounts.all(); if (c[ACC]) { c[ACC].ts = Date.now(); Accounts.put(c); } } catch (e) { } try { lbLast = ''; pushScore(true); } catch (e) { } return 'ok'; }
+    return 'fail';
+  } catch (e) { return 'fail'; }
 }
 setInterval(() => { if (MT_CUR) mtDraw(); }, 1000);
 setTimeout(mtPoll, 1200); document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(mtPoll, 400); });
