@@ -963,7 +963,7 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 
 /* ===== core.js ===== */
 'use strict';
-const VERSION = '1.1.7';
+const VERSION = '0.0.0';
 const FORCE_V = 12; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
 const WARTUNG = false; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
 /* ================= Helfer ================= */
@@ -3609,7 +3609,7 @@ function codeBoxHTML() {
 }
 /* 🛡️ Admin-Menü (zweiter Code): nur ein paar Rechte */
 function modHTML() { return `<p class="hint" style="margin:0 0 8px">🛡️ <b>Admin</b> – du darfst: Nachrichten an alle schicken (max. 1 Std. anpinnen), Spieler bis ${MOD_LIM.ban} Min. sperren (im Profil oder hier), Glückstränke ×2/×4/×6 (max. ${MOD_LIM.pot}, auch an alle), Energie (max. ${MOD_LIM.en}) und Gratis-Drehs (max. ${MOD_LIM.sp} à ${fmt(MOD_LIM.spSt)}) geben.</p><div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben / sperren</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="stat">📊 Statistik</button><button class="btn dark xs" data-ch="moff">🔒 Admin-Menü ausblenden</button></div>`; }
-function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben</button><button class="btn white xs" data-ch="lbh">🙈 Bestenliste-Sperre</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="bdg">🏅 Abzeichen vergeben</button><button class="btn white xs" data-ch="mt">🛠️ Wartung</button><button class="btn white xs" data-ch="fbm">📦 Daten umziehen</button><button class="btn white xs" data-ch="nbs">🚫 Alle mit verbotenem Namen sperren</button><button class="btn white xs" data-ch="p100">🌈 ×100-Trank für mich</button><button class="btn white xs" data-ch="lh">🌟 Glücksstunde starten</button><button class="btn white xs" data-ch="stat">📊 Statistik</button>${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
+function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben</button><button class="btn white xs" data-ch="lbh">🙈 Bestenliste-Sperre</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="bdg">🏅 Abzeichen vergeben</button><button class="btn white xs" data-ch="beta">🧪 Beta-Schlüssel</button><button class="btn white xs" data-ch="mt">🛠️ Wartung</button><button class="btn white xs" data-ch="fbm">📦 Daten umziehen</button><button class="btn white xs" data-ch="nbs">🚫 Alle mit verbotenem Namen sperren</button><button class="btn white xs" data-ch="p100">🌈 ×100-Trank für mich</button><button class="btn white xs" data-ch="lh">🌟 Glücksstunde starten</button><button class="btn white xs" data-ch="stat">📊 Statistik</button>${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
 function doCheat(k) {
   if (ADM_ROLE === 'mod' && !['gift', 'stat', 'moff', 'bc'].includes(k)) return toast('🛡️ Das darf nur der Besitzer.', 'bad');
   const add = v => { S.bal = r2(S.bal + v); S.st.maxBal = Math.max(S.st.maxBal, S.bal); };
@@ -3634,6 +3634,7 @@ function doCheat(k) {
   else if (k === 'stat') { if (typeof openStats === 'function') openStats(); return; }
   else if (k === 'nbs') { nbSweep(); return; }
   else if (k === 'mt') { openMt(); return; }
+  else if (k === 'beta') { openBetaKeys(); return; }
   else if (k === 'fbm') { fbMigrate(); return; }
   else if (k === 'bdg') { if (typeof openBadges === 'function') openBadges(); return; }
   else if (k === 'p100') { (async () => { // 3× bestätigen
@@ -6490,7 +6491,7 @@ function openShopX(id, done) {
 }
 
 /* ================= 🆕 Update-Hinweis (einmal pro Version, jederzeit wieder aufrufbar) ================= */
-const UPD_V = '1.1.7', UPD_UNTIL = new Date(2026, 11, 11).getTime();
+const UPD_V = '0.0.0', UPD_UNTIL = 0; // Neustart: kein Update-Fenster
 const UPD = [ // nur, was im LETZTEN Update neu ist
   ['⚽', 'Live-Stand bei deinen Wetten', 'Unter „Meine Wetten“ siehst du jetzt live Spielstand, Minute und ob deine Wette gerade vorn liegt.', 'wetten'],
   ['ℹ️', 'Infos zu allen Automaten', 'Auch gesperrte Automaten haben jetzt einen ℹ️-Knopf mit Gewinnen und Chancen.', 'halle'],
@@ -6509,6 +6510,7 @@ function openUpd() {
 }
 function updAuto() {
   if (!S) return;
+  if (Date.now() > UPD_UNTIL) { S.updSeen = UPD_V; return; } // kein Update-Fenster aktiv
   if (S.updSeen === UPD_V) return;
   const w = () => { if (!S || S.updSeen === UPD_V) return; if ((S.tutV || 0) < TUT_V || document.querySelector('.ov,#tutOv,.full,.game-ov,#banOv') || (typeof popBusy === 'function' && popBusy())) return setTimeout(w, 3000); SND.big(); FX.burst(100, { cols: ['#f5cf5a', '#fff'] }); openUpd(); };
   setTimeout(w, 3500);
@@ -7442,7 +7444,7 @@ setInterval(() => { if (S) badNameCheck(); }, 3000); setTimeout(() => { if (S) b
 // Signierte Ansage an alle (gifts, k = 'mt'): amt = Minuten (> 0), -1 = bis aufgehoben, 0 = Wartung beenden
 const MTQ = (() => { try { return JSON.parse(localStorage.getItem('gg_mtq')) || { last: 0, docs: [] }; } catch (e) { return { last: 0, docs: [] }; } })();
 /* 🛠️ Fest eingebaute Wartung (läuft auch, wenn Firebase down ist) – aufheben: Cheat-Menü → 🛠️ Wartung → „Aufheben“ */
-const MT_FORCE = { ts: Date.UTC(2026, 10, 27, 9, 30), x: 'Große Wartung: GGamble wird stabiler und schneller. Danach startet die Beta-Testphase.', bis: 'Bis Montag, 30.11. (Beta-Start)' };
+const MT_FORCE = null; // keine fest eingebaute Wartung mehr (Wartung nur noch per Knopf)
 const MT_TESTH = '1ff58a0cd416b5bd1afdae027ab99dfd45901dbf16a077f80504006297d2ed6c'; // 🎟️ eigener Spiel-Code für die Wartung (nur reinkommen, keine Admin-Rechte)
 const mtForceCur = () => MT_FORCE ? { until: Infinity, x: MT_FORCE.x, ts: MT_FORCE.ts, bis: MT_FORCE.bis } : null;
 let MT_VIEW = false; // Code-Spieler schaut sich die Wartungs-Seite an
@@ -7621,7 +7623,7 @@ function fbmHTML() {
 
 /* ================= 📢 Große Ankündigung (angeheftet + bei jedem Start) ================= */
 const ANN = {
-  id: 'wartung-2026-11-27', start: Date.UTC(2026, 10, 27, 9, 30), until: new Date(2026, 11, 7, 23, 59).getTime(),
+  id: 'aus', start: 0, until: 0, // 📢 Ankündigung aus
   title: 'Wartung läuft – Beta ab Montag', short: 'Seit Fr 27.11. · Beta-Testphase ab Mo 30.11.'
 };
 function annLeft() {
@@ -7698,6 +7700,67 @@ function sessLost() {
 }
 setInterval(async () => { if (!S || document.hidden || SESS.lost || !SESS.claimed) return; const o = await sessGet(); if (o.other) sessLost(); }, 30000);
 document.addEventListener('visibilitychange', async () => { if (document.hidden || !S || SESS.lost || !SESS.claimed) return; const o = await sessGet(); if (o.other) sessLost(); });
+
+/* ================= 🧪 Beta-Testphase: Reinkommen nur mit Beta-Schlüssel (1 Schlüssel = 1 Spieler) ================= */
+const BETA = { on: true, from: Date.UTC(2026, 10, 29, 23, 0), until: Date.UTC(2026, 11, 7, 22, 59) }; // Mo 30.11. 0:00 – So 6.12. (Berlin)
+const betaActive = () => BETA.on && Date.now() >= BETA.from && Date.now() <= BETA.until;
+async function betaHash(k) { const h = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('gg-beta|' + String(k).trim().toUpperCase())))].map(b => b.toString(16).padStart(2, '0')).join(''); return h.slice(0, 24); }
+const betaFree = () => !!(typeof ADM_KEY !== 'undefined' && ADM_KEY) || (S && isOwner(S.lbId));
+async function betaClaim(key) {
+  key = String(key || '').trim().toUpperCase(); if (!/^BETA-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(key)) return 'Das ist kein gültiger Schlüssel (Form: BETA-XXXX-XXXX)';
+  const h = await betaHash(key);
+  try { LBS_T = 0; await lbhLoad(true); } catch (e) { return 'Keine Verbindung – bitte gleich nochmal'; }
+  const g = LBH.vb && LBH.vb['k:' + h]; if (!g || !g.h) return 'Diesen Schlüssel gibt es nicht';
+  const id = 'beta~' + h;
+  try {
+    const r0 = await fetch(fsDoc('namen/' + encodeURIComponent(id)), { cache: 'no-store' });
+    if (r0.ok) { const f = (await r0.json()).fields || {}; if ((f.rid && f.rid.stringValue) !== meKey()) return 'Dieser Schlüssel wurde schon benutzt 😕'; }
+    else if (r0.status === 404) { const r = await fsCreate('namen', id, { t: fint(Date.now()), rid: fstr(meKey()) }); if (!r.ok) return 'Dieser Schlüssel wurde gerade schon benutzt 😕'; }
+    else return 'Keine Verbindung – bitte gleich nochmal';
+  } catch (e) { return 'Keine Verbindung – bitte gleich nochmal'; }
+  S.betaKey = key; S.betaT = Date.now(); save(); return '';
+}
+function betaCheck() {
+  let ov = document.getElementById('betaOv');
+  if (!S || !betaActive() || S.betaKey || betaFree() || document.getElementById('mtOv')) { if (ov) ov.remove(); return; }
+  if (ov) return;
+  document.querySelectorAll('.full,.game-ov').forEach(x => x.remove()); document.body.classList.remove('inmach');
+  document.body.insertAdjacentHTML('beforeend', `<div id="betaOv" style="position:fixed;inset:0;z-index:9995;background:#050506;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;gap:14px;color:#fff;overflow-y:auto">
+    <div style="font-size:64px">🧪</div><h1 style="font-size:32px;margin:0">Beta-Testphase</h1>
+    <p style="color:#a8a8b0;font-size:16px;margin:0;max-width:420px;line-height:1.5">GGamble ist gerade in der <b style="color:#fff">Open Beta</b>. Mitspielen kannst du mit einem <b style="color:#f3d27a">Beta-Schlüssel</b>. Jeder Schlüssel funktioniert nur für <b style="color:#fff">einen</b> Spieler.</p>
+    <input class="inp num" id="betaK" placeholder="BETA-XXXX-XXXX" autocomplete="off" autocapitalize="characters" style="max-width:320px;text-align:center;font-size:20px;letter-spacing:.06em">
+    <button class="btn white" id="betaGo" style="min-width:240px">🔓 Freischalten</button>
+    <p id="betaE" style="color:#ff7a7a;font-size:14px;margin:0;min-height:18px"></p>
+    <p style="color:#6a6a72;font-size:13px;margin:0;max-width:380px">Als Tester kannst du Fehler und Ideen direkt im Spiel melden 🐞 Die Beta läuft bis Sonntag, 6.12.</p></div>`);
+  ov = document.getElementById('betaOv');
+  const go = async () => { const b = $('#betaGo', ov); b.disabled = true; b.textContent = 'Prüfe …'; const e = await betaClaim($('#betaK', ov).value); b.disabled = false; b.textContent = '🔓 Freischalten';
+    if (e) { $('#betaE', ov).textContent = '❌ ' + e; try { SND.err(); } catch (x) { } return; }
+    ov.remove(); try { SND.win(); FX.burst(120, { cols: ['#f5cf5a', '#7ad7ff', '#fff'] }); } catch (x) { } toast('🧪 Willkommen in der Beta! Danke fürs Testen 💛', 'good', 5000); };
+  $('#betaGo', ov).onclick = go; $('#betaK', ov).onkeydown = e => { if (e.key === 'Enter') go(); };
+}
+setInterval(betaCheck, 2000);
+/* Besitzer: Schlüssel erzeugen & sehen, wer welchen benutzt */
+function openBetaKeys() {
+  let keys = []; try { keys = JSON.parse(localStorage.getItem('gg_bkeys') || '[]'); } catch (e) { }
+  const o = sheet(`<div class="row sb"><h2>🧪 Beta-Schlüssel</h2><button class="x" data-close>${icon('x')}</button></div>
+    <p class="hint" style="margin-top:0">Jeder Schlüssel = 1 Spieler. Beta: <b>${new Date(BETA.from).toLocaleDateString('de-DE')} – ${new Date(BETA.until).toLocaleDateString('de-DE')}</b>${betaActive() ? ' · 🟢 läuft' : ''}. Du selbst und Admins brauchen keinen.</p>
+    <div class="row" style="gap:8px"><input class="inp num" id="bkN" type="number" min="1" max="30" value="5" style="width:90px"><button class="btn gold" id="bkGo" style="flex:1">➕ Schlüssel erzeugen</button></div>
+    <div class="row sb" style="margin:14px 0 6px"><b>Deine Schlüssel (${keys.length})</b>${keys.length ? '<button class="btn dark xs" id="bkCp">📋 Freie kopieren</button>' : ''}</div>
+    <div class="card tight list rl" id="bkL">${keys.length ? keys.map(k => `<div class="it" data-h="${k.h}"><div class="who" style="flex:1"><b class="num" style="letter-spacing:.04em">${k.k}</b><small class="bkS">prüfe …</small></div><button class="btn dark xs" data-cp="${k.k}">📋</button></div>`).join('') : '<div class="empty">Noch keine Schlüssel</div>'}</div>`);
+  const used = {};
+  keys.forEach(async k => { const el = o.querySelector(`[data-h="${k.h}"] .bkS`); try { const r = await fetch(fsDoc('namen/' + encodeURIComponent('beta~' + k.h)), { cache: 'no-store' }); if (r.ok) { const f = (await r.json()).fields || {}; used[k.k] = 1; el.innerHTML = `✅ benutzt von <b>@${esc((f.rid && f.rid.stringValue) || '?')}</b>`; } else el.textContent = '🟢 frei'; } catch (e) { el.textContent = '?'; } });
+  o.addEventListener('click', async e => {
+    const cp = e.target.closest('[data-cp]'); if (cp) { try { await navigator.clipboard.writeText(cp.dataset.cp); toast('📋 Kopiert', 'good'); } catch (x) { toast(cp.dataset.cp); } return; }
+    if (e.target.id === 'bkCp') { const t = keys.filter(k => !used[k.k]).map(k => k.k).join('\n'); try { await navigator.clipboard.writeText(t); toast('📋 Freie Schlüssel kopiert', 'good'); } catch (x) { toast(t); } return; }
+    if (e.target.id === 'bkGo') {
+      const n = Math.max(1, Math.min(30, +$('#bkN', o).value || 1)); e.target.disabled = true; e.target.textContent = 'Erzeuge …';
+      const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', r4 = () => [...crypto.getRandomValues(new Uint8Array(4))].map(b => A[b % 32]).join('');
+      let ok = 0; for (let i = 0; i < n; i++) { const k = `BETA-${r4()}-${r4()}`, h = await betaHash(k); try { await lbhSet('k:' + h, 1); keys.push({ k, h, t: Date.now() }); ok++; } catch (x) { if (x.message === 'key') { toast('Bitte Cheat-Code neu eingeben', 'bad'); break; } } }
+      try { localStorage.setItem('gg_bkeys', JSON.stringify(keys)); } catch (x) { }
+      toast(`🧪 ${ok} Schlüssel erzeugt`, 'good'); o.close(); openBetaKeys();
+    }
+  });
+}
 </script>
 </body>
 </html>
