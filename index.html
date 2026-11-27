@@ -7583,6 +7583,42 @@ function fbmHTML() {
     <div class="card tight" style="margin-top:10px;background:#1a160a;border:1px solid #d8b85a44"><p class="hint" style="margin:0">📈 <b>Schätzung für alle</b> (${on} online × dieses Gerät): ≈ <b>${NF0.format(allR)}</b> Lesen und <b>${NF0.format(allW)}</b> Schreiben pro Std.<br>⏳ Tageslimit (50.000 Lesen / 20.000 Schreiben) wäre so nach ≈ <b>${hrs(50000, allR)}</b> bzw. <b>${hrs(20000, allW)}</b> weg.${FBM.err ? `<br>🔴 ${FBM.err}× „Limit erreicht“ (429) auf diesem Gerät` : ''}</p></div>
     <p class="hint" style="margin:6px 0 14px">Tipp: Statistik nach ein paar Minuten normalem Spielen öffnen – dann stimmt die Schätzung besser. Rot = größter Verbraucher.</p>`;
 }
+
+/* ================= 📢 Große Ankündigung (angeheftet + bei jedem Start) ================= */
+const ANN = {
+  id: 'wartung-2026-11-28', start: new Date(2026, 10, 28, 10, 0).getTime(), until: new Date(2026, 11, 7, 23, 59).getTime(),
+  title: 'Große Wartung am Wochenende', short: 'Sa 28.11. ab 10:00 Uhr · ganzes Wochenende'
+};
+function annLeft() {
+  const l = ANN.start - Date.now(); if (l <= 0) return Date.now() < ANN.start + 2 * 864e5 ? '🛠️ Läuft gerade' : '🧪 Beta-Testphase';
+  const h = Math.floor(l / 36e5), m = Math.floor(l / 6e4) % 60; return h >= 24 ? `in ${Math.floor(h / 24)} T. ${h % 24} Std.` : `in ${h} Std. ${m} Min.`;
+}
+function openAnn() {
+  const row = (e, t, d) => `<div class="it" style="align-items:flex-start;gap:12px"><div style="font-size:26px;line-height:1">${e}</div><div style="flex:1"><b style="font-size:16px">${t}</b><div class="hint" style="margin:3px 0 0;font-size:14px;line-height:1.45">${d}</div></div></div>`;
+  sheet(`<div class="row sb"><h2 style="margin:0">📢 Wichtige Ankündigung</h2><button class="x" data-close>${icon('x')}</button></div>
+    <div style="margin:12px 0 14px;padding:18px;border-radius:18px;background:linear-gradient(135deg,#3a2a08,#1a1206);border:1px solid #d8b85a66;text-align:center">
+      <div style="font-size:46px">🛠️</div><div style="font-size:22px;font-weight:900;margin-top:4px">${ANN.title}</div>
+      <div style="color:#f3d27a;font-weight:800;font-size:17px;margin-top:6px">📅 Samstag, 28.11. · ab 10:00 Uhr</div>
+      <div class="num" style="color:#a8a8b0;font-size:13px;margin-top:4px">⏳ ${annLeft()}</div></div>
+    <div class="card tight list rl">
+      ${row('🗓️', 'Wann?', 'Ab <b>Samstag, 28.11. um 10:00 Uhr</b> – die Wartung dauert das <b>ganze Wochenende</b>. In der Zeit ist GGamble nicht spielbar.')}
+      ${row('🔧', 'Was machen wir?', 'Wir bauen GGamble im Hintergrund <b>stabiler und schneller</b> – damit Bestenliste, Online-Funktionen und das Speichern nicht mehr ausfallen.')}
+      ${row('🤫', 'Und sonst?', 'Ein paar <b>Überraschungen</b> sind auch dabei … mehr verraten wir noch nicht. 👀')}
+      ${row('🧪', 'Danach: Beta-Testphase', 'Ab <b>Montag, 30.11.</b> startet für <b>1 Woche</b> die <b>Open-Beta-Testphase</b>. Reinkommen geht dann mit einem <b>Beta-Schlüssel</b> – und als Tester kannst du Fehler und Ideen direkt melden.')}
+      ${row('💾', 'Tipp', 'Spiel vor Samstag 10 Uhr am besten <b>noch einmal</b>, damit dein Spielstand gesichert ist.')}
+    </div>
+    <button class="btn white w" data-close style="margin-top:14px">Alles klar 👍</button>`);
+}
+{ const H = PAGES.halle; PAGES.halle = el => { H(el); if (Date.now() > ANN.until || $('#annB', el)) return;
+  el.insertAdjacentHTML('afterbegin', `<button id="annB" style="width:100%;display:flex;align-items:center;gap:12px;text-align:left;cursor:pointer;font:inherit;color:#fff;padding:14px 16px;margin:0 0 14px;border-radius:18px;border:1px solid #d8b85a88;background:linear-gradient(135deg,#3a2a08,#1c1407);box-shadow:0 0 22px rgba(216,184,90,.18)">
+    <span style="font-size:30px">🛠️</span><div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:800;color:#d8b85a;letter-spacing:.06em">📌 ANGEHEFTET</div><b style="font-size:17px">${ANN.title}</b><div style="font-size:13px;color:#f3d27a">${ANN.short}</div><div class="num" style="font-size:12px;color:#a8a8b0">⏳ ${annLeft()} · Tippen für Infos</div></div><span style="font-size:22px;color:#d8b85a">›</span></button>`);
+  $('#annB', el).onclick = () => { SND.click(); openAnn(); }; }; }
+(function annAuto() { // bei JEDEM Start einmal groß zeigen (nach Tutorial/Update-Fenster)
+  if (Date.now() > ANN.until) return;
+  if (!S || !$('#main')) return setTimeout(annAuto, 2000);
+  const w = () => { if (!S) return; if ((S.tutV || 0) < TUT_V || S.updSeen !== UPD_V || document.querySelector('.ov,#tutOv,.full,.game-ov,#banOv,#mtOv,#bnOv') || (typeof popBusy === 'function' && popBusy())) return setTimeout(w, 2500); openAnn(); };
+  setTimeout(w, 4500);
+})();
 </script>
 </body>
 </html>
