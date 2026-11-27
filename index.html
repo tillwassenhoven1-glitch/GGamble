@@ -7719,7 +7719,7 @@ setInterval(async () => { if (!S || document.hidden || SESS.lost || !SESS.claime
 document.addEventListener('visibilitychange', async () => { if (document.hidden || !S || SESS.lost || !SESS.claimed) return; const o = await sessGet(); if (o.other) sessLost(); });
 
 /* ================= 🧪 Beta-Testphase: Reinkommen nur mit Beta-Schlüssel (1 Schlüssel = 1 Spieler) ================= */
-const BETA = { on: true, from: Date.UTC(2026, 10, 29, 23, 0), until: Date.UTC(2026, 11, 7, 22, 59) }; // Mo 30.11. 0:00 – So 6.12. (Berlin)
+const BETA = { on: true, from: Date.UTC(2026, 10, 27, 17, 0), until: Date.UTC(2026, 11, 7, 22, 59) }; // ab sofort (Fr 27.11.) – So 6.12. (Berlin)
 const betaActive = () => BETA.on && Date.now() >= BETA.from && Date.now() <= BETA.until;
 async function betaHash(k) { const h = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('gg-beta|' + String(k).trim().toUpperCase())))].map(b => b.toString(16).padStart(2, '0')).join(''); return h.slice(0, 24); }
 const betaFree = () => !!(typeof ADM_KEY !== 'undefined' && ADM_KEY) || (S && isOwner(S.lbId));
@@ -7754,6 +7754,7 @@ function betaCheck() {
     if (e) { $('#betaE', ov).textContent = '❌ ' + e; try { SND.err(); } catch (x) { } return; }
     ov.remove(); try { SND.win(); FX.burst(120, { cols: ['#f5cf5a', '#7ad7ff', '#fff'] }); } catch (x) { } toast('🧪 Willkommen in der Beta! Danke fürs Testen 💛', 'good', 5000); };
   $('#betaGo', ov).onclick = go; $('#betaK', ov).onkeydown = e => { if (e.key === 'Enter') go(); };
+  try { const k = localStorage.getItem('bt_key'); if (k) { $('#betaK', ov).value = k; if (!ov.dataset.auto) { ov.dataset.auto = 1; setTimeout(go, 600); } } } catch (e) { } // Schlüssel von der Startseite übernehmen
 }
 setInterval(betaCheck, 2000);
 /* Besitzer: Schlüssel erzeugen & sehen, wer welchen benutzt */
