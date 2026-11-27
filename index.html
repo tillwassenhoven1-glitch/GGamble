@@ -32,7 +32,7 @@
 <script>
 const FORCE_V = 999; // alte offene Seiten laden sofort neu
 /* Kompletter Neustart: alte lokale Konten & Daten von diesem Gerät löschen */
-try { Object.keys(localStorage).filter(k => k.startsWith('gg')).forEach(k => { if (k !== 'gg_runhi') localStorage.removeItem(k); }); sessionStorage.clear(); } catch (e) { }
+try { if (localStorage.getItem('wipe_hard1') !== '1') { Object.keys(localStorage).filter(k => k.startsWith('gg')).forEach(k => { if (k !== 'gg_runhi') localStorage.removeItem(k); }); sessionStorage.clear(); localStorage.setItem('wipe_hard1', '1'); } } catch (e) { } // nur EINMAL pro Gerät löschen
 try { if (navigator.serviceWorker) navigator.serviceWorker.getRegistrations().then(r => r.forEach(x => x.unregister())); } catch (e) { }
 /* 🦖 Mini-Runner */
 (() => {
