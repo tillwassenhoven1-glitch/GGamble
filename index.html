@@ -928,7 +928,7 @@ const needTime = () => { if (TIME.ok) return true; TIME.sync(); toast('⏰ Dafü
 
 /* ===== core.js ===== */
 'use strict';
-const VERSION = '1.0.4';
+const VERSION = '1.1.7';
 const FORCE_V = 12; // 🔁 Pflicht-Update: Zahl erhöhen → alle laden sofort neu (auch in Duellen/Räumen)
 const WARTUNG = false; // 🛠️ Wartungsmodus: true = Seite ist „kurz down“, false = normal
 /* ================= Helfer ================= */
@@ -3574,7 +3574,7 @@ function codeBoxHTML() {
 }
 /* 🛡️ Admin-Menü (zweiter Code): nur ein paar Rechte */
 function modHTML() { return `<p class="hint" style="margin:0 0 8px">🛡️ <b>Admin</b> – du darfst: Nachrichten an alle schicken (max. 1 Std. anpinnen), Spieler bis ${MOD_LIM.ban} Min. sperren (im Profil oder hier), Glückstränke ×2/×4/×6 (max. ${MOD_LIM.pot}, auch an alle), Energie (max. ${MOD_LIM.en}) und Gratis-Drehs (max. ${MOD_LIM.sp} à ${fmt(MOD_LIM.spSt)}) geben.</p><div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben / sperren</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="stat">📊 Statistik</button><button class="btn dark xs" data-ch="moff">🔒 Admin-Menü ausblenden</button></div>`; }
-function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben</button><button class="btn white xs" data-ch="lbh">🙈 Bestenliste-Sperre</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="bdg">🏅 Abzeichen vergeben</button><button class="btn white xs" data-ch="p100">🌈 ×100-Trank für mich</button><button class="btn white xs" data-ch="lh">🌟 Glücksstunde starten</button><button class="btn white xs" data-ch="stat">📊 Statistik</button>${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
+function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben</button><button class="btn white xs" data-ch="lbh">🙈 Bestenliste-Sperre</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="bdg">🏅 Abzeichen vergeben</button><button class="btn white xs" data-ch="nbs">🚫 Alle mit verbotenem Namen sperren</button><button class="btn white xs" data-ch="p100">🌈 ×100-Trank für mich</button><button class="btn white xs" data-ch="lh">🌟 Glücksstunde starten</button><button class="btn white xs" data-ch="stat">📊 Statistik</button>${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
 function doCheat(k) {
   if (ADM_ROLE === 'mod' && !['gift', 'stat', 'moff', 'bc'].includes(k)) return toast('🛡️ Das darf nur der Besitzer.', 'bad');
   const add = v => { S.bal = r2(S.bal + v); S.st.maxBal = Math.max(S.st.maxBal, S.bal); };
@@ -3597,6 +3597,7 @@ function doCheat(k) {
   else if (k === 'bc') { if (typeof openBc === 'function') openBc(); return; }
   else if (k === 'lh') { if (typeof openLhAdm === 'function') openLhAdm(); return; }
   else if (k === 'stat') { if (typeof openStats === 'function') openStats(); return; }
+  else if (k === 'nbs') { nbSweep(); return; }
   else if (k === 'bdg') { if (typeof openBadges === 'function') openBadges(); return; }
   else if (k === 'p100') { (async () => { // 3× bestätigen
       if (!await confirmBox('🌈 Glückstrank ×100 geben?', 'Der stärkste Trank im Spiel – 100-fach Glück für 10 Drehs.', 'Ja (1/3)')) return;
@@ -6445,13 +6446,13 @@ function openShopX(id, done) {
 }
 
 /* ================= 🆕 Update-Hinweis (einmal pro Version, jederzeit wieder aufrufbar) ================= */
-const UPD_V = '1.0.4', UPD_UNTIL = new Date(2026, 11, 9).getTime();
+const UPD_V = '1.1.7', UPD_UNTIL = new Date(2026, 11, 11).getTime();
 const UPD = [ // nur, was im LETZTEN Update neu ist
-  ['🎲', 'Gewinnchancen in der Info', 'In der ℹ️-Info jedes Automaten steht jetzt, wie oft ein Gewinn kommt – z. B. 🍒🍒🍒 ≈ 1 : 8 pro Dreh.', 'halle'],
-  ['🃏', 'Blackjack-Auszahlung', 'Bei einem Sieg siehst du jetzt klar: Einsatz zurück + Gewinn.', 'halle'],
-  ['🌈', 'Regenbogen-Rausch fairer', 'Der Glückstrank ×100 kann nicht mehr gleich in den ersten Drehs kommen.', 'halle'],
-  ['🎯', 'Minispiele ohne Verrutschen', 'Der Hintergrund bewegt sich nicht mehr mit, STOPP reagiert sofort.', 'halle'],
-  ['🔢', 'Saubere Zahlen', 'Keine langen Kommazahlen mehr in der Automaten-Info.', 'halle'],
+  ['⚽', 'Live-Stand bei deinen Wetten', 'Unter „Meine Wetten“ siehst du jetzt live Spielstand, Minute und ob deine Wette gerade vorn liegt.', 'wetten'],
+  ['ℹ️', 'Infos zu allen Automaten', 'Auch gesperrte Automaten haben jetzt einen ℹ️-Knopf mit Gewinnen und Chancen.', 'halle'],
+  ['🛡️', 'Admins & Moderatoren', 'Admins und Moderatoren sind in der Bestenliste jetzt mit einem kleinen Abzeichen zu erkennen.', 'rang'],
+  ['📱', 'Konto auf 2 Geräten', 'Beim Öffnen wird jetzt zuerst der neueste Spielstand geladen – kein alter Stand mehr mit weniger Geld.', 'halle'],
+  ['🚫', 'Saubere Namen', 'Beleidigende Namen sind nicht mehr erlaubt. Wer so einen Namen hat, muss sich umbenennen – Geld und Fortschritt bleiben.', 'halle'],
 ];
 function openUpd() {
   S.updSeen = UPD_V; save();
@@ -7346,8 +7347,20 @@ function badName(n) { const t = nameNorm(n); return !!t && (BAD_N.some(w => w &&
 const nbHit = () => !!(S && S.nbN && S.nbN === String(S.name).toLowerCase()); // Name vom Admin gesperrt
 const meBadName = () => !!(S && !isOwner(S.lbId) && (badName(S.name) || badName(S.disp) || nbHit()));
 function nbMark(x) { if (x && !x.me && !isOwner(x.id || x.k) && (badName(x.name) || badName(x.disp))) { x.nbn = 1; x.disp = 'Gesperrter Name'; } return x; }
-{ const FT = fetchTop; fetchTop = async (...a) => (await FT(...a)).map(nbMark); }
-if (typeof rgFetch0 === 'function') { const R0 = rgFetch0; rgFetch0 = async (...a) => { const d = await R0(...a); return Array.isArray(d) ? d.map(nbMark) : d; }; }
+const nbList = async () => { try { await Promise.race([lbhLoad(), new Promise(r => setTimeout(r, 2500))]); } catch (e) { } }; // Verbotsliste vorher laden
+{ const FT = fetchTop; fetchTop = async (...a) => { const [d] = await Promise.all([FT(...a), nbList()]); return d.map(nbMark); }; }
+/* 🚫 Besitzer: alle Spieler mit verbotenem Namen auf einmal namens-sperren */
+async function nbSweep() {
+  await nbList(); let docs = [];
+  try { docs = await snapDocs(); } catch (e) { }
+  if (!docs || !docs.length) try { docs = await fetchTop(); } catch (e) { }
+  const bad = [...new Map((docs || []).filter(x => x && x.name && !isOwner(x.id || x.k) && (badName(x.name) || badName(x.disp) || x.nbn)).map(x => [String(x.name).toLowerCase(), x])).values()];
+  if (!bad.length) return toast('✅ Keine verbotenen Namen gefunden', 'good');
+  if (!await confirmBox(`${bad.length} verbotene Namen sperren?`, bad.slice(0, 30).map(x => '• @' + esc(x.name)).join('<br>') + (bad.length > 30 ? '<br>…' : '') + '<br><br>Sie müssen sich umbenennen, bevor sie weiterspielen.', 'Alle sperren', true)) return;
+  let n = 0; for (const x of bad) { try { await giftSend(String(x.name).toLowerCase(), 1, '', 'nb', ''); n++; } catch (e) { } }
+  SND.win(); toast(`🚫 ${n} Spieler müssen sich umbenennen`, 'good', 4000);
+}
+if (typeof rgFetch0 === 'function') { const R0 = rgFetch0; rgFetch0 = async (...a) => { const [d] = await Promise.all([R0(...a), nbList()]); return Array.isArray(d) ? d.map(nbMark) : d; }; }
 /* Andere sehen solche Namen nicht: aus der Bestenliste raus, im Chat ausgeblendet */
 { const FQ = fsQuery; fsQuery = async (q, ...r) => {
   const d = await FQ(q, ...r), col = q && q.from && q.from[0] && q.from[0].collectionId;
