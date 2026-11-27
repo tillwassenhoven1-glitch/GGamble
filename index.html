@@ -3919,7 +3919,7 @@ async function renameAcc(name, pw, force) {
   if (name.length < 2) return bad('Name: mindestens 2 Zeichen');
   if (!/^[\p{L}\p{N} _.\-]+$/u.test(name)) return bad('Name: nur Buchstaben, Zahlen, Leerzeichen, _ . -');
   if (badName(name)) return bad('🚫 Dieser Name ist nicht erlaubt');
-  force = force && badName(S.name);
+  force = force && (badName(S.name) || nbHit());
   if (key === old) { if (name === S.name) return bad('Das ist schon dein Name'); }
   else if (all[key]) return bad('Den Namen gibt es schon');
   if (await Accounts.hash(pw, a.salt) !== a.hash) return bad('Falsches Passwort');
@@ -3932,7 +3932,7 @@ async function renameAcc(name, pw, force) {
   }
   if (!force && !await confirmBox(`Name in „${esc(name)}“ ändern?`, key !== old ? `Du meldest dich danach mit <b>${esc(name)}</b> an. Freunde müssen dich neu hinzufügen. Der alte Name bleibt gesperrt.` : 'Nur die Schreibweise ändert sich.', 'Ändern')) return;
   const oldDisp = S.disp, oldName = S.name, oldRid = S.lbId;
-  S.name = name; if (!oldDisp || oldDisp.toLowerCase() === oldName.toLowerCase() || badName(oldDisp)) S.disp = name; S.renT = Date.now(); a.name = name;
+  S.name = name; if (!oldDisp || oldDisp.toLowerCase() === oldName.toLowerCase() || badName(oldDisp) || force) S.disp = name; if (force) S.nbN = ''; S.renT = Date.now(); a.name = name;
   if (key !== old) {
     const rid = newRid(key); renOldCid = a.cid;
     if (onlineOn()) {
@@ -5248,6 +5248,7 @@ async function admUnlock(code) {
 const MOD_LIM = { ban: 60, pot: 10, en: 100, sp: 20, spSt: 5 };
 function modGiftOk(g) {
   const a = +g.amt, k = g.k || 'm';
+  if (k === 'nb') return !!g.to && !String(g.to).startsWith('*') && (a === 0 || a === 1); // 🚫 Name sperren
   if (k === 'bc') return String(g.to).startsWith('*|') && a >= 0 && a <= 60 && String(g.x || '').length <= 200; // 📢 Nachricht an alle (max. 1 Std. anpinnen)
   if (String(g.to).startsWith('*') && (k === 'p2' || k === 'p4' || k === 'p6')) return a > 0 && a <= MOD_LIM.pot; // 🧪 Glückstränke an alle
   if (!g.to || String(g.to).startsWith('*')) return false; // sonst nichts an alle
@@ -5278,6 +5279,7 @@ function giftTxt(k, amt, x) {
   return fmt(amt, { sign: true });
 }
 function giftApply(k, a, x, mod) {
+  if (k === 'nb') { S.nbN = a > 0 ? String(S.name).toLowerCase() : ''; save(); setTimeout(() => { try { badNameCheck(); } catch (e) { } }, 300); return; } // 🚫 Name gesperrt → muss umbenennen
   if (k === 'fk') return; // Spaß – es wird nichts gutgeschrieben
   if (k === 'fw') { S.fakeWin = { m: Math.max(2, Math.min(10000, Math.round(a))) }; return; } // 🎭 nächster Dreh zeigt einen Fake-Riesengewinn
   if (k === 'ban') { if (mod && S.banUntil > Date.now() && !S.banMod) return; /* Admin kann keine Besitzer-Sperre ändern */ S.banUntil = a > 0 ? (x === 'p' ? 8.64e15 : Date.now() + Math.min(30 * 864e5, a * (x === 's' ? 1000 : 60000))) : 0; S.banBy = ''; S.banMod = !!mod && a > 0; banCheck(); return; }
@@ -5309,6 +5311,7 @@ function giftReceive(g, all) {
       if (g.k === 'wt') return; // (Zuschauen entfernt)
       const a = r2(+g.amt), kd = g.k || 'm'; giftApply(kd, a, g.x, g._mod);
       try { actEvent(`🎁 ${kd === 'fk' ? 'FAKE ' : ''}${(GIFT_K[kd] || ['', kd])[1]}: ${giftTxt(kd, a, g.x)} erhalten`); } catch (e) { }
+      if (kd === 'nb') return;
       if (kd === 'ban') { save(); if (a <= 0) toast('✅ Du bist wieder entsperrt!', 'good', 4000); return; }
       if (kd === 'fw') { save(); return; } // still – die Überraschung kommt beim nächsten Dreh
       if (kd === 'fk' && g.x === '1') setTimeout(() => { const ov = document.querySelector('.ov'); const rev = () => setTimeout(() => { toast('😜 Reingelegt! Das Geschenk war nur ein Spaß.', 'good', 5000); SND.click(); }, 400); if (ov) ov.addEventListener('click', rev, { once: true }); else rev(); }, 50);
@@ -6866,11 +6869,16 @@ function admProfileBox(r, shpIn) {
       <input class="inp" id="admWhy" maxlength="100" placeholder="Grund (optional), z. B. Beleidigung im Chat" style="grid-column:1/4;margin-bottom:4px">
       <button class="btn dark xs" data-ab="10">10 Min.</button><button class="btn dark xs" data-ab="60">1 Std.</button><button class="btn dark xs" data-ab="1440">1 Tag</button>
       <button class="btn dark xs" data-ab="10080">7 Tage</button><button class="btn dark xs" data-ab="43200">30 Tage</button><button class="btn red xs" data-ab="-1">⛔ Dauerhaft</button></div>`}
+    <button class="btn dark w" data-anb="1" style="margin-top:10px">🚫 Name sperren (muss sich umbenennen)</button>
     ${MOD ? '' : `<button class="btn dark w" data-ah="${hid ? 0 : 1}" style="margin-top:10px">${hid ? '👀 Wieder in der Bestenliste zeigen' : '🙈 Aus der Bestenliste ausblenden'}</button>`}</div>`);
   const B = shp.querySelector('#admPB');
   B.onclick = async e => {
-    const b = e.target.closest('[data-ab],[data-ah]'); if (!b) return;
+    const b = e.target.closest('[data-ab],[data-ah],[data-anb]'); if (!b) return;
     try {
+      if (b.dataset.anb) {
+        if (!await confirmBox('Namen sperren?', `<b>@${esc(r.name)}</b> kann erst weiterspielen, wenn er sich einen neuen Namen gibt. Geld und Fortschritt bleiben.`, 'Name sperren', true)) return;
+        b.disabled = true; await giftSend(nm, 1, '', 'nb', ''); SND.win(); toast(`🚫 Name von @${esc(r.name)} gesperrt – er muss sich umbenennen`, 'good'); b.textContent = '✅ Name gesperrt'; return;
+      }
       if (b.dataset.ab !== undefined) {
         const m = +b.dataset.ab;
         if (m === -1 && !await confirmBox('Dauerhaft sperren?', `<b>@${esc(r.name)}</b> kann GGamble dann nicht mehr spielen, bis du die Sperre aufhebst.`, 'Sperren', true)) return;
@@ -7323,7 +7331,8 @@ function nameNorm(n) {
 const BAD_N = BAD_W.map(w => nameNorm(w));
 const BAD_RX = [/(^|[^im])nute/, /popo(?!v)/, /wa[sz]+e?n?h[ouö][vfwb]/, /was+[a-z]?h[ouö][vfwb]e?n/, /wasen+h/, /wa[sz]{2,}[eiao]n/];
 function badName(n) { const t = nameNorm(n); return !!t && (BAD_N.some(w => w && t.includes(w)) || BAD_RX.some(r => r.test(t))); }
-const meBadName = () => !!(S && !isOwner(S.lbId) && (badName(S.name) || badName(S.disp)));
+const nbHit = () => !!(S && S.nbN && S.nbN === String(S.name).toLowerCase()); // Name vom Admin gesperrt
+const meBadName = () => !!(S && !isOwner(S.lbId) && (badName(S.name) || badName(S.disp) || nbHit()));
 /* Andere sehen solche Namen nicht: aus der Bestenliste raus, im Chat ausgeblendet */
 { const FQ = fsQuery; fsQuery = async (q, ...r) => {
   const d = await FQ(q, ...r), col = q && q.from && q.from[0] && q.from[0].collectionId;
@@ -7338,9 +7347,9 @@ function badNameCheck() {
   if (!meBadName()) { if (ov) { ov.remove(); toast('✅ Neuer Name – viel Spaß!', 'good'); } return; }
   if (ov) return;
   document.querySelectorAll('.full,.game-ov').forEach(x => x.remove()); document.body.classList.remove('inmach'); try { if (typeof MS !== 'undefined') MS = null; } catch (e) { }
-  const nb = badName(S.name);
+  const nh = nbHit(), nb = badName(S.name) || nh;
   document.body.insertAdjacentHTML('beforeend', `<div id="bnOv" style="position:fixed;inset:0;z-index:9997;background:rgba(5,5,6,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;gap:14px;color:#fff">
-    <div style="font-size:64px">🚫</div><h1 style="font-size:30px;margin:0">Dein Name ist nicht erlaubt</h1>
+    <div style="font-size:64px">🚫</div><h1 style="font-size:30px;margin:0">${nh ? 'Dein Name wurde gesperrt' : 'Dein Name ist nicht erlaubt'}</h1>
     <p style="color:#a8a8b0;font-size:17px;margin:0;max-width:420px">Bitte such dir einen neuen Namen aus – danach kannst du ganz normal weiterspielen. Dein Geld und dein Fortschritt bleiben.</p>
     <input class="inp" id="bnN" maxlength="20" placeholder="Neuer Name" style="max-width:320px">
     ${nb ? '<input class="inp" id="bnP" type="password" placeholder="Dein Passwort" style="max-width:320px">' : ''}
