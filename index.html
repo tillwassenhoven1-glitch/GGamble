@@ -905,6 +905,29 @@ body.inmach #app *{animation-play-state:paused!important}
 <canvas id="fx"></canvas>
 
 <script>
+/* 🔥 Firebase-Zähler: zählt Lese-/Schreibvorgänge dieses Geräts pro Bereich (für die Admin-Statistik) */
+const FBM = { t0: Date.now(), c: {}, err: 0 };
+(() => {
+  const F = window.fetch.bind(window);
+  const add = (col, r, w) => { const x = FBM.c[col] || (FBM.c[col] = { q: 0, r: 0, w: 0 }); x.q++; x.r += r; x.w += w; };
+  window.fetch = async (u, o) => {
+    const url = typeof u === 'string' ? u : (u && u.url) || '';
+    if (!url.includes('firestore.googleapis.com')) return F(u, o);
+    const m = (o && o.method || 'GET').toUpperCase(), path = (url.split('/documents')[1] || '').split('?')[0];
+    let col = (path.split('/')[1] || '').split(':')[0] || '?', kind = 'r';
+    if (url.includes(':runQuery') || url.includes(':runAggregationQuery')) { try { col = JSON.parse(o.body).structuredQuery?.from?.[0]?.collectionId || JSON.parse(o.body).structuredAggregationQuery?.structuredQuery?.from?.[0]?.collectionId || col; } catch (e) { } kind = url.includes('Aggregation') ? 'a' : 'q'; }
+    else if (m !== 'GET') kind = 'w';
+    const res = await F(u, o);
+    try {
+      if (res.status === 429) FBM.err++;
+      if (kind === 'w') add(col, 0, 1);
+      else if (kind === 'q') { const j = await res.clone().json(); add(col, Math.max(1, Array.isArray(j) ? j.filter(x => x.document).length : 1), 0); }
+      else add(col, 1, 0);
+    } catch (e) { }
+    return res;
+  };
+})();
+
 /* 📄 Flyer-Bonus: Link mit ?bonus=… merken (bevor die Seite evtl. neu lädt) */
 try { const q = new URLSearchParams(location.search).get('bonus'); if (q && /^[a-z0-9_-]{1,20}$/i.test(q)) localStorage.setItem('gg_ref', JSON.stringify({ k: q.toLowerCase(), t: Date.now() })); } catch (e) { }
 /* ⏰ Echte Uhrzeit vom Server – Handy-Uhr verstellen bringt nichts mehr (Wetten, Börse, Bonus, Geschäfte) */
@@ -5579,6 +5602,7 @@ async function bcPoll() {
     const from = BCQ.last ? BCQ.last - 2000 : Date.now() - 48 * 36e5;
     const got = await fsQuery({ from: [{ collectionId: 'gifts' }], where: rangeQ('to', '*', from), limit: 40 });
     got.forEach(g => { if (!BCQ.docs.some(x => x.id === g.id)) BCQ.docs.push(g); BCQ.last = Math.max(BCQ.last, +g.ts || 0); });
+    try { mtFeed(got); } catch (e) { } // 🛠️ Wartung liest mit (keine eigene Abfrage nötig)
     if (!BCQ.last) BCQ.last = Date.now() - 60000;
     BCQ.docs = BCQ.docs.filter(g => Date.now() - (+g.ts || 0) < 49 * 36e5);
     try { localStorage.setItem('gg_bcq', JSON.stringify(BCQ)); } catch (e) { }
@@ -6392,7 +6416,7 @@ async function openStats() {
     const act = R.filter(r => Date.now() - (r.ts || 0) < 864e5).length;
     const list = (arr, f, lbl) => `<div class="sec">${lbl}</div><div class="card tight list rl">${arr.map((r, i) => `<div class="it"><span class="rn">${i + 1}</span>${avaHTML(r)}<div class="who"><b>${esc(r.disp)}</b><small>Lv. ${r.lvl} · @${esc(r.name)}</small></div><span class="val num">${f(r)}</span></div>`).join('') || '<div class="empty">–</div>'}</div>`;
     const B = $('#stB', o); if (!B) return;
-    B.innerHTML = `<div class="two"><div class="stat"><small>Geld im Spiel</small><b class="num">${fmt(sum)}</b></div><div class="stat"><small>Spieler (21 Tage)</small><b class="num">${N}</b></div></div>
+    B.innerHTML = fbmHTML() + `<div class="two"><div class="stat"><small>Geld im Spiel</small><b class="num">${fmt(sum)}</b></div><div class="stat"><small>Spieler (21 Tage)</small><b class="num">${N}</b></div></div>
       <div class="two" style="margin-top:10px"><div class="stat"><small>Aktiv letzte 24 Std.</small><b class="num">${act}</b></div><div class="stat"><small>Median-Vermögen</small><b class="num">${fmt(med)}</b></div></div>
       <div class="two" style="margin-top:10px"><div class="stat"><small>Anteil Top 3</small><b class="num">${sum > 0 ? NF0.format(top3 / sum * 100) : 0} %</b></div><div class="stat"><small>Millionäre</small><b class="num">${bals.filter(b => b >= 1e6).length}</b></div></div>
       ${list([...R].sort((a, b) => (b.bal || 0) - (a.bal || 0)).slice(0, 10), r => fmt(r.bal), '💰 Reichste')}
@@ -7399,7 +7423,8 @@ setInterval(() => { if (S) badNameCheck(); }, 3000); setTimeout(() => { if (S) b
 /* ================= 🛠️ Wartung per Knopf (Besitzer) – mit Code kommt man trotzdem rein ================= */
 // Signierte Ansage an alle (gifts, k = 'mt'): amt = Minuten (> 0), -1 = bis aufgehoben, 0 = Wartung beenden
 const MTQ = (() => { try { return JSON.parse(localStorage.getItem('gg_mtq')) || { last: 0, docs: [] }; } catch (e) { return { last: 0, docs: [] }; } })();
-let MT_CUR = null, MT_OK = {}, MT_PASS = false, MT_T = 0;
+let MT_CUR = null, MT_OK = {}, MT_PASS = false, MT_T = 0, MT_FED = 0;
+function mtFeed(got, own) { if (!own) MT_FED = Date.now(); (got || []).forEach(g => { MTQ.last = Math.max(MTQ.last, +g.ts || 0); if (g.k === 'mt' && !MTQ.docs.some(x => x.id === g.id)) { MTQ.docs.push({ id: g.id, to: g.to, amt: +g.amt, ts: +g.ts, sig: g.sig || '', x: g.x || '' }); if (!own) setTimeout(mtPoll, 50); } }); }
 const mtActive = () => !!(MT_CUR && MT_CUR.until > Date.now());
 async function mtPass() { // Besitzer- oder Admin-Code auf diesem Gerät → darf rein
   if (MT_PASS || (typeof ADM_KEY !== 'undefined' && ADM_KEY)) return MT_PASS = true;
@@ -7410,9 +7435,10 @@ async function mtPoll() {
   clearTimeout(MT_T); MT_T = setTimeout(mtPoll, mtActive() ? 15000 : 30000);
   if (typeof onlineOn !== 'function' || !onlineOn() || document.hidden) return;
   try {
-    const from = MTQ.last ? MTQ.last - 2000 : Date.now() - 7 * 864e5;
-    const got = await fsQuery0({ from: [{ collectionId: 'gifts' }], where: rangeQ('to', '*', from), limit: 60 });
-    got.forEach(g => { MTQ.last = Math.max(MTQ.last, +g.ts || 0); if (g.k === 'mt' && !MTQ.docs.some(x => x.id === g.id)) MTQ.docs.push({ id: g.id, to: g.to, amt: +g.amt, ts: +g.ts, sig: g.sig || '', x: g.x || '' }); });
+    if (Date.now() - MT_FED > 70000 || !MTQ.last) { // nur selbst abfragen, wenn die Ansagen-Abfrage gerade nicht läuft (z. B. nicht eingeloggt)
+      const from = MTQ.last ? MTQ.last - 2000 : Date.now() - 7 * 864e5;
+      mtFeed(await fsQuery0({ from: [{ collectionId: 'gifts' }], where: rangeQ('to', '*', from), limit: 60 }), true);
+    }
     if (!MTQ.last) MTQ.last = Date.now() - 60000;
     MTQ.docs = MTQ.docs.sort((a, b) => b.ts - a.ts).slice(0, 10);
     try { localStorage.setItem('gg_mtq', JSON.stringify(MTQ)); } catch (e) { }
@@ -7523,6 +7549,20 @@ function mtRunner(cv) {
     draw();
   };
   raf = requestAnimationFrame(step);
+}
+
+/* 🔥 Anzeige: welcher Bereich wie viel Firebase verbraucht */
+const FBM_N = { konten: '💾 Spielstände', namen: '🔤 Namen', rang: '🏆 Bestenliste', top: '🏆 Bestenliste-Paket', online: '🟢 Online-Zähler', chat: '💬 Chat', dm: '✉️ Nachrichten', gifts: '🎁 Geschenke/Ansagen/Wartung', feed: '📣 Live-Feed', lbsperre: '⛔ Sperren/Abzeichen', clans: '🏢 Clans', duelle: '⚔️ Duelle', bilder: '🖼️ Profilbilder', treff: '🎥 Treff' };
+function fbmHTML() {
+  const min = Math.max(1, (Date.now() - FBM.t0) / 60000), rows = Object.entries(FBM.c).sort((a, b) => (b[1].r + b[1].w) - (a[1].r + a[1].w));
+  const R = rows.reduce((a, [, x]) => a + x.r, 0), Wr = rows.reduce((a, [, x]) => a + x.w, 0), on = Math.max(1, (typeof ONL !== 'undefined' && ONL.n) || 1);
+  const rph = R / min * 60, wph = Wr / min * 60, allR = rph * on, allW = wph * on;
+  const hrs = (lim, per) => per > 0 ? (lim / per < 1 ? Math.round(lim / per * 60) + ' Min.' : (lim / per).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' Std.') : '∞';
+  return `<div class="sec" style="margin-top:0">🔥 Firebase-Verbrauch (dieses Gerät, seit ${Math.round(min)} Min.)</div>
+    <div class="card tight list rl">${rows.length ? rows.map(([k, x]) => { const p = R + Wr ? Math.round((x.r + x.w) / (R + Wr) * 100) : 0; return `<div class="it" style="gap:8px"><div class="who" style="flex:1"><b style="font-size:14px">${FBM_N[k] || esc(k)}</b><small>${x.q} Anfragen · ${NF0.format(x.r / min * 60)} Lesen/Std.</small><div style="height:4px;border-radius:4px;background:#26262c;margin-top:4px"><div style="height:4px;border-radius:4px;width:${p}%;background:${p > 30 ? '#ff6b6b' : p > 12 ? '#f3d27a' : '#5ad07a'}"></div></div></div><span class="num" style="text-align:right;font-size:13px">📖 ${NF0.format(x.r)}<br>✍️ ${NF0.format(x.w)}</span></div>`; }).join('') : '<div class="empty">Noch nichts gezählt</div>'}</div>
+    <div class="two" style="margin-top:10px"><div class="stat"><small>Lesen/Std. (dieses Gerät)</small><b class="num">${NF0.format(rph)}</b></div><div class="stat"><small>Schreiben/Std.</small><b class="num">${NF0.format(wph)}</b></div></div>
+    <div class="card tight" style="margin-top:10px;background:#1a160a;border:1px solid #d8b85a44"><p class="hint" style="margin:0">📈 <b>Schätzung für alle</b> (${on} online × dieses Gerät): ≈ <b>${NF0.format(allR)}</b> Lesen und <b>${NF0.format(allW)}</b> Schreiben pro Std.<br>⏳ Tageslimit (50.000 Lesen / 20.000 Schreiben) wäre so nach ≈ <b>${hrs(50000, allR)}</b> bzw. <b>${hrs(20000, allW)}</b> weg.${FBM.err ? `<br>🔴 ${FBM.err}× „Limit erreicht“ (429) auf diesem Gerät` : ''}</p></div>
+    <p class="hint" style="margin:6px 0 14px">Tipp: Statistik nach ein paar Minuten normalem Spielen öffnen – dann stimmt die Schätzung besser. Rot = größter Verbraucher.</p>`;
 }
 </script>
 </body>
