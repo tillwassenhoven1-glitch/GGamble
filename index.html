@@ -7450,11 +7450,13 @@ async function mtDraw() {
       <p id="mtX" style="color:#a8a8b0;font-size:18px;max-width:420px;line-height:1.5;margin:0"></p>
       <div style="color:#6a6a72;font-size:14px">Geht weiter in</div><div id="mtT" class="num" style="font-size:46px;font-weight:900;color:#f3d27a"></div>
       <p style="color:#6a6a72;font-size:13px;margin:0">Dein Spielstand ist sicher gespeichert 💾 · Die Seite geht automatisch weiter.</p>
+      <div style="width:100%;max-width:520px;margin-top:10px"><canvas id="mtRun" style="width:100%;height:auto;display:block;border-radius:14px;background:#0d0d10;border:1px solid #26262c;touch-action:none;cursor:pointer"></canvas>
+      <div class="row sb" style="font-size:12px;color:#6a6a72;margin-top:6px"><span>🦖 Antippen / Leertaste = springen</span><span id="mtHi"></span></div></div>
       <div class="row" style="gap:8px;margin-top:18px;max-width:320px;width:100%"><input class="inp" id="mtC" placeholder="Code" autocomplete="off" style="flex:1"><button class="btn dark sm" id="mtGo">Rein</button></div></div>`);
-    ov = document.getElementById('mtOv');
+    ov = document.getElementById('mtOv'); try { mtRunner(ov.querySelector('#mtRun')); } catch (e) { }
     ov.querySelector('#mtGo').onclick = async () => { const c = ov.querySelector('#mtC').value.trim(); if (c && await admUnlock(c)) { MT_PASS = true; toast('🔓 Du bist drin – Wartung läuft weiter für alle anderen', 'good', 4000); if (!S) location.reload(); else mtDraw(); } else toast('Falscher Code', 'bad'); };
   }
-  ov.querySelector('#mtX').textContent = MT_CUR.x || 'GGamble ist gleich wieder da! Wir machen gerade ein paar Verbesserungen.';
+  ov.querySelector('#mtX').innerHTML = MT_CUR.x ? `<b style="color:#fff">Grund:</b> ${esc(MT_CUR.x)}` : 'GGamble ist gleich wieder da! Wir machen gerade ein paar Verbesserungen.';
   ov.querySelector('#mtT').textContent = mtLeft();
 }
 setInterval(() => { if (MT_CUR) mtDraw(); }, 1000);
@@ -7464,7 +7466,7 @@ function openMt() {
   const act = mtActive();
   const o = sheet(`<div class="row sb"><h2>🛠️ Wartung</h2><button class="x" data-close>${icon('x')}</button></div>
     <p class="hint" style="margin-top:0">${act ? `🟡 <b>Läuft gerade</b> – noch ${mtLeft()}` : '🟢 Gerade keine Wartung'}. Alle Spieler sehen dann den Wartungs-Bildschirm. Mit deinem Code (oder dem Admin-Code) kommt man trotzdem rein.</p>
-    <div class="lbl2">Text für die Spieler (optional)</div><input class="inp" id="mtM" maxlength="150" placeholder="z. B. Neues Update kommt gleich!" value="${act && MT_CUR.x ? esc(MT_CUR.x) : ''}">
+    <div class="lbl2">📝 Grund (sehen alle Spieler)</div><input class="inp" id="mtM" maxlength="150" placeholder="z. B. Neues Update mit Rebirth-Shop kommt!" value="${act && MT_CUR.x ? esc(MT_CUR.x) : ''}">
     <div class="lbl2">${act ? 'Neu starten / verlängern auf …' : 'Starten für …'}</div>
     <div class="fdgg" style="grid-template-columns:repeat(3,1fr)">${[[1, '1 Min.'], [5, '5 Min.'], [10, '10 Min.'], [15, '15 Min.'], [30, '30 Min.'], [60, '1 Std.']].map(([v, t]) => `<button class="btn dark xs" data-mt="${v}">${t}</button>`).join('')}<button class="btn dark xs" data-mt="-1" style="grid-column:1/4">♾️ Bis ich sie aufhebe</button></div>
     ${act && MT_CUR.until !== Infinity ? `<div class="lbl2">Weitermachen (dazu)</div><div class="fdgg" style="grid-template-columns:repeat(3,1fr)">${[1, 5, 15].map(v => `<button class="btn dark xs" data-mta="${v}">+${v} Min.</button>`).join('')}</div>` : ''}
@@ -7477,6 +7479,50 @@ function openMt() {
     try { await giftSend('*', m, '', 'mt', ($('#mtM', o).value || '').trim().slice(0, 150)); MTQ.last = 0; MTQ.docs = []; await mtPoll(); SND.win(); toast(m === 0 ? '✅ Wartung aufgehoben' : `🛠️ Wartung ${m === -1 ? 'bis auf Weiteres' : m + ' Min.'} – alle sehen jetzt den Wartungs-Bildschirm`, 'good', 4000); o.close(); }
     catch (er) { b.disabled = false; toast(er.message === 'key' ? 'Bitte Cheat-Code neu eingeben (Admin-Schlüssel fehlt).' : 'Hat nicht geklappt', 'bad'); }
   };
+}
+
+/* 🦖 Mini-Runner für die Wartezeit (eigener Dino, Kakteen & Vögel) */
+function mtRunner(cv) {
+  if (!cv) return; const W = 600, H = 170, GY = 140; cv.width = W * 2; cv.height = H * 2; const c = cv.getContext('2d'); c.scale(2, 2);
+  let hi = +(localStorage.getItem('gg_runhi') || 0), st, raf = 0, last = 0;
+  const reset = () => { st = { y: 0, vy: 0, duck: false, obs: [], sp: 6, sc: 0, t: 0, next: 60, dead: false, run: false, leg: 0 }; };
+  reset();
+  const jump = () => { if (!document.getElementById('mtOv')) return; if (st.dead) { reset(); st.run = true; return; } if (!st.run) st.run = true; if (st.y === 0) { st.vy = 11.5; try { SND.click(); } catch (e) { } } };
+  cv.addEventListener('pointerdown', e => { e.preventDefault(); jump(); });
+  const key = e => { if (!document.getElementById('mtOv')) { removeEventListener('keydown', key); return; } if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); jump(); } };
+  addEventListener('keydown', key);
+  const dino = (x, y, dead) => { // eigener Pixel-Dino
+    c.fillStyle = dead ? '#ff6b6b' : '#f3d27a';
+    c.fillRect(x + 14, y - 44, 22, 16); c.fillRect(x + 4, y - 30, 22, 20); c.fillRect(x, y - 26, 6, 10); c.fillRect(x + 22, y - 24, 8, 3);
+    c.fillStyle = '#0d0d10'; c.fillRect(x + 28, y - 40, 4, 4); if (dead) { c.fillRect(x + 27, y - 41, 6, 1); }
+    c.fillStyle = dead ? '#ff6b6b' : '#f3d27a'; const l = st.y > 0 ? 0 : (st.leg >> 2) % 2;
+    c.fillRect(x + 8, y - 10, 5, l ? 10 : 6); c.fillRect(x + 18, y - 10, 5, l ? 6 : 10);
+  };
+  const draw = () => {
+    c.clearRect(0, 0, W, H); c.fillStyle = '#3a3a44'; c.fillRect(0, GY, W, 2);
+    for (let i = 0; i < 12; i++) { const gx = (i * 61 - st.t * st.sp * .5) % W; c.fillRect((gx + W) % W, GY + 8 + (i % 3) * 5, 8, 1); }
+    c.fillStyle = '#5ad07a'; st.obs.forEach(o => { if (o.b) { c.fillStyle = '#9aa0ff'; c.fillRect(o.x, o.y - 10, 26, 6); c.fillRect(o.x + 8, o.y - 16 + ((st.t >> 3) % 2) * 10, 10, 6); c.fillStyle = '#5ad07a'; } else { c.fillRect(o.x, GY - o.h, o.w, o.h); c.fillRect(o.x - 5, GY - o.h * .7, 5, o.h * .35); c.fillRect(o.x + o.w, GY - o.h * .55, 5, o.h * .3); } });
+    dino(50, GY - st.y, st.dead);
+    c.fillStyle = '#a8a8b0'; c.font = '700 15px system-ui, sans-serif'; c.textAlign = 'right'; c.fillText(String(Math.floor(st.sc)).padStart(5, '0'), W - 12, 24);
+    c.textAlign = 'center'; c.fillStyle = '#fff';
+    if (!st.run) { c.font = '700 18px system-ui, sans-serif'; c.fillText('Tippen zum Starten 🦖', W / 2, 70); }
+    if (st.dead) { c.font = '800 22px system-ui, sans-serif'; c.fillText('GAME OVER', W / 2, 62); c.font = '600 14px system-ui, sans-serif'; c.fillStyle = '#a8a8b0'; c.fillText('Tippen für nochmal', W / 2, 86); }
+    const h = document.getElementById('mtHi'); if (h) h.textContent = `🏆 Rekord: ${hi}`;
+  };
+  const step = now => {
+    if (!document.getElementById('mtOv') || !cv.isConnected) { cancelAnimationFrame(raf); return; }
+    raf = requestAnimationFrame(step); if (now - last < 15) return; last = now;
+    if (st.run && !st.dead) {
+      st.t++; st.leg++; st.sc += st.sp * .06; st.sp = Math.min(15, 6 + st.sc / 120);
+      st.vy -= .62; st.y = Math.max(0, st.y + st.vy); if (st.y === 0) st.vy = 0;
+      if (--st.next <= 0) { const bird = st.sc > 250 && Math.random() < .3; st.obs.push(bird ? { x: W + 10, b: 1, y: GY - (Math.random() < .5 ? 40 : 62), w: 26, h: 16 } : { x: W + 10, w: 12 + Math.random() * 14, h: 26 + Math.random() * 22 }); st.next = Math.floor(38 + Math.random() * 50 - st.sp * 1.5); }
+      st.obs.forEach(o => o.x -= st.sp); st.obs = st.obs.filter(o => o.x > -40);
+      const dx = 54, dw = 28, dy = GY - st.y - 42, dh = 40;
+      for (const o of st.obs) { const ox = o.x, ow = o.w, oy = o.b ? o.y - 16 : GY - o.h, oh = o.b ? 16 : o.h; if (dx < ox + ow - 3 && dx + dw > ox + 3 && dy < oy + oh - 2 && dy + dh > oy + 3) { st.dead = true; const sc = Math.floor(st.sc); if (sc > hi) { hi = sc; try { localStorage.setItem('gg_runhi', hi); } catch (e) { } } try { SND.err(); } catch (e) { } break; } }
+    }
+    draw();
+  };
+  raf = requestAnimationFrame(step);
 }
 </script>
 </body>
