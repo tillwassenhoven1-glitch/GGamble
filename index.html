@@ -7428,6 +7428,7 @@ const MTQ = (() => { try { return JSON.parse(localStorage.getItem('gg_mtq')) || 
 const MT_FORCE = { ts: Date.UTC(2026, 10, 27, 9, 30), x: 'Große Wartung: GGamble wird stabiler und schneller. Danach startet die Beta-Testphase.', bis: 'Bis Montag, 30.11. (Beta-Start)' };
 const MT_TESTH = '1ff58a0cd416b5bd1afdae027ab99dfd45901dbf16a077f80504006297d2ed6c'; // 🎟️ eigener Spiel-Code für die Wartung (nur reinkommen, keine Admin-Rechte)
 const mtForceCur = () => MT_FORCE ? { until: Infinity, x: MT_FORCE.x, ts: MT_FORCE.ts, bis: MT_FORCE.bis } : null;
+let MT_VIEW = false; // Code-Spieler schaut sich die Wartungs-Seite an
 let MT_CUR = mtForceCur(), MT_OK = {}, MT_PASS = false, MT_T = 0, MT_FED = 0;
 async function mtTestOk(c) { try { const h = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('gg-mt|' + String(c).trim().toUpperCase())))].map(b => b.toString(16).padStart(2, '0')).join(''); return h === MT_TESTH; } catch (e) { return false; } }
 function mtFeed(got, own) { if (!own) MT_FED = Date.now(); (got || []).forEach(g => { MTQ.last = Math.max(MTQ.last, +g.ts || 0); if (g.k === 'mt' && !MTQ.docs.some(x => x.id === g.id)) { MTQ.docs.push({ id: g.id, to: g.to, amt: +g.amt, ts: +g.ts, sig: g.sig || '', x: g.x || '' }); if (!own) setTimeout(mtPoll, 50); } }); }
@@ -7467,32 +7468,34 @@ async function mtDraw() {
   let ov = document.getElementById('mtOv'), bn = document.getElementById('mtBn');
   if (!mtActive()) {
     if (ov) { ov.remove(); toast('✅ Wartung vorbei – weiter geht\'s!', 'good', 4000); if (!S) setTimeout(() => location.reload(), 1200); }
-    if (bn) bn.remove(); mtWas = false; MT_SAVE = ''; MT_SAVE_ST = ''; return;
+    if (bn) bn.remove(); mtWas = false; MT_SAVE = ''; MT_SAVE_ST = ''; MT_VIEW = false; return;
   }
   mtWas = true;
-  if (await mtPass()) { // Besitzer/Admin: normal spielen, kleiner Hinweis oben
+  const pass = await mtPass();
+  if (pass && !MT_VIEW) { // Besitzer/Admin/Code: normal spielen, kleiner Hinweis oben (antippen = zurück zur Wartung)
     if (ov) ov.remove();
-    if (!bn) { document.body.insertAdjacentHTML('beforeend', `<div id="mtBn" style="position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top) + 6px);z-index:9990;background:#2a1f05;border:1px solid #d8b85a88;color:#f3d27a;font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px;pointer-events:none;white-space:nowrap">🛠️ Wartung läuft · <span id="mtBnT"></span> · nur mit Code sichtbar</div>`); bn = document.getElementById('mtBn'); }
+    if (!bn) { document.body.insertAdjacentHTML('beforeend', `<div id="mtBn" style="position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top) + 6px);z-index:9990;background:#2a1f05;border:1px solid #d8b85a88;color:#f3d27a;font-size:12px;font-weight:700;padding:6px 13px;border-radius:999px;cursor:pointer;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.5)">🛠️ Wartung läuft · <span id="mtBnT"></span> · <u>zur Wartung</u> ›</div>`); bn = document.getElementById('mtBn'); bn.onclick = () => { try { SND.click(); } catch (e) { } MT_VIEW = true; mtDraw(); }; }
     const t = document.getElementById('mtBnT'); if (t) t.textContent = mtLeft(); return;
   }
   if (bn) bn.remove();
-  if (!ov && S && MT_SAVE !== 'done') { // 💾 erst laufenden Dreh fertig spielen lassen und alles speichern – dann Wartungs-Bildschirm
+  if (!ov && S && MT_SAVE !== 'done' && !pass) { // 💾 erst laufenden Dreh fertig spielen lassen und alles speichern – dann Wartungs-Bildschirm
     if (MT_SAVE === 'busy') return; MT_SAVE = 'busy';
     mtSave().then(st => { MT_SAVE = 'done'; MT_SAVE_ST = st; mtDraw(); }); return;
   }
   if (!ov) {
     try { if (S) persist(); } catch (e) { }
-    document.querySelectorAll('.full,.game-ov').forEach(x => x.remove()); document.body.classList.remove('inmach'); try { if (typeof MS !== 'undefined') MS = null; } catch (e) { }
+    if (!pass) { document.querySelectorAll('.full,.game-ov').forEach(x => x.remove()); document.body.classList.remove('inmach'); try { if (typeof MS !== 'undefined') MS = null; } catch (e) { } }
     document.body.insertAdjacentHTML('beforeend', `<div id="mtOv" style="position:fixed;inset:0;z-index:9999;background:#050506;display:flex;flex-direction:column;align-items:center;justify-content:safe center;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;text-align:center;padding:30px 20px calc(env(safe-area-inset-bottom) + 30px);gap:14px;color:#fff">
       <div style="font-size:72px">🛠️</div><h1 style="font-size:36px;margin:0">Wartungsarbeiten</h1>
       <p id="mtX" style="color:#a8a8b0;font-size:18px;max-width:420px;line-height:1.5;margin:0"></p>
-      <div style="color:#6a6a72;font-size:14px" id="mtTL">Geht weiter in</div><div id="mtT" class="num" style="font-size:46px;font-weight:900;color:#f3d27a"></div>
+      <div style="color:#6a6a72;font-size:14px" id="mtTL">Geht weiter in</div><div id="mtT" class="num" style="font-size:46px;font-weight:900;color:#f3d27a"></div>${pass ? '<button class="btn white" id="mtBack" style="min-width:240px">▶️ Zurück ins Spiel</button>' : ''}
       <div id="mtI" style="width:100%;max-width:520px;text-align:left"></div>
       <p id="mtS" style="color:#6a6a72;font-size:13px;margin:0">Dein Spielstand ist sicher gespeichert 💾 · Die Seite geht automatisch weiter.</p>
       <div style="width:100%;max-width:520px;margin-top:10px"><canvas id="mtRun" style="width:100%;height:auto;display:block;border-radius:14px;background:#0d0d10;border:1px solid #26262c;touch-action:none;cursor:pointer"></canvas>
       <div class="row sb" style="font-size:12px;color:#6a6a72;margin-top:6px"><span>🦖 Antippen / Leertaste = springen</span><span id="mtHi"></span></div></div>
-      <div class="row" style="gap:8px;margin-top:18px;max-width:320px;width:100%"><input class="inp" id="mtC" placeholder="Hast du einen Code?" autocomplete="off" autocapitalize="characters" style="flex:1"><button class="btn dark sm" id="mtGo">Rein</button></div></div>`);
+      <div class="row" style="gap:8px;margin-top:18px;max-width:320px;width:100%${pass ? ';display:none' : ''}"><input class="inp" id="mtC" placeholder="Hast du einen Code?" autocomplete="off" autocapitalize="characters" style="flex:1"><button class="btn dark sm" id="mtGo">Rein</button></div></div>`);
     ov = document.getElementById('mtOv'); try { mtRunner(ov.querySelector('#mtRun')); } catch (e) { }
+    const bk = ov.querySelector('#mtBack'); if (bk) bk.onclick = () => { try { SND.click(); } catch (e) { } MT_VIEW = false; ov.remove(); mtDraw(); };
     ov.querySelector('#mtGo').onclick = async () => { const c = ov.querySelector('#mtC').value.trim(); if (c && await mtTestOk(c)) { try { localStorage.setItem('gg_mtc', c.toUpperCase()); } catch (e) { } MT_PASS = true; toast('🎟️ Code richtig – viel Spaß beim Spielen!', 'good', 4000); if (!S) location.reload(); else mtDraw(); return; } if (c && await admUnlock(c)) { MT_PASS = true; toast('🔓 Du bist drin – Wartung läuft weiter für alle anderen', 'good', 4000); if (!S) location.reload(); else mtDraw(); } else toast('Falscher Code', 'bad'); };
   }
   ov.querySelector('#mtX').innerHTML = MT_CUR.x ? `<b style="color:#fff">Grund:</b> ${esc(MT_CUR.x)}` : 'GGamble ist gleich wieder da! Wir machen gerade ein paar Verbesserungen.';
