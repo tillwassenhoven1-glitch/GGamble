@@ -7731,7 +7731,7 @@ async function betaClaim(key) {
   const id = 'beta~' + h;
   try {
     const r0 = await fetch(fsDoc('namen/' + encodeURIComponent(id)), { cache: 'no-store' });
-    if (r0.ok) { const f = (await r0.json()).fields || {}; if ((f.rid && f.rid.stringValue) !== meKey()) return 'Dieser Schlüssel wurde schon benutzt 😕'; }
+    if (r0.ok) { const f = (await r0.json()).fields || {}; if ((f.rid && f.rid.stringValue) !== meKey()) return 'Dieser Schlüssel gehört zu einem anderen Namen oder wurde schon benutzt 😕 – registrier dich mit dem Namen aus deiner Bewerbung'; }
     else if (r0.status === 404) { const r = await fsCreate('namen', id, { t: fint(Date.now()), rid: fstr(meKey()) }); if (!r.ok) return 'Dieser Schlüssel wurde gerade schon benutzt 😕'; }
     else return 'Keine Verbindung – bitte gleich nochmal';
   } catch (e) { return 'Keine Verbindung – bitte gleich nochmal'; }
