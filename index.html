@@ -3059,7 +3059,7 @@ async function renderRang(el) {
   const meRow = { disp: S.disp, name: S.name, photo: S.photo, color: S.color, bal: S.bal, frm: S.frm, tit: S.tit, clan: S.clan ? S.clan.tag : '' };
   body.innerHTML = `<p class="hint" style="margin-top:-8px">Du bist auf Platz ${NF0.format(mine.rank)} 🏆</p>
     <div class="podium">${pod(rows[1], 1)}${pod(rows[0], 0)}${pod(rows[2], 2)}</div>
-    ${rows.length ? `<div class="card tight list rl">${rows.map((r, i) => `<div class="it ${r.me ? 'me' : ''}${typeof banOf === 'function' && !r.me && banOf(r.name) ? ' banned' : ''}" data-i="${i}"><span class="rn">${i + 1}</span>${avaHTML(r)}<div class="who"><b>${tagHTML(r.clan)}<span class="${nameCls(r)}">${esc(r.disp)}</span>${ownerTag(r)}</b><small>@${esc(r.name)}${titName(r.tit) ? ' · ' + esc(titName(r.tit)) : ''} · ${ago(r.ts)}</small></div><span class="w num ${r.bal < 0 ? 'neg' : ''}">${fmt(r.bal)}</span></div>`).join('')}</div>` : '<div class="empty">Noch niemand in der Bestenliste.</div>'}
+    ${rows.length ? `<div class="card tight list rl">${rows.map((r, i) => `<div class="it ${r.me ? 'me' : ''}${typeof banOf === 'function' && !r.me && (banOf(r.name) || r.nbn) ? ' banned' : ''}" data-i="${i}"><span class="rn">${i + 1}</span>${avaHTML(r)}<div class="who"><b>${tagHTML(r.clan)}<span class="${nameCls(r)}">${esc(r.disp)}</span>${ownerTag(r)}</b><small>@${esc(r.name)}${titName(r.tit) ? ' · ' + esc(titName(r.tit)) : ''} · ${ago(r.ts)}</small></div><span class="w num ${r.bal < 0 ? 'neg' : ''}">${fmt(r.bal)}</span></div>`).join('')}</div>` : '<div class="empty">Noch niemand in der Bestenliste.</div>'}
     <div class="sec">Dein Platz</div>
     <div class="card myrank"><div class="mr-n num">#${NF0.format(mine.rank)}</div>${avaHTML(meRow)}<div class="who"><b class="${nameCls(ME_O())}">${esc(S.disp)}</b><small>${ownOn(ME_O()) ? '<span class="owner">👑 Besitzer</span> · ' : ''}${mine.total ? `von ${NF0.format(mine.total)} Spieler${mine.total === 1 ? '' : 'n'}` : '@' + esc(S.name)}${mine.rank <= 10 ? ' · Top 10 🔥' : ''}</small></div><span class="w num ${S.bal < 0 ? 'neg' : ''}">${fmt(S.bal)}</span></div>
     ${info ? `<p class="hint">${info}</p>` : ''}`;
@@ -3673,6 +3673,7 @@ function showLogin() {
     const name = $('#lName').value.trim(), pw = $('#lPw').value, key = name.toLowerCase(), all = Accounts.all(), err = t => { $('#lErr').textContent = t; SND.err(); };
     if (name.length < 2) return err('Name: mindestens 2 Zeichen');
     if (!/^[\p{L}\p{N} _.\-]+$/u.test(name)) return err('Name: nur Buchstaben, Zahlen, Leerzeichen, _ . -');
+    if (reg && onlineOn()) { try { await Promise.race([lbhLoad(true), new Promise(r => setTimeout(r, 2500))]); } catch (e) { } }
     if (reg && badName(name)) return err('🚫 Dieser Name ist nicht erlaubt – nimm bitte einen anderen.');
     if (pw.length < 4) return err('Passwort: mindestens 4 Zeichen');
     const on = onlineOn(), cid = await cloudId(key, pw), mkSalt = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -4517,7 +4518,7 @@ async function renderRang2(el) {
   const isPt = key === 'pt' || key === 'reb';
   const money = v => key === 'reb' ? `🔥 ${NF0.format(v)}×` : isPt ? fmtDur(v) : isBal ? fmt(v) : fmt(v, { sign: true });
   const cls = v => isPt ? '' : v < 0 ? 'neg' : isBal ? '' : v > 0 ? 'pos' : '';
-  const row = (r, i) => `<div class="it ${r.me ? 'me' : ''}${typeof banOf === 'function' && !r.me && banOf(r.name) ? ' banned' : ''}" data-i="${i}"><span class="rn">${i + 1}</span>${avaHTML(r)}<div class="who"><b>${tagHTML(r.clan)}<span class="${nameCls(r)}">${esc(r.disp)}</span>${ownerTag(r)}</b><small>@${esc(r.name)}${titName(r.tit) ? ' · ' + esc(titName(r.tit)) : ''}${isBal ? '' : ' · ' + fmt(r.bal)}</small></div><span class="w num ${cls(val(r))}">${money(val(r))}</span></div>`;
+  const row = (r, i) => `<div class="it ${r.me ? 'me' : ''}${typeof banOf === 'function' && !r.me && (banOf(r.name) || r.nbn) ? ' banned' : ''}" data-i="${i}"><span class="rn">${i + 1}</span>${avaHTML(r)}<div class="who"><b>${tagHTML(r.clan)}<span class="${nameCls(r)}">${esc(r.disp)}</span>${ownerTag(r)}</b><small>@${esc(r.name)}${titName(r.tit) ? ' · ' + esc(titName(r.tit)) : ''}${isBal ? '' : ' · ' + fmt(r.bal)}</small></div><span class="w num ${cls(val(r))}">${money(val(r))}</span></div>`;
   const pod = (r, i) => r ? `<div class="p${i + 1}"><div class="pa">${avaHTML(r)}<span class="rk" style="background:${['#d8b85a', '#cfcfd4', '#c8875a'][i]}">${i + 1}</span></div><div class="nm ${nameCls(r)}">${esc(r.disp)}</div>${ownOn(r) ? '<div class="owner" style="margin-top:4px">👑 Besitzer</div>' : badgeOf(r) === 2 || badgeOf(r) === 3 ? `<div style="margin-top:4px">${badgeTag(r).replace('style="', 'style="margin-left:0;')}</div>` : ''}<div class="vv num">${money(val(r))}</div><div class="blk" style="height:${[150, 110, 80][i]}px"></div></div>` : '<div></div>';
   const sub = ['Wer hat am meisten Geld?', 'Gewinn heute (gewonnen minus eingesetzt, plus Belohnungen)', 'Gewinn diese Woche – startet jeden Montag neu', `Gewinn im ${MONATE[new Date(Date.now()).getMonth()]}`, 'Wer hat am längsten gespielt? (zählt nur aktive Zeit)', 'Wer ist am öftesten wiedergeboren? 🔥 (Wiedergeburt im Profil)'][rgTab];
   body.innerHTML = `<p class="hint" style="margin-top:-6px">${sub}</p>
@@ -5260,6 +5261,7 @@ function modGiftOk(g) {
 }
 function modLbhOk(g, prev) {
   if (g.n.startsWith('r:')) return true; // Sperr-Grund
+  if (g.n.startsWith('w:')) return !!g.h; // gesperrter Name → Liste (nur hinzufügen)
   if (!g.n.startsWith('x:')) return false;
   if (!g.h) return !prev || !prev.h || !!prev.mod; // entsperren nur, wenn die Sperre auch von einem Admin kam
   return g.h !== 1 && g.h * 60000 - g.ts <= (MOD_LIM.ban + 2) * 60000;
@@ -5427,6 +5429,7 @@ async function lbhLoad(force) {
         else if (modLbhOk(g, best[g.n]) && await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pkMod, sg, msg)) { g.mod = 1; best[g.n] = g; } } catch (e) { }
     }
     LBH.vb = best;
+    try { BAD_DYN = Object.values(best).filter(g => g.n.startsWith('w:') && g.h).map(g => g.n.slice(2)).filter(w => w.length >= 3); localStorage.setItem('gg_badw', JSON.stringify(BAD_DYN)); } catch (e) { }
     const vals = Object.values(best);
     LBH.set = new Set(vals.filter(g => g.h && !g.n.startsWith('b:')).map(g => g.n)); LBH.t = Date.now();
     LBH.bdg = {}; vals.filter(g => g.n.startsWith('b:') && g.h).forEach(g => { LBH.bdg[g.n.slice(2)] = g.h; });
@@ -5444,6 +5447,7 @@ async function lbhSet(name, h) {
   if (h) LBH.set.add(g.n); else LBH.set.delete(g.n); lbLast = ''; FQ_C.clear(); LBH.t = 0;
   try { LBS.docs.push({ id: g.id, n: g.n, h: g.h, ts: g.ts, sig }); LBS_T = 0; } catch (e) { }
   if (nm.startsWith('x:')) { LBH.ban = LBH.ban || {}; if (g.h) LBH.ban[nm.slice(2)] = g.h; else delete LBH.ban[nm.slice(2)]; if (typeof RG_C !== 'undefined') RG_C = null; }
+  if (nm.startsWith('w:')) { if (g.h) { if (!BAD_DYN.includes(nm.slice(2))) BAD_DYN.push(nm.slice(2)); } else BAD_DYN = BAD_DYN.filter(w => w !== nm.slice(2)); }
   if (nm.startsWith('r:')) { LBH.why = LBH.why || {}; const p = nm.slice(2).split('|'); LBH.why[p[0]] = { t: whyDec(p.slice(1).join('|')), ts: g.ts }; }
 }
 function openBadges() {
@@ -6843,7 +6847,7 @@ function snapQ(docs, q) {
 const banOf = name => { const h = LBH.ban && LBH.ban[String(name || '').toLowerCase()]; if (!h) return 0; if (h === 1) return Infinity; const u = h * 60000; return u > Date.now() ? u : 0; };
 function banTag(r) {
   const u = banOf(r && r.name), hid = typeof lbhHas === 'function' && r && lbhHas(r.name) && isAdm();
-  return (u ? ` <span class="owner" style="background:#ff3b3b22;color:#ff6b6b;border-color:#ff6b6b66">⛔ GEBANNT${u === Infinity ? ' (dauerhaft)' : ''}</span>` : '') + (hid ? ' <span class="owner" style="background:#88888822;color:#aaa;border-color:#88888866">🙈 Ausgeblendet</span>' : '');
+  return (r && r.nbn ? ` <span class="owner" style="background:#ff3b3b22;color:#ff6b6b;border-color:#ff6b6b66">🚫 NAME GESPERRT</span>` : '') + (u ? ` <span class="owner" style="background:#ff3b3b22;color:#ff6b6b;border-color:#ff6b6b66">⛔ GEBANNT${u === Infinity ? ' (dauerhaft)' : ''}</span>` : '') + (hid ? ' <span class="owner" style="background:#88888822;color:#aaa;border-color:#88888866">🙈 Ausgeblendet</span>' : '');
 }
 // lbhLoad legt nur „h != 0“ in LBH.set – den Zeitpunkt holen wir aus den Rohdaten (gleiche Abfrage, kommt aus dem Zwischenspeicher)
 { const L1 = lbhLoad; lbhLoad = async force => { const r = await L1(force); try { const docs = await fsQuery({ from: [{ collectionId: 'lbsperre' }], limit: 500 }); const best = {}; Object.values(LBH.vb || {}).forEach(g => { if (g.n.startsWith('x:')) best[g.n] = g; }); LBH.ban = {}; Object.entries(best).forEach(([n, g]) => { if (g.h && LBH.set.has(n)) LBH.ban[n.slice(2)] = g.h; }); LBH.why = {}; LBH.set.forEach(n => { if (!n.startsWith('r:')) return; const d = docs.filter(x => String(x.n || '').toLowerCase() === n).sort((a, b) => (+b.ts || 0) - (+a.ts || 0))[0]; const p = n.slice(2).split('|'), k = p[0]; if (d && (!LBH.why[k] || +d.ts > LBH.why[k].ts)) LBH.why[k] = { t: whyDec(String(d.n).slice(2).split('|').slice(1).join('|')), ts: +d.ts }; }); } catch (e) { } return r; }; }
@@ -6876,8 +6880,9 @@ function admProfileBox(r, shpIn) {
     const b = e.target.closest('[data-ab],[data-ah],[data-anb]'); if (!b) return;
     try {
       if (b.dataset.anb) {
-        if (!await confirmBox('Namen sperren?', `<b>@${esc(r.name)}</b> kann erst weiterspielen, wenn er sich einen neuen Namen gibt. Geld und Fortschritt bleiben.`, 'Name sperren', true)) return;
-        b.disabled = true; await giftSend(nm, 1, '', 'nb', ''); SND.win(); toast(`🚫 Name von @${esc(r.name)} gesperrt – er muss sich umbenennen`, 'good'); b.textContent = '✅ Name gesperrt'; return;
+        if (!await confirmBox('Namen sperren?', `<b>@${esc(r.name)}</b> kann erst weiterspielen, wenn er sich einen neuen Namen gibt. Geld und Fortschritt bleiben.<br><br>Der Name (und ähnliche) kommt auf die Verbots-Liste – niemand kann ihn mehr nehmen.`, 'Name sperren', true)) return;
+        b.disabled = true; await giftSend(nm, 1, '', 'nb', '');
+        for (const w of new Set([nameNorm(r.name), nameNorm(r.disp)])) if (w.length >= 3) { try { await lbhSet('w:' + w, 1); } catch (x) { } } // ➕ in die Liste: dieser + ähnliche Namen SND.win(); toast(`🚫 Name von @${esc(r.name)} gesperrt – er muss sich umbenennen`, 'good'); b.textContent = '✅ Name gesperrt'; return;
       }
       if (b.dataset.ab !== undefined) {
         const m = +b.dataset.ab;
@@ -7330,14 +7335,24 @@ function nameNorm(n) {
 }
 const BAD_N = BAD_W.map(w => nameNorm(w));
 const BAD_RX = [/(^|[^im])nute/, /popo(?!v)/, /wa[sz]+e?n?h[ouö][vfwb]/, /was+[a-z]?h[ouö][vfwb]e?n/, /wasen+h/, /wa[sz]{2,}[eiao]n/];
-function badName(n) { const t = nameNorm(n); return !!t && (BAD_N.some(w => w && t.includes(w)) || BAD_RX.some(r => r.test(t))); }
+/* Namen, die per „Name sperren“ dazukommen (für alle, signiert in lbsperre als „w:…“) – auch ähnliche (1 Buchstabe anders) */
+var BAD_DYN = (() => { try { return JSON.parse(localStorage.getItem('gg_badw') || '[]'); } catch (e) { return []; } })();
+function lev1(a, b) { // Abstand ≤ 1?
+  if (a === b) return true; if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0; while (i < a.length && a[i] === b[i]) i++;
+  return a.slice(i + 1) === b.slice(i + 1) || a.slice(i) === b.slice(i + 1) || a.slice(i + 1) === b.slice(i);
+}
+function badName(n) { const t = nameNorm(n); return !!t && (BAD_N.some(w => w && t.includes(w)) || BAD_RX.some(r => r.test(t)) || BAD_DYN.some(w => t.includes(w) || (w.length >= 5 && lev1(t, w)))); }
 const nbHit = () => !!(S && S.nbN && S.nbN === String(S.name).toLowerCase()); // Name vom Admin gesperrt
 const meBadName = () => !!(S && !isOwner(S.lbId) && (badName(S.name) || badName(S.disp) || nbHit()));
+function nbMark(x) { if (x && !x.me && !isOwner(x.id || x.k) && (badName(x.name) || badName(x.disp))) { x.nbn = 1; x.disp = 'Gesperrter Name'; } return x; }
+{ const FT = fetchTop; fetchTop = async (...a) => (await FT(...a)).map(nbMark); }
+if (typeof rgFetch0 === 'function') { const R0 = rgFetch0; rgFetch0 = async (...a) => { const d = await R0(...a); return Array.isArray(d) ? d.map(nbMark) : d; }; }
 /* Andere sehen solche Namen nicht: aus der Bestenliste raus, im Chat ausgeblendet */
 { const FQ = fsQuery; fsQuery = async (q, ...r) => {
   const d = await FQ(q, ...r), col = q && q.from && q.from[0] && q.from[0].collectionId;
   if (!Array.isArray(d)) return d;
-  if (col === 'rang') return d.filter(x => isOwner(x.id) || !(badName(x.name) || badName(x.disp)));
+  if (col === 'rang') d.forEach(nbMark); // bleibt sichtbar, aber markiert
   if (col === 'chat' || col === 'dm' || col === 'feed') d.forEach(x => { if (badName(x.disp) || badName(x.name) || badName(x.von)) x.disp = '🚫 Name gesperrt'; });
   return d;
 }; }
