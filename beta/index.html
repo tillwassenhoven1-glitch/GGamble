@@ -4376,7 +4376,7 @@ openChat = function () {
       const n = await chatFetch(first ? 0 : last, first ? 50 : 30);
       if (first) CH.msgs = n; else { const ids = new Set(CH.msgs.map(m => m.id)); n.forEach(m => { if (!ids.has(m.id)) CH.msgs.push(m); }); }
       if (CH.msgs.length > 120) CH.msgs = CH.msgs.slice(-120);
-      if (CH.msgs.length) CH.seen = Math.max(CH.seen, CH.msgs[CH.msgs.length - 1].ts);
+      if (CH.msgs.length) { CH.seen = Math.max(CH.seen, S.chSeen || 0, CH.msgs[CH.msgs.length - 1].ts); if (CH.seen > (S.chSeen || 0)) { S.chSeen = CH.seen; save(); } } // 👀 gelesen merken (auch nach Neuladen)
       if (n.length || first) draw();
     } catch (e) { if (first) log.innerHTML = '<p class="hint">Chat gerade nicht erreichbar. Sind die neuen Firebase-Regeln veröffentlicht?</p>'; }
   };
@@ -4397,7 +4397,7 @@ function chatBg() {
   if (!onlineOn() || CH.bg) return;
   const chk = async () => {
     if (!S || document.hidden || document.querySelector('#lcLog')) return;
-    try { const since = CH.seen || (Date.now() - 6 * 36e5); const n = await chatFetch(since, 1); if (n.length && n[0].name !== S.name) $('#hChat').classList.add('dot'); if (!CH.seen && n.length) CH.seen = since; } catch (e) { }
+    try { CH.seen = Math.max(CH.seen || 0, S.chSeen || 0); const since = CH.seen || (Date.now() - 6 * 36e5); const n = (await chatFetch(since, 3)).filter(m => (+m.ts || 0) > since && m.name !== S.name); if (n.length) $('#hChat').classList.add('dot'); if (!CH.seen) { CH.seen = since; } } catch (e) { }
   };
   CH.bg = setInterval(chk, 120000); setTimeout(chk, 5000);
 }
@@ -4662,8 +4662,9 @@ async function frAdd(name, disp) {
   frList().push({ k, d: (disp || name).trim(), t: Date.now() }); save();
   // 👋-Nachricht nur EINMAL pro Person – nicht wieder, wenn man sich nochmal hinzufügt (oder der andere schon geschrieben hat)
   S.frSent = S.frSent || {};
-  if (!S.frSent[k] && !DM.inbox.some(m => m.von === k && /als Freund hinzugefügt/.test(m.txt || ''))) {
-    S.frSent[k] = Date.now(); save();
+  let lsSent = {}; try { lsSent = JSON.parse(localStorage.getItem('gg_frs') || '{}'); } catch (e) { }
+  if (!S.frSent[k] && !lsSent[meKey() + '>' + k] && !DM.inbox.some(m => m.von === k && /als Freund hinzugefügt/.test(m.txt || ''))) {
+    S.frSent[k] = Date.now(); save(); try { lsSent[meKey() + '>' + k] = 1; localStorage.setItem('gg_frs', JSON.stringify(lsSent)); } catch (e) { }
     (async () => { try { const c = pairId(meKey(), k), old = await fsQuery({ from: [{ collectionId: 'dm' }], where: rangeQ('cts', c, 0), orderBy: [{ field: { fieldPath: 'cts' }, direction: 'DESCENDING' }], limit: 60 });
       if (old.some(m => /als Freund hinzugefügt/.test(m.txt || ''))) return; } catch (e) { }
       dmSend(k, '👋 hat dich als Freund hinzugefügt!').catch(() => { }); })();
@@ -4720,7 +4721,7 @@ function openDM(k, d, onClose) {
     <div class="row" style="margin-top:10px;gap:8px"><input class="inp" id="dmIn" maxlength="300" placeholder="Nachricht an ${esc(d)} …" autocomplete="off" style="font-size:18px;padding:16px 18px;border-radius:999px"><button class="btn gold" id="dmGo" style="border-radius:999px;font-size:22px;padding:0;width:58px;height:58px;flex:0 0 58px">➤</button></div>
     <p class="hint" style="font-size:12px">Nachrichten sind nicht verschlüsselt – schreib nichts Geheimes (keine Passwörter!).</p>`, { onClose: () => { DM.open = null; onClose && onClose(); } });
   const log = $('#dmLog', o), c = pairId(meKey(), k); let msgs = [];
-  const draw = () => { msgs.sort((x, y) => x.ts - y.ts); log.innerHTML = msgs.map(m => { const mine = m.von === meKey(), pay = PAY_RE.test(m.txt || ''); return `<div class="bub ${mine ? 'mine' : ''} ${pay ? 'pay' : ''}">${esc(dmText(m.txt, mine))}<small>${chatTime(m.ts)}</small></div>`; }).join('') || '<p class="hint">Noch keine Nachrichten – sag Hallo! 👋</p>'; log.scrollTop = 1e6; };
+  const draw = () => { msgs.sort((x, y) => x.ts - y.ts); const fs = new Set(); msgs = msgs.filter(m => { if (!/als Freund hinzugefügt/.test(m.txt || '')) return true; if (fs.has(m.von)) return false; fs.add(m.von); return true; }); /* 👋 doppelte „Freund hinzugefügt“ nur 1× zeigen */ log.innerHTML = msgs.map(m => { const mine = m.von === meKey(), pay = PAY_RE.test(m.txt || ''); return `<div class="bub ${mine ? 'mine' : ''} ${pay ? 'pay' : ''}">${esc(dmText(m.txt, mine))}<small>${chatTime(m.ts)}</small></div>`; }).join('') || '<p class="hint">Noch keine Nachrichten – sag Hallo! 👋</p>'; log.scrollTop = 1e6; };
   const read = () => { S.dmRead[k] = Date.now(); save(); frBadge(); };
   const pull = async first => {
     try {
@@ -7225,7 +7226,7 @@ function doRebirth() {
   if (!rebReady()) return;
   const keepShops = phxN('shops'), best = Object.entries(S.shops || {}).filter(([k, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, keepShops);
   const shops = {}, shopX = {}; best.forEach(([k, v]) => { shops[k] = v; if (S.shopX && S.shopX[k]) shopX[k] = S.shopX[k]; });
-  const keepKeys = ['pet', 'cards', 'setsDone', 'tix', 'tixSt', 'pollV', 'pollSeen', 'betaKey', 'betaT', 'refSent', 'stkDay', 'petNag', 'name', 'disp', 'photo', 'color', 'lbId', 'owner', 'cheat', 'cheatV', 'set', 'titles', 'frames', 'tit', 'frm', 'clan', 'friends', 'dmRead', 'created', 'ep', 'ach', 'st', 'tutV', 'tutGift', 'updSeen', 'gifts', 'payGot', 'clGot', 'clInv', 'frSent', 'dmNoteTs', 'wk', 'dy', 'mo', 'pw', 'wpClaim', 'bp', 'cal', 'favs', 'phx', 'up', 'lhSeen', 'lhB', 'lhAdm', 'tasks', 'bonus', 'rbGone', 'bdgSeen', 'refBonus'];
+  const keepKeys = ['chSeen', 'tixNote', 'pet', 'cards', 'setsDone', 'tix', 'tixSt', 'pollV', 'pollSeen', 'betaKey', 'betaT', 'refSent', 'stkDay', 'petNag', 'name', 'disp', 'photo', 'color', 'lbId', 'owner', 'cheat', 'cheatV', 'set', 'titles', 'frames', 'tit', 'frm', 'clan', 'friends', 'dmRead', 'created', 'ep', 'ach', 'st', 'tutV', 'tutGift', 'updSeen', 'gifts', 'payGot', 'clGot', 'clInv', 'frSent', 'dmNoteTs', 'wk', 'dy', 'mo', 'pw', 'wpClaim', 'bp', 'cal', 'favs', 'phx', 'up', 'lhSeen', 'lhB', 'lhAdm', 'tasks', 'bonus', 'rbGone', 'bdgSeen', 'refBonus'];
   const keep = {}; keepKeys.forEach(k => { if (S[k] !== undefined) keep[k] = S[k]; });
   const start = START_BY[phxN('start')], reb = (S.reb || 0) + 1, oldBal = S.bal, oldLvl = S.level;
   keep.phx = keep.phx || { pts: 0, up: {} }; keep.phx.pts = (keep.phx.pts || 0) + REB_PTS;
