@@ -7424,11 +7424,17 @@ setInterval(() => { if (S) badNameCheck(); }, 3000); setTimeout(() => { if (S) b
 /* ================= 🛠️ Wartung per Knopf (Besitzer) – mit Code kommt man trotzdem rein ================= */
 // Signierte Ansage an alle (gifts, k = 'mt'): amt = Minuten (> 0), -1 = bis aufgehoben, 0 = Wartung beenden
 const MTQ = (() => { try { return JSON.parse(localStorage.getItem('gg_mtq')) || { last: 0, docs: [] }; } catch (e) { return { last: 0, docs: [] }; } })();
-let MT_CUR = null, MT_OK = {}, MT_PASS = false, MT_T = 0, MT_FED = 0;
+/* 🛠️ Fest eingebaute Wartung (läuft auch, wenn Firebase down ist) – aufheben: Cheat-Menü → 🛠️ Wartung → „Aufheben“ */
+const MT_FORCE = { ts: Date.UTC(2026, 10, 27, 9, 30), x: 'Große Wartung: GGamble wird stabiler und schneller. Danach startet die Beta-Testphase.', bis: 'Bis Montag, 30.11. (Beta-Start)' };
+const MT_TESTH = '1ff58a0cd416b5bd1afdae027ab99dfd45901dbf16a077f80504006297d2ed6c'; // 🎟️ eigener Spiel-Code für die Wartung (nur reinkommen, keine Admin-Rechte)
+const mtForceCur = () => MT_FORCE ? { until: Infinity, x: MT_FORCE.x, ts: MT_FORCE.ts, bis: MT_FORCE.bis } : null;
+let MT_CUR = mtForceCur(), MT_OK = {}, MT_PASS = false, MT_T = 0, MT_FED = 0;
+async function mtTestOk(c) { try { const h = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('gg-mt|' + String(c).trim().toUpperCase())))].map(b => b.toString(16).padStart(2, '0')).join(''); return h === MT_TESTH; } catch (e) { return false; } }
 function mtFeed(got, own) { if (!own) MT_FED = Date.now(); (got || []).forEach(g => { MTQ.last = Math.max(MTQ.last, +g.ts || 0); if (g.k === 'mt' && !MTQ.docs.some(x => x.id === g.id)) { MTQ.docs.push({ id: g.id, to: g.to, amt: +g.amt, ts: +g.ts, sig: g.sig || '', x: g.x || '' }); if (!own) setTimeout(mtPoll, 50); } }); }
 const mtActive = () => !!(MT_CUR && MT_CUR.until > Date.now());
 async function mtPass() { // Besitzer- oder Admin-Code auf diesem Gerät → darf rein
   if (MT_PASS || (typeof ADM_KEY !== 'undefined' && ADM_KEY)) return MT_PASS = true;
+  const tc = localStorage.getItem('gg_mtc'); if (tc && await mtTestOk(tc)) return MT_PASS = true;
   const c = localStorage.getItem('gg_adm'); if (c && await admUnlock(c)) return MT_PASS = true;
   return false;
 }
@@ -7443,18 +7449,19 @@ async function mtPoll() {
     if (!MTQ.last) MTQ.last = Date.now() - 60000;
     MTQ.docs = MTQ.docs.sort((a, b) => b.ts - a.ts).slice(0, 10);
     try { localStorage.setItem('gg_mtq', JSON.stringify(MTQ)); } catch (e) { }
-    let cur = null;
+    let cur = null, top = null;
     for (const g of MTQ.docs) {
       if (MT_OK[g.id] === undefined) MT_OK[g.id] = (await giftVerify({ id: g.id, to: g.to, amt: g.amt, ts: g.ts, sig: g.sig, k: 'mt', x: g.x })) === 1; // nur der Besitzer
       if (!MT_OK[g.id]) continue;
-      if (g.amt !== 0) cur = { until: g.amt < 0 ? Infinity : g.ts + g.amt * 60000, x: g.x, ts: g.ts };
+      top = g; if (g.amt !== 0) cur = { until: g.amt < 0 ? Infinity : g.ts + g.amt * 60000, x: g.x, ts: g.ts };
       break;
     }
+    if (MT_FORCE && (!top || top.ts < MT_FORCE.ts)) cur = mtForceCur(); // fest eingebaute Wartung gilt, bis du sie per Knopf aufhebst/änderst
     MT_CUR = cur;
   } catch (e) { }
   mtDraw();
 }
-function mtLeft() { if (!MT_CUR) return ''; if (MT_CUR.until === Infinity) return 'bis auf Weiteres'; const l = Math.max(0, MT_CUR.until - Date.now()), m = Math.floor(l / 60000), sec = Math.floor(l / 1000) % 60; return m >= 60 ? `${Math.floor(m / 60)} Std. ${m % 60} Min.` : `${m}:${String(sec).padStart(2, '0')}`; }
+function mtLeft() { if (!MT_CUR) return ''; if (MT_CUR.until === Infinity) return MT_CUR.bis || 'bis auf Weiteres'; const l = Math.max(0, MT_CUR.until - Date.now()), m = Math.floor(l / 60000), sec = Math.floor(l / 1000) % 60; return m >= 60 ? `${Math.floor(m / 60)} Std. ${m % 60} Min.` : `${m}:${String(sec).padStart(2, '0')}`; }
 let mtWas = false;
 async function mtDraw() {
   let ov = document.getElementById('mtOv'), bn = document.getElementById('mtBn');
@@ -7476,19 +7483,27 @@ async function mtDraw() {
   if (!ov) {
     try { if (S) persist(); } catch (e) { }
     document.querySelectorAll('.full,.game-ov').forEach(x => x.remove()); document.body.classList.remove('inmach'); try { if (typeof MS !== 'undefined') MS = null; } catch (e) { }
-    document.body.insertAdjacentHTML('beforeend', `<div id="mtOv" style="position:fixed;inset:0;z-index:9999;background:#050506;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;gap:14px;color:#fff">
+    document.body.insertAdjacentHTML('beforeend', `<div id="mtOv" style="position:fixed;inset:0;z-index:9999;background:#050506;display:flex;flex-direction:column;align-items:center;justify-content:safe center;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;text-align:center;padding:30px 20px calc(env(safe-area-inset-bottom) + 30px);gap:14px;color:#fff">
       <div style="font-size:72px">🛠️</div><h1 style="font-size:36px;margin:0">Wartungsarbeiten</h1>
       <p id="mtX" style="color:#a8a8b0;font-size:18px;max-width:420px;line-height:1.5;margin:0"></p>
-      <div style="color:#6a6a72;font-size:14px">Geht weiter in</div><div id="mtT" class="num" style="font-size:46px;font-weight:900;color:#f3d27a"></div>
+      <div style="color:#6a6a72;font-size:14px" id="mtTL">Geht weiter in</div><div id="mtT" class="num" style="font-size:46px;font-weight:900;color:#f3d27a"></div>
+      <div id="mtI" style="width:100%;max-width:520px;text-align:left"></div>
       <p id="mtS" style="color:#6a6a72;font-size:13px;margin:0">Dein Spielstand ist sicher gespeichert 💾 · Die Seite geht automatisch weiter.</p>
       <div style="width:100%;max-width:520px;margin-top:10px"><canvas id="mtRun" style="width:100%;height:auto;display:block;border-radius:14px;background:#0d0d10;border:1px solid #26262c;touch-action:none;cursor:pointer"></canvas>
       <div class="row sb" style="font-size:12px;color:#6a6a72;margin-top:6px"><span>🦖 Antippen / Leertaste = springen</span><span id="mtHi"></span></div></div>
-      <div class="row" style="gap:8px;margin-top:18px;max-width:320px;width:100%"><input class="inp" id="mtC" placeholder="Code" autocomplete="off" style="flex:1"><button class="btn dark sm" id="mtGo">Rein</button></div></div>`);
+      <div class="row" style="gap:8px;margin-top:18px;max-width:320px;width:100%"><input class="inp" id="mtC" placeholder="Hast du einen Code?" autocomplete="off" autocapitalize="characters" style="flex:1"><button class="btn dark sm" id="mtGo">Rein</button></div></div>`);
     ov = document.getElementById('mtOv'); try { mtRunner(ov.querySelector('#mtRun')); } catch (e) { }
-    ov.querySelector('#mtGo').onclick = async () => { const c = ov.querySelector('#mtC').value.trim(); if (c && await admUnlock(c)) { MT_PASS = true; toast('🔓 Du bist drin – Wartung läuft weiter für alle anderen', 'good', 4000); if (!S) location.reload(); else mtDraw(); } else toast('Falscher Code', 'bad'); };
+    ov.querySelector('#mtGo').onclick = async () => { const c = ov.querySelector('#mtC').value.trim(); if (c && await mtTestOk(c)) { try { localStorage.setItem('gg_mtc', c.toUpperCase()); } catch (e) { } MT_PASS = true; toast('🎟️ Code richtig – viel Spaß beim Spielen!', 'good', 4000); if (!S) location.reload(); else mtDraw(); return; } if (c && await admUnlock(c)) { MT_PASS = true; toast('🔓 Du bist drin – Wartung läuft weiter für alle anderen', 'good', 4000); if (!S) location.reload(); else mtDraw(); } else toast('Falscher Code', 'bad'); };
   }
   ov.querySelector('#mtX').innerHTML = MT_CUR.x ? `<b style="color:#fff">Grund:</b> ${esc(MT_CUR.x)}` : 'GGamble ist gleich wieder da! Wir machen gerade ein paar Verbesserungen.';
-  ov.querySelector('#mtT').textContent = mtLeft();
+  const big = MT_CUR.until === Infinity && MT_CUR.bis; ov.querySelector('#mtT').textContent = mtLeft(); ov.querySelector('#mtT').style.fontSize = big ? '22px' : '46px'; ov.querySelector('#mtTL').textContent = big ? 'Voraussichtlich' : 'Geht weiter in';
+  const mi = ov.querySelector('#mtI'); if (mi && !mi.dataset.f) { mi.dataset.f = 1; if (MT_FORCE && MT_CUR.ts === MT_FORCE.ts) { const row = (e, t, d) => `<div style="display:flex;gap:12px;padding:12px 14px;border-top:1px solid #1d1d22"><div style="font-size:24px">${e}</div><div style="flex:1"><b style="font-size:15px">${t}</b><div style="color:#a8a8b0;font-size:13.5px;line-height:1.45;margin-top:2px">${d}</div></div></div>`;
+    mi.innerHTML = `<div style="border:1px solid #26262c;border-radius:16px;background:#0d0d10;overflow:hidden"><div style="padding:10px 14px;font-weight:800;color:#d8b85a;font-size:12px;letter-spacing:.06em">ℹ️ WAS PASSIERT JETZT?</div>
+      ${row('🔧', 'Jetzt: Wartung', 'Wir bauen GGamble im Hintergrund <b style="color:#fff">stabiler und schneller</b> – damit Bestenliste, Online-Funktionen und das Speichern nicht mehr ausfallen.')}
+      ${row('🤫', 'Überraschungen', 'Ein paar neue Sachen sind auch dabei … mehr verraten wir noch nicht. 👀')}
+      ${row('🧪', 'Ab Montag, 30.11.: Beta-Testphase', 'Für <b style="color:#fff">1 Woche</b> startet die <b style="color:#fff">Open-Beta</b>. Reinkommen geht mit einem <b style="color:#fff">Beta-Schlüssel</b> – Tester können Fehler und Ideen direkt im Spiel melden.')}
+      ${row('🎟️', 'Code?', 'Wer einen Code bekommen hat, kann ihn unten eingeben und schon jetzt weiterspielen.')}
+      ${row('💾', 'Dein Spielstand', 'Ist auf deinem Gerät gespeichert. Am besten später <b style="color:#fff">auf demselben Gerät</b> weiterspielen.')}</div>`; } }
   const ms = ov.querySelector('#mtS'); if (ms && MT_SAVE_ST === 'fail') { ms.innerHTML = '⚠️ <b style="color:#f3d27a">Online-Speichern hat nicht geklappt</b> – dein Stand ist auf diesem Gerät gespeichert. Bitte <b>auf diesem Gerät</b> weiterspielen, wenn die Wartung vorbei ist.'; }
 }
 /* 💾 Vor der Wartung: laufendes Spiel abwarten (max. 12 Sek.), dann lokal + online speichern */
@@ -7586,11 +7601,11 @@ function fbmHTML() {
 
 /* ================= 📢 Große Ankündigung (angeheftet + bei jedem Start) ================= */
 const ANN = {
-  id: 'wartung-2026-11-28', start: new Date(2026, 10, 28, 10, 0).getTime(), until: new Date(2026, 11, 7, 23, 59).getTime(),
-  title: 'Große Wartung am Wochenende', short: 'Sa 28.11. ab 10:00 Uhr · ganzes Wochenende'
+  id: 'wartung-2026-11-27', start: Date.UTC(2026, 10, 27, 9, 30), until: new Date(2026, 11, 7, 23, 59).getTime(),
+  title: 'Wartung läuft – Beta ab Montag', short: 'Seit Fr 27.11. · Beta-Testphase ab Mo 30.11.'
 };
 function annLeft() {
-  const l = ANN.start - Date.now(); if (l <= 0) return Date.now() < ANN.start + 2 * 864e5 ? '🛠️ Läuft gerade' : '🧪 Beta-Testphase';
+  const l = ANN.start - Date.now(); if (l <= 0) return Date.now() < new Date(2026, 10, 30).getTime() ? '🛠️ Wartung läuft gerade' : '🧪 Beta-Testphase läuft';
   const h = Math.floor(l / 36e5), m = Math.floor(l / 6e4) % 60; return h >= 24 ? `in ${Math.floor(h / 24)} T. ${h % 24} Std.` : `in ${h} Std. ${m} Min.`;
 }
 function openAnn() {
@@ -7598,14 +7613,14 @@ function openAnn() {
   sheet(`<div class="row sb"><h2 style="margin:0">📢 Wichtige Ankündigung</h2><button class="x" data-close>${icon('x')}</button></div>
     <div style="margin:12px 0 14px;padding:18px;border-radius:18px;background:linear-gradient(135deg,#3a2a08,#1a1206);border:1px solid #d8b85a66;text-align:center">
       <div style="font-size:46px">🛠️</div><div style="font-size:22px;font-weight:900;margin-top:4px">${ANN.title}</div>
-      <div style="color:#f3d27a;font-weight:800;font-size:17px;margin-top:6px">📅 Samstag, 28.11. · ab 10:00 Uhr</div>
+      <div style="color:#f3d27a;font-weight:800;font-size:17px;margin-top:6px">📅 Seit Freitag, 27.11. · Beta ab Montag, 30.11.</div>
       <div class="num" style="color:#a8a8b0;font-size:13px;margin-top:4px">⏳ ${annLeft()}</div></div>
     <div class="card tight list rl">
-      ${row('🗓️', 'Wann?', 'Ab <b>Samstag, 28.11. um 10:00 Uhr</b> – die Wartung dauert das <b>ganze Wochenende</b>. In der Zeit ist GGamble nicht spielbar.')}
+      ${row('🗓️', 'Wann?', 'Die Wartung läuft <b>seit Freitag, 27.11.</b> und geht übers <b>ganze Wochenende</b>. Ohne Code ist GGamble in der Zeit nicht spielbar.')}
       ${row('🔧', 'Was machen wir?', 'Wir bauen GGamble im Hintergrund <b>stabiler und schneller</b> – damit Bestenliste, Online-Funktionen und das Speichern nicht mehr ausfallen.')}
       ${row('🤫', 'Und sonst?', 'Ein paar <b>Überraschungen</b> sind auch dabei … mehr verraten wir noch nicht. 👀')}
       ${row('🧪', 'Danach: Beta-Testphase', 'Ab <b>Montag, 30.11.</b> startet für <b>1 Woche</b> die <b>Open-Beta-Testphase</b>. Reinkommen geht dann mit einem <b>Beta-Schlüssel</b> – und als Tester kannst du Fehler und Ideen direkt melden.')}
-      ${row('💾', 'Tipp', 'Spiel vor Samstag 10 Uhr am besten <b>noch einmal</b>, damit dein Spielstand gesichert ist.')}
+      ${row('🎟️', 'Du spielst gerade mit Code', 'Danke fürs Testen! Fehler oder Ideen kannst du gern melden.')}
     </div>
     <button class="btn white w" data-close style="margin-top:14px">Alles klar 👍</button>`);
 }
