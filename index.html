@@ -19,6 +19,11 @@
   canvas{width:100%;height:auto;display:block;border-radius:14px;background:#0d0d10;border:1px solid #26262c;touch-action:none;cursor:pointer}
   .row{display:flex;justify-content:space-between;font-size:12px;color:#6a6a72;margin-top:6px}
   .de{color:#6a6a72;font-size:13px;max-width:420px;line-height:1.5}
+
+  #btF input,#btF textarea{width:100%;background:#151517;border:1px solid #2a2a30;border-radius:12px;color:#fff;font:inherit;font-size:15px;padding:12px;margin-bottom:8px;outline:none;resize:none}
+  #btF input:focus,#btF textarea:focus{border-color:#d8b85a}
+  #btGo{width:100%;border:0;border-radius:12px;padding:13px;font:inherit;font-weight:800;font-size:16px;background:linear-gradient(180deg,#f6dc8a,#c9a43e);color:#1a1206;cursor:pointer}
+  #btGo:disabled{opacity:.5}
 </style>
 </head>
 <body>
@@ -27,6 +32,16 @@
   <h1>This server is currently<br>under maintenance</h1>
   <p class="sub">We're rebuilding GGamble from the ground up – faster, more stable and with some surprises. 👀</p>
   <span class="pill"><span class="dot"></span>Back soon · Beta starts Monday, 30.11.</span>
+
+  <button id="btB" class="pill" style="cursor:pointer;background:#f3d27a;color:#1a1206;border:0;font-size:15px;padding:12px 20px">🧪 Beta-Tester werden</button>
+  <div id="btF" style="display:none;width:100%;max-width:420px;background:#0d0d10;border:1px solid #26262c;border-radius:18px;padding:16px;text-align:left">
+    <b style="font-size:17px">🧪 Beta-Tester werden</b>
+    <p class="de" style="margin:6px 0 10px;color:#a8a8b0">Ab Montag kann man nur mit Beta-Schlüssel spielen. Schreib uns kurz – wir melden uns!</p>
+    <input id="btN" maxlength="20" placeholder="Dein Spielername" autocomplete="off">
+    <textarea id="btT" maxlength="200" rows="3" placeholder="Wie erreichen wir dich? (z. B. Insta/Snap) + warum du testen willst"></textarea>
+    <button id="btGo">📨 Abschicken</button>
+    <p id="btE" style="font-size:13px;min-height:16px;margin-top:6px"></p>
+  </div>
   <div class="run"><canvas id="run"></canvas><div class="row"><span>🦖 Tap / Space = jump</span><span id="hi"></span></div></div>
   <p class="de">🇩🇪 Wartungsarbeiten – GGamble wird komplett neu aufgebaut. Ab Montag, 30.11. startet die Beta-Testphase.</p>
 <script>
@@ -34,6 +49,45 @@ const FORCE_V = 999; // alte offene Seiten laden sofort neu
 /* Kompletter Neustart: alte lokale Konten & Daten von diesem Gerät löschen */
 try { if (localStorage.getItem('wipe_hard1') !== '1') { Object.keys(localStorage).filter(k => k.startsWith('gg')).forEach(k => { if (k !== 'gg_runhi') localStorage.removeItem(k); }); sessionStorage.clear(); localStorage.setItem('wipe_hard1', '1'); } } catch (e) { } // nur EINMAL pro Gerät löschen
 try { if (navigator.serviceWorker) navigator.serviceWorker.getRegistrations().then(r => r.forEach(x => x.unregister())); } catch (e) { }
+
+/* 🧪 Beta-Bewerbung → landet als Ticket beim Besitzer (Firebase „ggamble-chat“) */
+const CHAT = { apiKey: 'AIzaSyDJTmHI99af2S63V-j7QvatWA-OntF2yd4', projectId: 'ggamble-chat' };
+const BAD_W = ['wassenhoven', 'wasenhove', 'wasenhof', 'hurensohn', 'hurenkind', 'hure', 'fotze', 'wichser', 'wixer', 'schlampe', 'misgeburt', 'spast', 'behindert', 'arschl', 'arschg', 'arschkr', 'fick', 'bastard', 'schwuchtel', 'kanake', 'neger', 'niger', 'niga', 'hitler', 'nazi', 'siegheil', 'fuck', 'fck', 'shit', 'bitch', 'cunt', 'pusy', 'penis', 'vagina', 'porno', 'titen', 'muschi', 'wanker', 'motherf', 'schlong', 'pimel', 'sperma', 'vergewalt', 'kinderf', 'pedo', 'pädo', 'hoden', 'kacke', 'scheiße', 'scheise', 'drecksau', 'dreckssau', 'opfa', 'mongo', 'retard', 'pipi', 'pipimann', 'kaka', 'kacka', 'puller', 'schniedel', 'schnidel', 'pimmel', 'sackgesicht', 'mistgeburt', 'lutscher', 'wixxer', 'stinker', 'furz', 'pups', 'dummkopf', 'idiot', 'trottel', 'depp', 'loser', 'noob', 'hurre', 'schlampe', 'bumsen', 'bums', 'blowjob', 'boobs', 'dildo', 'onanie', 'nackt'];
+function nameNorm(n) {
+  return String(n || '').toLowerCase().replace(/[0@4]/g, m => ({ '0': 'o', '@': 'a', '4': 'a' })[m]).replace(/[1!|]/g, 'i').replace(/3/g, 'e').replace(/[5$]/g, 's').replace(/7/g, 't')
+    .replace(/ph/g, 'f').replace(/ck/g, 'k').replace(/[^a-zäöüß]/g, '').replace(/(.)\1+/g, '$1');
+}
+const BAD_N = BAD_W.map(w => nameNorm(w));
+const BAD_RX = [/(^|[^im])nute/, /popo(?!v)/, /wa[sz]+e?n?h[ouö][vfwb]/, /was+[a-z]?h[ouö][vfwb]e?n/, /wasen+h/, /wa[sz]{2,}[eiao]n/];
+/* Namen, die per „Name sperren“ dazukommen (für alle, signiert in lbsperre als „w:…“) – auch ähnliche (1 Buchstabe anders) */
+var BAD_DYN = [];
+function lev1(a, b) { // Abstand ≤ 1?
+  if (a === b) return true; if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0; while (i < a.length && a[i] === b[i]) i++;
+  return a.slice(i + 1) === b.slice(i + 1) || a.slice(i) === b.slice(i + 1) || a.slice(i + 1) === b.slice(i);
+}
+function badName(n) { const t = nameNorm(n); return !!t && (BAD_N.some(w => w && t.includes(w)) || BAD_RX.some(r => r.test(t)) || BAD_DYN.some(w => t.includes(w) || (w.length >= 5 && lev1(t, w)))); }
+
+const padTs = t => String(Math.round(t)).padStart(15, '0');
+document.getElementById('btB').onclick = () => { document.getElementById('btF').style.display = 'block'; document.getElementById('btB').style.display = 'none'; document.getElementById('btN').focus(); };
+document.getElementById('btGo').onclick = async function () {
+  const E = document.getElementById('btE'), n = document.getElementById('btN').value.trim(), t = document.getElementById('btT').value.trim();
+  const err = m => { E.style.color = '#ff7a7a'; E.textContent = '❌ ' + m; };
+  if (n.length < 2) return err('Bitte deinen Spielernamen eingeben');
+  if (!/^[\p{L}\p{N} _.\-]+$/u.test(n)) return err('Name: nur Buchstaben, Zahlen, Leerzeichen, _ . -');
+  if (badName(n) || badName(t)) return err('Bitte ohne Beleidigungen 🙂');
+  if (t.length < 5) return err('Schreib kurz, wie wir dich erreichen');
+  try { if (Date.now() - (+localStorage.getItem('bt_sent') || 0) < 10 * 60000) return err('Du hast dich gerade schon beworben 🙂'); } catch (e) { }
+  this.disabled = true;
+  const ts = Date.now(), id = 'bt' + ts.toString(36) + Math.random().toString(36).slice(2, 6), von = n.toLowerCase();
+  const fields = { von: { stringValue: von }, an: { stringValue: '¤tix' }, disp: { stringValue: n }, txt: { stringValue: ('¤TIX|f|Wartungsseite|0|🧪 Beta-Bewerbung: ' + t).slice(0, 300) }, ts: { integerValue: String(ts) }, cts: { stringValue: '¤tix|' + padTs(ts) }, ats: { stringValue: '¤tix|' + padTs(ts) } };
+  try {
+    const r = await fetch(`https://firestore.googleapis.com/v1/projects/${CHAT.projectId}/databases/(default)/documents/dm?documentId=${id}&key=${CHAT.apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) });
+    if (!r.ok) throw 0;
+    try { localStorage.setItem('bt_sent', String(Date.now())); } catch (e) { }
+    document.getElementById('btF').innerHTML = '<div style="text-align:center;padding:10px 0"><div style="font-size:44px">🎉</div><b style="font-size:18px">Bewerbung abgeschickt!</b><p class="de" style="color:#a8a8b0;margin-top:6px">Danke! Wir melden uns bei dir – mit etwas Glück bekommst du einen Beta-Schlüssel. 🔑</p></div>';
+  } catch (e) { this.disabled = false; err('Hat nicht geklappt – Internet prüfen'); }
+};
 /* 🦖 Mini-Runner */
 (() => {
   const cv = document.getElementById('run'), W = 600, H = 170, GY = 140; cv.width = W * 2; cv.height = H * 2; const c = cv.getContext('2d'); c.scale(2, 2);
@@ -41,7 +95,7 @@ try { if (navigator.serviceWorker) navigator.serviceWorker.getRegistrations().th
   const reset = () => { st = { y: 0, vy: 0, obs: [], sp: 6, sc: 0, t: 0, next: 60, dead: false, run: false, leg: 0 }; }; reset();
   const jump = () => { if (st.dead) { reset(); st.run = true; return; } st.run = true; if (st.y === 0) st.vy = 11.5; };
   cv.addEventListener('pointerdown', e => { e.preventDefault(); jump(); });
-  addEventListener('keydown', e => { if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); jump(); } });
+  addEventListener('keydown', e => { if (/INPUT|TEXTAREA/.test((e.target || {}).tagName || '')) return; if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); jump(); } });
   const dino = (x, y, dead) => {
     c.fillStyle = dead ? '#ff6b6b' : '#f3d27a';
     c.fillRect(x + 14, y - 44, 22, 16); c.fillRect(x + 4, y - 30, 22, 20); c.fillRect(x, y - 26, 6, 10); c.fillRect(x + 22, y - 24, 8, 3);
