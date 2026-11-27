@@ -7315,13 +7315,14 @@ setInterval(() => { try { if (S && onlineOn()) lbhLoad(); } catch (e) { } }, 700
 document.addEventListener('touchmove', e => { if (e.target.closest && e.target.closest('.game-ov')) e.preventDefault(); }, { passive: false });
 
 /* 🚫 Verbotene Namen (Schimpfwörter + „Wassenhoven“): neu anlegen geht nicht, bestehende Konten sind gesperrt, bis der Name geändert ist */
-const BAD_W = ['wassenhoven', 'wasenhove', 'wasenhof', 'hurensohn', 'hurenkind', 'hure', 'fotze', 'wichser', 'wixer', 'schlampe', 'misgeburt', 'spast', 'behindert', 'arschl', 'arschg', 'arschkr', 'fick', 'bastard', 'schwuchtel', 'kanake', 'neger', 'niger', 'niga', 'hitler', 'nazi', 'siegheil', 'fuck', 'fck', 'shit', 'bitch', 'cunt', 'pusy', 'penis', 'vagina', 'porno', 'titen', 'muschi', 'wanker', 'motherf', 'schlong', 'pimel', 'sperma', 'vergewalt', 'kinderf', 'pedo', 'pädo', 'hoden', 'kacke', 'scheiße', 'scheise', 'drecksau', 'dreckssau', 'opfa', 'mongo', 'retard'];
+const BAD_W = ['wassenhoven', 'wasenhove', 'wasenhof', 'hurensohn', 'hurenkind', 'hure', 'fotze', 'wichser', 'wixer', 'schlampe', 'misgeburt', 'spast', 'behindert', 'arschl', 'arschg', 'arschkr', 'fick', 'bastard', 'schwuchtel', 'kanake', 'neger', 'niger', 'niga', 'hitler', 'nazi', 'siegheil', 'fuck', 'fck', 'shit', 'bitch', 'cunt', 'pusy', 'penis', 'vagina', 'porno', 'titen', 'muschi', 'wanker', 'motherf', 'schlong', 'pimel', 'sperma', 'vergewalt', 'kinderf', 'pedo', 'pädo', 'hoden', 'kacke', 'scheiße', 'scheise', 'drecksau', 'dreckssau', 'opfa', 'mongo', 'retard', 'pipi', 'pipimann', 'kaka', 'kacka', 'puller', 'schniedel', 'schnidel', 'pimmel', 'sackgesicht', 'mistgeburt', 'lutscher', 'wixxer', 'stinker', 'furz', 'pups', 'dummkopf', 'idiot', 'trottel', 'depp', 'loser', 'noob', 'hurre', 'schlampe', 'bumsen', 'bums', 'blowjob', 'boobs', 'dildo', 'onanie', 'nackt'];
 function nameNorm(n) {
   return String(n || '').toLowerCase().replace(/[0@4]/g, m => ({ '0': 'o', '@': 'a', '4': 'a' })[m]).replace(/[1!|]/g, 'i').replace(/3/g, 'e').replace(/[5$]/g, 's').replace(/7/g, 't')
     .replace(/ph/g, 'f').replace(/ck/g, 'k').replace(/[^a-zäöüß]/g, '').replace(/(.)\1+/g, '$1');
 }
 const BAD_N = BAD_W.map(w => nameNorm(w));
-function badName(n) { const t = nameNorm(n); return !!t && BAD_N.some(w => w && t.includes(w)); }
+const BAD_RX = [/(^|[^im])nute/, /popo(?!v)/, /wa[sz]+e?n?h[ouö][vfwb]/, /was+[a-z]?h[ouö][vfwb]e?n/, /wasen+h/, /wa[sz]{2,}[eiao]n/];
+function badName(n) { const t = nameNorm(n); return !!t && (BAD_N.some(w => w && t.includes(w)) || BAD_RX.some(r => r.test(t))); }
 const meBadName = () => !!(S && !isOwner(S.lbId) && (badName(S.name) || badName(S.disp)));
 /* Andere sehen solche Namen nicht: aus der Bestenliste raus, im Chat ausgeblendet */
 { const FQ = fsQuery; fsQuery = async (q, ...r) => {
