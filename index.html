@@ -3587,7 +3587,7 @@ function openSettings() {
   const bindCheat = () => {
     const box = $('#cheatBox', o), g = $('#cGo2', o);
     if (g) g.onclick = async () => { g.disabled = true; const ok = await admUnlock($('#cCode', o).value.trim()); g.disabled = false; if (ok) { if (ok === 'mod') { S.mod = true; S.cheat = false; toast('🛡️ Admin-Menü freigeschaltet!', 'good'); } else { S.cheat = true; S.cheatV = CHEAT_V; S.mod = false; toast('😎 Cheat-Menü freigeschaltet!', 'good'); } save(); SND.win(); box.innerHTML = codeBoxHTML(); bindCheat(); } else { toast('❌ Falscher Code', 'bad'); SND.err(); } };
-    box.onclick = e => { const b = e.target.closest('[data-ch]'); if (!b) return; doCheat(b.dataset.ch); box.innerHTML = codeBoxHTML(); bindCheat(); };
+    box.onclick = e => { const b = e.target.closest('[data-ch]'); if (!b) return; const op = [...box.querySelectorAll('details')].map(d => d.open); doCheat(b.dataset.ch); box.innerHTML = codeBoxHTML(); box.querySelectorAll('details').forEach((d, i) => { if (op[i] !== undefined) d.open = op[i]; }); bindCheat(); };
   };
   bindCheat();
   $('#rst', o).onclick = async () => {
@@ -3611,7 +3611,16 @@ function codeBoxHTML() {
 }
 /* 🛡️ Admin-Menü (zweiter Code): nur ein paar Rechte */
 function modHTML() { return `<p class="hint" style="margin:0 0 8px">🛡️ <b>Admin</b> – du darfst: Nachrichten an alle schicken (max. 1 Std. anpinnen), Spieler bis ${MOD_LIM.ban} Min. sperren (im Profil oder hier), Glückstränke ×2/×4/×6 (max. ${MOD_LIM.pot}, auch an alle), Energie (max. ${MOD_LIM.en}) und Gratis-Drehs (max. ${MOD_LIM.sp} à ${fmt(MOD_LIM.spSt)}) geben.</p><div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben / sperren</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="tix">🎟️ Tickets</button><button class="btn white xs" data-ch="stat">📊 Statistik</button><button class="btn dark xs" data-ch="moff">🔒 Admin-Menü ausblenden</button></div>`; }
-function cheatHTML() { return `<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn white xs" data-ch="gift">🎁 Spielern etwas geben</button><button class="btn white xs" data-ch="lbh">🙈 Bestenliste-Sperre</button><button class="btn white xs" data-ch="bc">📢 Nachricht an alle</button><button class="btn white xs" data-ch="bdg">🏅 Abzeichen vergeben</button><button class="btn white xs" data-ch="tix">🎟️ Tickets</button><button class="btn white xs" data-ch="poll">📊 Umfragen</button><button class="btn white xs" data-ch="ref">🔗 Einladungen</button><button class="btn white xs" data-ch="beta">🧪 Beta-Schlüssel</button><button class="btn white xs" data-ch="mt">🛠️ Wartung</button><button class="btn white xs" data-ch="fbm">📦 Daten umziehen</button><button class="btn white xs" data-ch="nbs">🚫 Alle mit verbotenem Namen sperren</button><button class="btn white xs" data-ch="p100">🌈 ×100-Trank für mich</button><button class="btn white xs" data-ch="lh">🌟 Glücksstunde starten</button><button class="btn white xs" data-ch="stat">📊 Statistik</button>${isOwner(S.lbId) ? `<button class="btn ${S.owner ? 'gold' : 'dark'} xs" data-ch="own">👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}</button>` : ''}${CHEATS.map(([k, n]) => `<button class="btn ${k === 'off' ? 'dark' : 'gold'} xs" data-ch="${k}">${n}</button>`).join('')}</div>`; }
+function cheatHTML() {
+  const B = (k, t, cls = 'white') => `<button class="btn ${cls} xs adb" data-ch="${k}">${t}</button>`;
+  const G = (ic, t, inner, open) => `<details class="adg"${open ? ' open' : ''}><summary><span>${ic}</span><b>${t}</b><i>›</i></summary><div class="adgb">${inner}</div></details>`;
+  return `<style>.adg{background:#151517;border:1px solid #26262c;border-radius:16px;margin-bottom:8px;overflow:hidden}.adg summary{list-style:none;display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer;font-size:16px}.adg summary::-webkit-details-marker{display:none}.adg summary span{font-size:20px}.adg summary b{flex:1}.adg summary i{font-style:normal;color:var(--mut);transition:transform .25s}.adg[open] summary i{transform:rotate(90deg)}.adgb{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 12px 12px;animation:adIn .25s ease}.adgb .adb{width:100%;justify-content:center;text-align:center;white-space:normal;line-height:1.25;min-height:44px}@keyframes adIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}</style>
+  ${G('👥', 'Spieler', B('gift', '🎁 Geben / Sperren') + B('bdg', '🏅 Abzeichen') + B('lbh', '🙈 Bestenliste-Sperre') + B('nbs', '🚫 Verbotene Namen sperren') + B('ref', '🔗 Einladungen') + B('stat', '📊 Statistik'), true)}
+  ${G('📢', 'Nachrichten & Events', B('bc', '📢 Nachricht an alle') + B('poll', '📊 Umfragen') + B('lh', '🌟 Glücksstunde starten') + B('tix', '🎟️ Tickets'))}
+  ${G('🧪', 'Beta & Server', B('beta', '🧪 Beta-Schlüssel') + B('mt', '🛠️ Wartung') + B('fbm', '📦 Daten umziehen'))}
+  ${G('🎮', 'Mein Konto (Cheats)', CHEATS.filter(([k]) => k !== 'off').map(([k, n]) => B(k, n, 'gold')).join('') + B('p100', '🌈 ×100-Trank für mich', 'gold') + (isOwner(S.lbId) ? B('own', `👑 Besitzer-Abzeichen: ${S.owner ? 'AN' : 'AUS'}`, S.owner ? 'gold' : 'dark') : ''))}
+  <div style="margin-top:4px">${B('off', '🔒 Menü ausblenden', 'dark')}</div>`;
+}
 function doCheat(k) {
   if (ADM_ROLE === 'mod' && !['gift', 'stat', 'moff', 'bc', 'tix'].includes(k)) return toast('🛡️ Das darf nur der Besitzer.', 'bad');
   const add = v => { S.bal = r2(S.bal + v); S.st.maxBal = Math.max(S.st.maxBal, S.bal); };
@@ -5743,27 +5752,24 @@ async function openDiag() {
 }
 
 /* ================= 🎓 Tutorial: führt durchs echte Spiel (Spotlight auf die richtigen Knöpfe) ================= */
-const TUT_V = 1; // bei neuer Version des Tutorials hochzählen → alle sehen es nochmal
+const TUT_V = 2; // bei neuer Version des Tutorials hochzählen → alle sehen es nochmal
 const findCard = (page, txt) => () => [...document.querySelectorAll('#main .card')].find(c => c.textContent.includes(txt));
 const TUT = [
-  { t: '👋 Willkommen bei GGamble!', x: 'Ich zeig dir in 1 Minute, wo alles ist. Du kannst jederzeit überspringen.' },
-  { p: 'halle', sel: '#hBalPill', t: '💰 Dein Guthaben', x: 'Hier siehst du dein Geld und wie viel du heute gewonnen oder verloren hast. Antippen öffnet dein Konto (Dispo, Schulden).' },
-  { p: 'halle', sel: '#hLvl', t: '⭐ Level & Profil', x: 'Der Ring zeigt deinen Level-Fortschritt. Höheres Level = höhere Einsätze, neue Automaten und Lose. Antippen öffnet dein Profil & Einstellungen.' },
-  { p: 'halle', sel: '#car', t: '🎰 Die Automaten', x: 'Wisch nach links/rechts durch die Automaten. Jeder hat andere Gewinne – manche haben Freispiele oder einen Jackpot.' },
-  { p: 'halle', sel: '#sPlay', t: '▶️ Spielen', x: 'Mit „Spielen“ öffnest du den Automaten. Dort stellst du den Einsatz ein und drückst „Drehen“.' },
+  { t: '👋 Willkommen bei GGamble!', x: 'In einer Minute zeig ich dir das Wichtigste. Du kannst jederzeit überspringen – das Tutorial findest du später in den Einstellungen.' },
+  { p: 'halle', sel: '#hBalPill', t: '💰 Dein Guthaben', x: 'Dein Geld und wie viel du heute gewonnen oder verloren hast. Antippen öffnet dein Konto.' },
+  { p: 'halle', sel: '#hLvl', t: '⭐ Level & Profil', x: 'Der Ring zeigt deinen Fortschritt. Höheres Level = neue Automaten, Lose und höhere Einsätze. Im Profil: Freunde einladen 🔗, als App installieren 📱 und deine Tickets 🎟️.' },
+  { p: 'halle', sel: '#car', t: '🎰 Die Automaten', x: 'Wisch durch die Automaten. Über ℹ️ siehst du bei jedem die Gewinne und wie oft sie kommen – auch bei gesperrten.' },
+  { p: 'halle', sel: '#sPlay', t: '▶️ Spielen', x: 'Öffnet den Automaten: Einsatz einstellen, „Drehen“ drücken. Beim Spielen fallen manchmal 🃏 Sammelkarten!' },
+  { p: 'halle', sel: '#bGift', t: '🎁 Tagesbonus & Login-Serie', x: 'Jeden Tag gratis am Rad drehen. Komm 7 Tage am Stück für die 🎁 Mega-Truhe – ein verpasster Tag und die Serie fängt neu an.' },
   { p: 'lose', sel: '.ticket', t: '🎟️ Rubbellose', x: 'Kauf ein Los und rubbel es frei. Teurere Lose haben größere Hauptgewinne.' },
-  { p: 'spiele', sel: findCard('spiele', 'Heute'), t: '✅ Aufgaben', x: 'Erledige tägliche und wöchentliche Aufgaben für Geld und ⚡ Energie.' },
-  { p: 'spiele', sel: '#potCard', t: '🧪 Glückstränke', x: 'Im Glückslabor braust du Tränke (kostet ⚡ Energie). Ein Trank lässt jeden Dreh mehrmals würfeln – du bekommst das beste Ergebnis!' },
-  { p: 'spiele', sel: '[data-x="pass"]', t: '🎟️ Battle Pass', x: 'Jede Runde gibt Battle-Pass-Punkte. Stufen bringen Geld, Tränke und Energie – plus tägliche Missionen.' },
-  { p: 'spiele', sel: '[data-x="reactor"]', t: '⚡ Energie-Code', x: 'Alle 5 Minuten: Merk dir die Farbfolge und hol dir bis zu +3 Energie.' },
-  { p: 'spiele', sel: '[data-y="blackjack"]', t: '🃏 Casino-Tische', x: 'Blackjack, Roulette und Pferderennen – mit echten Casino-Regeln. Der Höchsteinsatz steigt mit deinem Level.' },
-  { p: 'spiele', sel: '[data-y="haendler"]', t: '🧔 Händler Hugo & 💎 Luxus-Shop', x: 'Bei Hugo kaufst du dauerhafte Upgrades (richtig teuer!). Im Luxus-Shop gibt es Rahmen, Titel und goldene Namen.' },
-  { p: 'spiele', sel: '.lhb', t: '🌟 Glücksstunde', x: 'Jeden Tag gibt es eine Stunde mit doppelten Gewinnen, doppeltem Minispiel-Geld und doppelten XP. Hier steht, wann.' },
-  { p: 'spiele', sel: '#imp', t: '🏪 Imperium', x: 'Kauf Geschäfte, die auch offline Geld verdienen. Bau sie aus und richte sie ein (Einrichtung, Personal, Werbung, Deko) für mehr Einnahmen.' },
-  { p: 'boerse', sel: '#bBuy', t: '📈 Börse', x: 'Glaubst du, der Kurs steigt? → Kaufen. Glaubst du, er fällt? → Short. Gewinn holst du mit ✕ bei deiner Position.' },
-  { p: 'rang', sel: '#rgT', t: '🏆 Bestenliste', x: 'Wer ist am reichsten? Wer hat heute, diese Woche oder diesen Monat am meisten gewonnen – und wer spielt am längsten? Die Top 3 der Woche bekommen jeden Montag Preise 🥇' },
-  { p: 'rang', sel: '#hChat', t: '💬 Chat & Freunde', x: 'Hier chattest du mit allen, fügst Freunde hinzu, schickst Geld (ab Level 5) und forderst sie zum Duell heraus.' },
-  { t: '🎉 Fertig!', x: 'Viel Glück! Als Startbonus bekommst du gleich ein kleines Geschenk. Das Tutorial findest du jederzeit wieder in den Einstellungen.', end: 1 },
+  { p: 'spiele', sel: findCard('spiele', 'Heute'), t: '✅ Aufgaben', x: 'Tägliche und wöchentliche Aufgaben bringen Geld und ⚡ Energie.' },
+  { p: 'spiele', sel: '#potCard', t: '🧪 Glückstränke', x: 'Im Glückslabor braust du mit ⚡ Energie Tränke. Ein Trank macht deine nächsten Drehs deutlich stärker.' },
+  { p: 'spiele', sel: '[data-z="pet"]', t: '🐾 Haustiere, 🃏 Karten & ⚔️ Clan-Krieg', x: 'Hol dir ein Haustier mit Bonus (füttern nicht vergessen!), sammle Karten-Sets und kämpf mit deinem Clan um den Wochensieg.' },
+  { p: 'spiele', sel: '#imp', t: '🏪 Imperium', x: 'Geschäfte verdienen auch, wenn du offline bist. Bau sie aus und richte sie ein für mehr Einnahmen.' },
+  { p: 'rang', sel: '#rgT', t: '🏆 Bestenliste', x: 'Wer ist am reichsten, wer gewinnt heute, diese Woche, diesen Monat? Die Top 3 der Woche bekommen jeden Montag Preise 🥇' },
+  { p: 'rang', sel: '#hChat', t: '💬 Chat & Freunde', x: 'Chatte mit allen, füg Freunde hinzu, schick Geld (ab Level 5) und fordere sie zum Duell heraus.' },
+  { p: 'halle', sel: '#tixB', t: '🐞 Fehler gefunden?', x: 'Tipp unten rechts auf den Käfer: Mit Screenshot geht dein Ticket direkt an uns. Du siehst sogar, wann es erledigt ist ✅' },
+  { t: '🎉 Fertig!', x: 'Viel Glück! Als Startbonus bekommst du gleich ein kleines Geschenk. 🍀', end: 1 },
 ];
 function tutAuto() { if (!S || (S.tutV || 0) >= TUT_V) return; const w = () => { if (!S || (S.tutV || 0) >= TUT_V) return; if (document.querySelector('.ov') || (typeof popBusy === 'function' && popBusy()) || document.querySelector('.full')) return setTimeout(w, 2500); tutStart(); }; setTimeout(w, 2500); }
 function tutStart() {
@@ -5785,7 +5791,7 @@ function tutStart() {
     document.querySelectorAll('.ov').forEach(o => o.close ? o.close() : o.remove());
     if (st.p && curPage !== st.p) { go(st.p); await new Promise(r => setTimeout(r, 450)); }
     let el = typeof st.sel === 'function' ? st.sel() : st.sel ? document.querySelector(st.sel) : null;
-    if (el && !el.offsetParent && el.id !== 'hChat') el = null;
+    if (el && !el.offsetParent && el.id !== 'hChat' && el.id !== 'tixB') el = null;
     if (el) { el.scrollIntoView({ block: 'center' }); await new Promise(r => setTimeout(r, 250)); }
     $('#tutN', box).textContent = `${i + 1} / ${TUT.length}`; $('#tutT', box).textContent = st.t; $('#tutX', box).textContent = st.x;
     $('#tutNext', box).textContent = st.end ? '🎉 Los geht’s!' : 'Weiter →'; $('#tutBack', box).style.visibility = i ? 'visible' : 'hidden';
@@ -6098,10 +6104,10 @@ const UPS = [
   ['fleiss', '💼', 'Fleiß', '+5 % Geld aus Minispielen, Tagesbonus, Aufgaben & Geschäften', 5, [25e3, 100e3, 400e3, 1.5e6, 6e6]],
   ['schlau', '📚', 'Köpfchen', '+10 % XP', 5, [20e3, 80e3, 300e3, 1.2e6, 5e6]],
   ['trank', '🧪', 'Trankmeister', 'Glückstränke ×2/×4/×6 wirken 1 Runde länger', 3, [50e3, 500e3, 5e6]],
-  ['glueck', '🍀', 'Glücksklee', '+1 % auf alle Automaten-Gewinne', 3, [150e3, 1.5e6, 15e6]],
+  ['glueck', '🍀', 'Glücksklee', '+0,5 % auf alle Automaten-Gewinne', 3, [150e3, 1.5e6, 15e6]],
 ];
 const upN = id => (S && S.up && S.up[id]) || 0;
-const upLuck = () => 1 + upN('glueck') / 100;
+const upLuck = () => 1 + upN('glueck') * .005; // ⚖️ max +1,5 % (Automaten haben 97 % → bleibt unter 100 %, kein Geld-Glitch)
 const upReq = n => 5 + n * 5; // Level-Voraussetzung pro Stufe
 const upTotal = s => Object.values((s && s.up) || {}).reduce((a, b) => a + b, 0);
 const HUGO = ['Na, Kleiner? Gute Ware hat ihren Preis …', 'Ich verkaufe nur an echte Profis. Komm wieder, wenn du reich bist.', 'Einmal gekauft – für immer deins. Hehehe.', 'Die letzte Stufe? Die hat noch keiner geschafft …', 'Psst … der Glücksklee ist mein bestes Stück.'];
@@ -7216,7 +7222,7 @@ function doRebirth() {
   if (!rebReady()) return;
   const keepShops = phxN('shops'), best = Object.entries(S.shops || {}).filter(([k, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, keepShops);
   const shops = {}, shopX = {}; best.forEach(([k, v]) => { shops[k] = v; if (S.shopX && S.shopX[k]) shopX[k] = S.shopX[k]; });
-  const keepKeys = ['name', 'disp', 'photo', 'color', 'lbId', 'owner', 'cheat', 'cheatV', 'set', 'titles', 'frames', 'tit', 'frm', 'clan', 'friends', 'dmRead', 'created', 'ep', 'ach', 'st', 'tutV', 'tutGift', 'updSeen', 'gifts', 'payGot', 'clGot', 'clInv', 'frSent', 'dmNoteTs', 'wk', 'dy', 'mo', 'pw', 'wpClaim', 'bp', 'cal', 'favs', 'phx', 'up', 'lhSeen', 'lhB', 'lhAdm', 'tasks', 'bonus', 'rbGone', 'bdgSeen', 'refBonus'];
+  const keepKeys = ['pet', 'cards', 'setsDone', 'tix', 'tixSt', 'pollV', 'pollSeen', 'betaKey', 'betaT', 'refSent', 'stkDay', 'petNag', 'name', 'disp', 'photo', 'color', 'lbId', 'owner', 'cheat', 'cheatV', 'set', 'titles', 'frames', 'tit', 'frm', 'clan', 'friends', 'dmRead', 'created', 'ep', 'ach', 'st', 'tutV', 'tutGift', 'updSeen', 'gifts', 'payGot', 'clGot', 'clInv', 'frSent', 'dmNoteTs', 'wk', 'dy', 'mo', 'pw', 'wpClaim', 'bp', 'cal', 'favs', 'phx', 'up', 'lhSeen', 'lhB', 'lhAdm', 'tasks', 'bonus', 'rbGone', 'bdgSeen', 'refBonus'];
   const keep = {}; keepKeys.forEach(k => { if (S[k] !== undefined) keep[k] = S[k]; });
   const start = START_BY[phxN('start')], reb = (S.reb || 0) + 1, oldBal = S.bal, oldLvl = S.level;
   keep.phx = keep.phx || { pts: 0, up: {} }; keep.phx.pts = (keep.phx.pts || 0) + REB_PTS;
@@ -8014,6 +8020,118 @@ function appInstall() {
     <div class="card tight list rl">${(ios ? [['1️⃣', 'Unten auf <b>Teilen</b> tippen (Quadrat mit Pfeil ⬆️)'], ['2️⃣', '<b>„Zum Home-Bildschirm“</b> auswählen'], ['3️⃣', 'Oben rechts <b>„Hinzufügen“</b> – fertig! 🎉']] : [['1️⃣', 'Oben rechts auf <b>⋮</b> (drei Punkte) tippen'], ['2️⃣', '<b>„App installieren“</b> oder <b>„Zum Startbildschirm hinzufügen“</b>'], ['3️⃣', 'Bestätigen – fertig! 🎉']]).map(([e, t]) => `<div class="it" style="gap:12px"><div style="font-size:22px">${e}</div><div style="flex:1;font-size:15px">${t}</div></div>`).join('')}</div>
     <p class="hint">Dann startet GGamble wie eine richtige App – ohne Browser-Leiste.</p>`);
 }
+
+/* ================= 🐾 Haustiere: kaufen, füttern, Boni (nur wenn satt) ================= */
+const PETS = [
+  { id: 'hund', e: '🐶', n: 'Bello', b: 'Minispiele & Aufgaben +10 %', lv: 3, p: 5000 },
+  { id: 'katze', e: '🐱', n: 'Mimi', b: 'XP +15 %', lv: 5, p: 15000 },
+  { id: 'fuchs', e: '🦊', n: 'Flinki', b: 'Tagesbonus +30 %', lv: 8, p: 40000 },
+  { id: 'drache', e: '🐉', n: 'Glut', b: 'Imperium +15 % · XP +10 %', lv: 15, p: 250000 },
+];
+const PET_HRS = 24; // in 24 Std. von satt auf leer
+const petOf = () => S && S.pet && PETS.find(p => p.id === S.pet.id);
+function petFood() { if (!S.pet) return 0; const h = (Date.now() - (S.pet.fed || 0)) / 36e5; return Math.max(0, Math.round(100 - h / PET_HRS * 100)); }
+const petOn = id => { const p = petOf(); return !!(p && p.id === id && petFood() >= 20); };
+const petFeedCost = () => { const p = petOf(); return p ? r2(Math.max(50, p.p * .02 * (1 + (S.pet.lv || 1) * .1))) : 0; };
+// ⚖️ Haustiere geben bewusst KEINEN Bonus auf Automaten/Tische (sonst über 100 % Auszahlung = Geld-Glitch)
+{ const AX = addXP; addXP = x => AX(Math.round(x * (1 + (petOn('katze') ? .15 : 0) + (petOn('drache') ? .1 : 0)))); }
+const PET_NOMINI = ['Tagesbonus', 'Imperium', 'Sammelkarten-Set', 'Serien-Truhe', 'Belohnung', 'Kalender', 'Tutorial', 'Geschenk'];
+{ const E0 = earn; earn = (a, why) => { let f = 1; if (a > 0) { if (why === 'Tagesbonus' && petOn('fuchs')) f += .3; if (why === 'Imperium' && petOn('drache')) f += .15; if (petOn('hund') && !PET_NOMINI.includes(why)) f += .1; } return E0(f > 1 ? r2(a * f) : a, why); }; }
+function openPets() {
+  const cur = petOf(), food = petFood();
+  const o = sheet(`<div class="row sb"><h2>🐾 Haustiere</h2><button class="x" data-close>${icon('x')}</button></div>
+    ${cur ? `<div class="card" style="text-align:center;background:linear-gradient(135deg,#1c1a10,#111114);border:1px solid #d8b85a44">
+      <div style="font-size:84px;line-height:1;${food < 20 ? 'filter:grayscale(.8);opacity:.6' : 'animation:petB 2.4s ease-in-out infinite'}">${cur.e}</div>
+      <h3 style="margin:6px 0 2px;font-size:24px">${esc(S.pet.name || cur.n)} <small style="color:var(--mut);font-size:14px">Lv. ${S.pet.lv || 1}</small></h3>
+      <div style="color:${food >= 20 ? '#7ad07a' : '#ff7a7a'};font-weight:700">${food >= 20 ? '✨ ' + cur.b : '😿 Hungrig – Bonus aus!'}</div>
+      <div style="height:10px;border-radius:6px;background:#26262c;margin:12px 0 4px;overflow:hidden"><div style="height:100%;width:${food}%;background:${food > 50 ? '#5ad07a' : food >= 20 ? '#f3d27a' : '#ff6b6b'};transition:width .6s"></div></div>
+      <small style="color:var(--mut)">🍖 Futter ${food} % · alle ${PET_HRS} Std. leer</small>
+      <button class="btn gold w" id="ptF" style="margin-top:12px" ${food >= 95 ? 'disabled' : ''}>🍖 Füttern · ${fmt(petFeedCost())}</button>
+      <p class="hint" style="margin:8px 0 0">Jedes Füttern bringt dein Haustier näher ans nächste Level (+10 % Futterkosten pro Level, mehr Ansehen 😎).</p></div>` : '<p class="hint" style="margin-top:0">Ein Haustier gibt dir einen Bonus – solange es satt ist. Einmal am Tag füttern reicht.</p>'}
+    <div class="sec" style="margin-top:16px">${cur ? 'Haustier tauschen' : 'Haustier aussuchen'}</div>
+    <div class="card tight list rl">${PETS.map(p => { const lk = S.level < p.lv, mine = cur && cur.id === p.id; return `<div class="it" style="gap:12px;${lk ? 'opacity:.55' : ''}"><div style="font-size:36px">${p.e}</div><div class="who" style="flex:1"><b>${p.n}</b><small>${p.b}${lk ? ` · ab Level ${p.lv}` : ''}</small></div>${mine ? '<span class="chip gold">Deins</span>' : `<button class="btn ${lk ? 'dark' : 'white'} xs" data-pet="${p.id}" ${lk ? 'disabled' : ''}>${fmt(p.p)}</button>`}</div>`; }).join('')}</div>
+    <style>@keyframes petB{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-6px) scale(1.04)}}</style>`);
+  const f = $('#ptF', o); if (f) f.onclick = () => { const c = petFeedCost(); if (!canPay(c)) return; S.bal = r2(S.bal - c); S.pet.fed = Date.now(); S.pet.xp = (S.pet.xp || 0) + 1; if (S.pet.xp >= (S.pet.lv || 1) * 3) { S.pet.xp = 0; S.pet.lv = (S.pet.lv || 1) + 1; toast(`⭐ ${esc(S.pet.name || cur.n)} ist jetzt Level ${S.pet.lv}!`, 'good'); } save(); hdr(true); SND.coin(); o.close(); openPets(); };
+  o.addEventListener('click', async e => { const b = e.target.closest('[data-pet]'); if (!b) return; const p = PETS.find(x => x.id === b.dataset.pet);
+    if (!await confirmBox(`${p.e} ${p.n} holen?`, `Kostet <b>${fmt(p.p)}</b>.${cur ? ` ${cur.e} ${esc(S.pet.name || cur.n)} zieht dann aus.` : ''}<br>Bonus: ${p.b}`, 'Holen')) return;
+    if (!canPay(p.p)) return; S.bal = r2(S.bal - p.p); S.pet = { id: p.id, name: p.n, fed: Date.now(), lv: 1, xp: 0 }; save(); hdr(true); SND.big(); FX.burst(120, { cols: ['#f5cf5a', '#fff'] }); toast(`${p.e} ${p.n} wohnt jetzt bei dir!`, 'good'); o.close(); openPets(); });
+}
+
+/* ================= 🃏 Sammelkarten: fallen beim Spielen, volles Set = Belohnung ================= */
+const CSETS = [
+  { id: 'frucht', n: '🍒 Früchte', rw: 5000, c: [['🍒', 'Kirsche', 1], ['🍋', 'Zitrone', 1], ['🍊', 'Orange', 1], ['🍇', 'Traube', 2], ['🍉', 'Melone', 2], ['🍓', 'Erdbeere', 3]] },
+  { id: 'casino', n: '🎰 Casino', rw: 25000, c: [['🎲', 'Würfel', 1], ['🃏', 'Joker', 2], ['🎰', 'Automat', 2], ['💰', 'Geldsack', 2], ['🎩', 'Zylinder', 3], ['👑', 'Krone', 4]] },
+  { id: 'juwel', n: '💎 Juwelen', rw: 100000, c: [['💍', 'Ring', 2], ['📿', 'Kette', 2], ['💎', 'Diamant', 3], ['🔮', 'Kristallkugel', 3], ['🏆', 'Pokal', 4], ['🌈', 'Regenbogen', 5]] },
+];
+const RAR = { 1: ['Normal', '#a8a8b0'], 2: ['Selten', '#5ab0ff'], 3: ['Episch', '#b07aff'], 4: ['Legendär', '#f3d27a'], 5: ['Mythisch', '#ff7ad0'] };
+const CARD_CH = 1 / 90; // pro Runde
+function cardDrop() {
+  const all = CSETS.flatMap(s => s.c.map((c, i) => ({ s: s.id, i, w: 1 / Math.pow(2.2, c[2] - 1) }))), tot = all.reduce((a, x) => a + x.w, 0);
+  let r = Math.random() * tot; const pick = all.find(x => (r -= x.w) <= 0) || all[0];
+  S.cards = S.cards || {}; const k = pick.s + ':' + pick.i, neu = !S.cards[k]; S.cards[k] = (S.cards[k] || 0) + 1; save();
+  const set = CSETS.find(s => s.id === pick.s), c = set.c[pick.i];
+  whenFree(() => { try { SND.coin(); } catch (e) { } toast(`🃏 ${neu ? 'Neue Karte' : 'Karte'}: ${c[0]} <b>${c[1]}</b> <span style="color:${RAR[c[2]][1]}">(${RAR[c[2]][0]})</span>`, 'good', 3500, () => openCards()); });
+  setDone();
+}
+function setDone() { S.setsDone = S.setsDone || {}; for (const s of CSETS) if (!S.setsDone[s.id] && s.c.every((_, i) => (S.cards || {})[s.id + ':' + i])) { S.setsDone[s.id] = 1; earn(s.rw, 'Sammelkarten-Set'); S.pot = S.pot || {}; S.pot[4] = (S.pot[4] || 0) + 1; save(); whenFree(() => { SND.big(); FX.burst(200, { coins: true }); sheet(`<div style="text-align:center"><div style="font-size:72px">🃏</div><h2 style="font-size:28px;margin:6px 0">Set komplett: ${s.n}!</h2><p style="font-size:18px">Belohnung: <b style="color:#f3d27a">+${fmt(s.rw)}</b> und ein <b>🧪 Glückstrank ×4</b></p><button class="btn white w" data-close>Nice!</button></div>`); }); } }
+let CR_R = null; setInterval(() => { if (!S || !S.st) return; const r = S.st.rounds || 0; if (CR_R === null) { CR_R = r; return; } const d = Math.min(20, r - CR_R); CR_R = r; for (let i = 0; i < d; i++) if (Math.random() < CARD_CH) { cardDrop(); break; } }, 1500);
+function openCards() {
+  const C = S.cards || {}, have = CSETS.reduce((a, s) => a + s.c.filter((_, i) => C[s.id + ':' + i]).length, 0), all = CSETS.reduce((a, s) => a + s.c.length, 0);
+  sheet(`<div class="row sb"><h2>🃏 Sammelkarten</h2><button class="x" data-close>${icon('x')}</button></div>
+    <p class="hint" style="margin-top:0">Beim Spielen fallen manchmal Karten (ca. jede 90. Runde). Volles Set = große Belohnung! · <b>${have} / ${all}</b></p>
+    ${CSETS.map(s => { const done = (S.setsDone || {})[s.id]; return `<div class="sec" style="display:flex;justify-content:space-between"><span>${s.n}</span><small style="color:${done ? '#7ad07a' : 'var(--mut)'}">${done ? '✅ geschafft' : '🎁 ' + fmt(s.rw) + ' + Trank ×4'}</small></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${s.c.map((c, i) => { const n = C[s.id + ':' + i] || 0, r = RAR[c[2]]; return `<div style="aspect-ratio:3/4;border-radius:14px;border:2px solid ${n ? r[1] : '#26262c'};background:${n ? `radial-gradient(circle at 50% 30%, ${r[1]}33, #111114 70%)` : '#0d0d10'};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;position:relative">
+        <div style="font-size:38px;${n ? '' : 'filter:brightness(0);opacity:.35'}">${c[0]}</div><b style="font-size:12px">${n ? c[1] : '???'}</b><small style="font-size:10px;color:${r[1]}">${r[0]}</small>${n > 1 ? `<span style="position:absolute;top:6px;right:8px;font-size:11px;font-weight:800;color:#fff;background:#0008;border-radius:8px;padding:1px 6px">×${n}</span>` : ''}</div>`; }).join('')}</div>`; }).join('')}`);
+}
+
+/* ================= ⚔️ Clan-Krieg: welcher Clan gewinnt diese Woche am meisten? ================= */
+async function clanWar() {
+  const all = await fsQuery({ from: [{ collectionId: 'rang' }], where: { fieldFilter: { field: { fieldPath: 'clan' }, op: 'GREATER_THAN', value: fstr('') } }, limit: 500 });
+  const wk = weekKey(), g = {};
+  all.forEach(r => { const t = r.clan; if (!t || (typeof clDel === 'function' && clDel(t))) return; const v = r.wkk === wk ? Math.max(0, +r.wk || 0) : 0; (g[t] = g[t] || { tag: t, sum: 0, n: 0, mem: [] }); g[t].sum += v; g[t].n++; g[t].mem.push(r.name); });
+  return Object.values(g).sort((a, b) => b.sum - a.sum);
+}
+function wkLeft() { const n = new Date(), e = new Date(n); e.setDate(n.getDate() + ((8 - n.getDay()) % 7 || 7)); e.setHours(0, 0, 0, 0); const l = e - n, h = Math.floor(l / 36e5); return h >= 24 ? `${Math.floor(h / 24)} T. ${h % 24} Std.` : `${h} Std.`; }
+async function openClanWar() {
+  const o = sheet(`<div class="row sb"><h2>⚔️ Clan-Krieg</h2><button class="x" data-close>${icon('x')}</button></div>
+    <p class="hint" style="margin-top:0">Jede Woche kämpfen alle Clans: Was alle Mitglieder diese Woche <b>gewinnen</b>, zählt für den Clan. Endet in <b>${wkLeft()}</b>. 🏆 Der Sieger-Clan bekommt Preise!</p>
+    <div id="cwL"><div class="empty">Lade …</div></div>`);
+  let L = []; try { L = await clanWar(); } catch (e) { }
+  const my = S.clan;
+  $('#cwL', o).innerHTML = L.length ? `<div class="card tight list rl">${L.slice(0, 20).map((c, i) => `<div class="it" style="gap:12px;${c.tag === my ? 'background:#1a160a' : ''}"><div style="width:30px;text-align:center;font-size:${i < 3 ? 22 : 15}px;font-weight:800">${['🥇', '🥈', '🥉'][i] || i + 1}</div><div class="who" style="flex:1"><b>${typeof tagHTML === 'function' ? tagHTML(c.tag) : esc(c.tag)}${c.tag === my ? ' <small style="color:#f3d27a">(dein Clan)</small>' : ''}</b><small>${c.n} Mitglied${c.n === 1 ? '' : 'er'}</small></div><b class="num pos">${fmt(c.sum)}</b></div>`).join('')}</div>
+    ${isAdm() && L[0] ? `<button class="btn gold w" id="cwRw" style="margin-top:12px">👑 Preis an alle ${L[0].n} Mitglieder von ${esc(L[0].tag)}</button>` : ''}` : '<div class="empty">Noch keine Clans im Krieg – gründe einen! ⚔️</div>';
+  const rw = $('#cwRw', o); if (rw) rw.onclick = async () => { const c = L[0], a = 10000; if (!await confirmBox(`${fmt(a)} an jedes Mitglied von ${esc(c.tag)}?`, c.mem.map(m => '@' + esc(m)).join(', '), 'Schicken')) return; rw.disabled = true; let n = 0; for (const m of c.mem) { try { await giftSend(m, a, `⚔️ Clan-Krieg gewonnen mit ${c.tag}!`); n++; } catch (e) { } } toast(`👑 ${n} Mitglieder belohnt`, 'good'); };
+}
+
+/* Spiele-Seite: neuer Bereich */
+{ const Sp = PAGES.spiele; PAGES.spiele = el => { Sp(el); const xg = $$('.xg', el).pop(); if (!xg) return;
+  const pet = petOf(), C = S.cards || {}, have = CSETS.reduce((a, s) => a + s.c.filter((_, i) => C[s.id + ':' + i]).length, 0);
+  xg.insertAdjacentHTML('afterend', `<div class="sec">Sammeln &amp; Clans <small>neu</small></div><div class="xg" style="margin-top:0">
+    <button class="card gm xcard" data-z="pet" style="position:relative"><span class="neu">NEU</span><div class="ibox" style="font-size:38px">${pet ? pet.e : '🐾'}</div><h4>Haustier</h4><p>${pet ? `${esc(S.pet.name || pet.n)} · 🍖 ${petFood()} %` : 'Ein treuer Begleiter mit Bonus'}</p></button>
+    <button class="card gm xcard" data-z="cards" style="position:relative"><span class="neu">NEU</span><div class="ibox" style="font-size:38px">🃏</div><h4>Sammelkarten</h4><p>${have} / ${CSETS.reduce((a, s) => a + s.c.length, 0)} gesammelt</p></button>
+    <button class="card gm xcard" data-z="war" style="position:relative"><span class="neu">NEU</span><div class="ibox" style="font-size:38px">⚔️</div><h4>Clan-Krieg</h4><p>Welcher Clan gewinnt diese Woche?</p></button></div>`);
+  $$('[data-z]', el).forEach(b => b.onclick = () => { SND.click(); ({ pet: openPets, cards: openCards, war: openClanWar })[b.dataset.z](); }); }; }
+/* Haustier hat Hunger → kurze Erinnerung (1× pro Tag) */
+setInterval(() => { const p = petOf(); if (!p || document.hidden) return; const f = petFood(); if (f < 25 && S.petNag !== dayKey()) { S.petNag = dayKey(); save(); whenFree(() => toast(`${p.e} ${esc(S.pet.name || p.n)} hat Hunger! 🍖`, 'bad', 5000, () => openPets())); } }, 60000);
+
+/* ================= ✨ Sauberere Animationen: weiches Hochgleiten, Inhalt baut sich nacheinander auf ================= */
+(() => { const st = document.createElement('style'); st.dataset.dyn = '1'; st.textContent = `
+@keyframes sheetIn2{from{transform:translateY(28px);opacity:0}to{transform:none;opacity:1}}
+@keyframes sheetOut2{to{transform:translateY(22px);opacity:0}}
+@keyframes itemIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pageIn2{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.sheet{animation:sheetIn2 .42s var(--ease) both!important;will-change:transform,opacity}
+.ov.closing .sheet{animation:sheetOut2 .22s ease-in forwards!important}
+.ov{animation:fadeIn .25s ease both!important}
+.sheet>*{animation:itemIn .45s var(--ease) both}
+.sheet>*:nth-child(1){animation-delay:.03s}.sheet>*:nth-child(2){animation-delay:.07s}.sheet>*:nth-child(3){animation-delay:.11s}.sheet>*:nth-child(4){animation-delay:.15s}.sheet>*:nth-child(5){animation-delay:.19s}.sheet>*:nth-child(6){animation-delay:.23s}.sheet>*:nth-child(n+7){animation-delay:.26s}
+#main .page{animation:pageIn2 .35s var(--ease) both}
+#main .page:not([style*="none"])>*{animation:itemIn .5s var(--ease) both}
+#main .page:not([style*="none"])>*:nth-child(2){animation-delay:.04s}#main .page:not([style*="none"])>*:nth-child(3){animation-delay:.08s}#main .page:not([style*="none"])>*:nth-child(4){animation-delay:.12s}#main .page:not([style*="none"])>*:nth-child(5){animation-delay:.16s}#main .page:not([style*="none"])>*:nth-child(n+6){animation-delay:.2s}
+.btn,.card.gm,.it{transition:transform .18s var(--ease),background-color .2s,border-color .2s,opacity .2s}
+.btn:active,.card.gm:active{transform:scale(.97)}
+@media (prefers-reduced-motion:reduce){.sheet,.sheet>*,.page,.page>*{animation:none!important}}
+`; document.head.appendChild(st); })();
 </script>
 </body>
 </html>
